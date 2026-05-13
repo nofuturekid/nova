@@ -71,8 +71,10 @@ jobs:
       - name: Detect pre-release
         id: prerelease
         run: |
+          # Pre-release convention: -beta1, -beta2, -rc1, -rc2, -alpha1, ...
+          # Number is required so plain `-beta` is rejected, which catches typos.
           TAG=${GITHUB_REF#refs/tags/}
-          if echo "$TAG" | grep -qE -- '-(alpha|beta|rc|pre)'; then
+          if echo "$TAG" | grep -qE -- '-(alpha|beta|rc|pre)[0-9]+$'; then
             echo "value=true" >> "$GITHUB_OUTPUT"
           else
             echo "value=false" >> "$GITHUB_OUTPUT"

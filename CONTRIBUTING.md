@@ -37,12 +37,14 @@ If you tag too early (before CI is green), the release workflow fails with a cle
 
 ### Pre-releases (beta / rc)
 
-Tags with `-alpha`, `-beta`, `-rc`, or `-pre` in their name get the GitHub "Pre-release" flag automatically. They don't appear as "Latest release" on the repo page.
+Tags following the convention `vX.Y.Z-beta1`, `-beta2`, …, `-rc1`, `-rc2`, … (also `-alpha1`, `-pre1`) get the GitHub "Pre-release" flag automatically. They don't appear as "Latest release" on the repo page.
 
 ```bash
-git tag -a v0.2.0-beta.1 -m "v0.2.0 beta 1"
-git push origin v0.2.0-beta.1
+git tag -a v0.2.0-beta1 -m "v0.2.0 beta 1"
+git push origin v0.2.0-beta1
 ```
+
+The trailing number is required — `v0.2.0-beta` without a digit is rejected (catches typos).
 
 This is the test channel — sideload these for early validation without pushing them on every user.
 
