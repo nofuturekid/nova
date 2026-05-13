@@ -26,4 +26,8 @@ query GetServerSnapshot {
     vms {
         domains { id name state }
     }
+    metrics {
+        cpu { percentTotal }
+        memory { total used }
+    }
 }

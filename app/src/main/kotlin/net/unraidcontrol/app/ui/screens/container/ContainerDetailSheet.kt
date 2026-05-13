@@ -52,6 +52,7 @@ private enum class DetailTab { Info, Logs, Ports, Volumes }
 @Composable
 fun ContainerDetailSheet(
     container: Container,
+    serverBaseUrl: String,
     onDismiss: () -> Unit,
     onStart: (Container) -> Unit,
     onRestart: (Container) -> Unit,
@@ -90,7 +91,13 @@ fun ContainerDetailSheet(
             }
 
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(14.dp)) {
-                ContainerIcon(name = container.name, color = parseColor(container.iconColorHex) ?: t.accent, size = 56.dp)
+                ContainerIcon(
+                    name = container.name,
+                    color = parseColor(container.iconColorHex) ?: t.accent,
+                    size = 56.dp,
+                    iconUrl = container.iconUrl,
+                    serverBaseUrl = serverBaseUrl,
+                )
                 Column(modifier = Modifier.weight(1f)) {
                     Text(container.name, color = t.text, fontSize = 20.sp, fontWeight = FontWeight.SemiBold)
                     Spacer(Modifier.height(2.dp))

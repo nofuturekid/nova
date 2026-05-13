@@ -55,6 +55,7 @@ data class Container(
     val status: ContainerStatus,
     val autoStart: Boolean,
     val iconColorHex: String?,
+    val iconUrl: String?,
     val cpu: Double,
     val memMb: Int,
     val ports: List<String>,
@@ -106,4 +107,7 @@ data class ServerSnapshot(
     val array: ArrayInfo,
     val containers: List<Container>,
     val vms: List<Vm>,
+    /** Base URL of the server the snapshot came from, used by the UI to
+     *  resolve relative container icon paths. Empty when unknown. */
+    val serverBaseUrl: String = "",
 )

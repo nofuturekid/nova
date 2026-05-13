@@ -186,8 +186,11 @@ fun MainScreen(
     }
 
     if (openContainer != null) {
+        val baseUrl = (ui.snapshot as? net.unraidcontrol.app.data.repository.SnapshotState.Content)
+            ?.snapshot?.serverBaseUrl.orEmpty()
         ContainerDetailSheet(
             container = openContainer!!,
+            serverBaseUrl = baseUrl,
             onDismiss = { openContainer = null },
             onStart   = { vm.startContainer(it.id); openContainer = null },
             onRestart = { vm.restartContainer(it.id) },

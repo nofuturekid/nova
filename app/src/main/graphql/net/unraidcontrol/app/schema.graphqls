@@ -28,6 +28,23 @@ type Query {
     array: UnraidArray
     docker: Docker
     vms: Vms
+    metrics: Metrics
+}
+
+type Metrics {
+    cpu: CpuUtilization
+    memory: MemoryUtilization
+}
+
+type CpuUtilization {
+    percentTotal: Float!
+}
+
+type MemoryUtilization {
+    total: BigInt!
+    used: BigInt!
+    free: BigInt!
+    available: BigInt!
 }
 
 type Mutation {

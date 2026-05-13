@@ -72,6 +72,7 @@ fun DockerTab(
         is SnapshotState.Error -> ErrorState(snapshot.message)
         is SnapshotState.Content -> DockerContent(
             containers = snapshot.snapshot.containers,
+            serverBaseUrl = snapshot.snapshot.serverBaseUrl,
             view = view,
             onOpenContainer = onOpenContainer,
             onStart = onStart,
@@ -84,6 +85,7 @@ fun DockerTab(
 @Composable
 private fun DockerContent(
     containers: List<Container>,
+    serverBaseUrl: String,
     view: DockerView,
     onOpenContainer: (Container) -> Unit,
     onStart: (Container) -> Unit,
@@ -106,7 +108,7 @@ private fun DockerContent(
         ) {
             item { SearchBox(query, { query = it }) }
             items(filtered, key = { it.id }) { c ->
-                ContainerRow(c, onOpenContainer, onStart, onRestart, onStop)
+                ContainerRow(c, serverBaseUrl, onOpenContainer, onStart, onRestart, onStop)
             }
         }
         DockerView.Grid -> LazyVerticalGrid(
@@ -120,7 +122,7 @@ private fun DockerContent(
         ) {
             item(span = { GridItemSpan(maxLineSpan) }) { SearchBox(query, { query = it }) }
             gridItems(filtered, key = { it.id }) { c ->
-                ContainerGridTile(c, onOpenContainer)
+                ContainerGridTile(c, serverBaseUrl, onOpenContainer)
             }
         }
         DockerView.Grouped -> {
@@ -138,19 +140,19 @@ private fun DockerContent(
                 if (running.isNotEmpty()) {
                     item { SectionLabel("Running · ${running.size}") }
                     items(running, key = { "r-${it.id}" }) { c ->
-                        ContainerRow(c, onOpenContainer, onStart, onRestart, onStop)
+                        ContainerRow(c, serverBaseUrl, onOpenContainer, onStart, onRestart, onStop)
                     }
                 }
                 if (paused.isNotEmpty()) {
                     item { SectionLabel("Paused · ${paused.size}") }
                     items(paused, key = { "p-${it.id}" }) { c ->
-                        ContainerRow(c, onOpenContainer, onStart, onRestart, onStop)
+                        ContainerRow(c, serverBaseUrl, onOpenContainer, onStart, onRestart, onStop)
                     }
                 }
                 if (exited.isNotEmpty()) {
                     item { SectionLabel("Stopped · ${exited.size}") }
                     items(exited, key = { "x-${it.id}" }) { c ->
-                        ContainerRow(c, onOpenContainer, onStart, onRestart, onStop)
+                        ContainerRow(c, serverBaseUrl, onOpenContainer, onStart, onRestart, onStop)
                     }
                 }
             }
@@ -194,6 +196,7 @@ private fun SearchBox(value: String, onChange: (String) -> Unit) {
 @Composable
 private fun ContainerRow(
     c: Container,
+    serverBaseUrl: String,
     onOpen: (Container) -> Unit,
     onStart: (Container) -> Unit,
     onRestart: (Container) -> Unit,
@@ -212,7 +215,13 @@ private fun ContainerRow(
     }
     UnraidCard(padding = 12.dp, onClick = { onOpen(c) }) {
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-            ContainerIcon(name = c.name, color = parseColor(c.iconColorHex) ?: t.accent, size = 40.dp)
+            ContainerIcon(
+                name = c.name,
+                color = parseColor(c.iconColorHex) ?: t.accent,
+                size = 40.dp,
+                iconUrl = c.iconUrl,
+                serverBaseUrl = serverBaseUrl,
+            )
             Column(modifier = Modifier.weight(1f)) {
                 Text(
                     text = c.name,
@@ -254,7 +263,7 @@ private fun ContainerRow(
 }
 
 @Composable
-private fun ContainerGridTile(c: Container, onOpen: (Container) -> Unit) {
+private fun ContainerGridTile(c: Container, serverBaseUrl: String, onOpen: (Container) -> Unit) {
     val t = UnraidTheme.colors
     val dim = c.status != ContainerStatus.Running
     val statusColor = when (c.status) {
@@ -271,7 +280,13 @@ private fun ContainerGridTile(c: Container, onOpen: (Container) -> Unit) {
         ) {
             Box(modifier = Modifier.fillMaxWidth()) {
                 Box(modifier = Modifier.align(Alignment.Center)) {
-                    ContainerIcon(name = c.name, color = parseColor(c.iconColorHex) ?: t.accent, size = 44.dp)
+                    ContainerIcon(
+                        name = c.name,
+                        color = parseColor(c.iconColorHex) ?: t.accent,
+                        size = 44.dp,
+                        iconUrl = c.iconUrl,
+                        serverBaseUrl = serverBaseUrl,
+                    )
                 }
                 Box(
                     modifier = Modifier

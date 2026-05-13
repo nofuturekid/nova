@@ -29,14 +29,17 @@ import net.unraidcontrol.app.graphql.type.VmState as GVmState
  * are not. If a future Unraid version renames fields, only schema.graphqls,
  * the .graphql operations, and this file need updating.
  */
-fun GetServerSnapshotQuery.Data.toSnapshot(): ServerSnapshot {
+fun GetServerSnapshotQuery.Data.toSnapshot(serverBaseUrl: String = ""): ServerSnapshot {
     val infoBlock = info
     val arrBlock = array
     val dockerBlock = docker
     val vmsBlock = vms
+    val metricsBlock = metrics
 
     // ── System info ────────────────────────────────────────────────
-    val totalMemBytes = infoBlock.memory.layout.sumOf { it.size }
+    val totalMemBytes = metricsBlock?.memory?.total
+        ?: infoBlock.memory.layout.sumOf { it.size }
+    val usedMemBytes = metricsBlock?.memory?.used ?: 0L
     val sys = SystemInfo(
         hostname = infoBlock.os.hostname.orEmpty(),
         uptime = infoBlock.os.uptime.orEmpty(),
@@ -45,15 +48,14 @@ fun GetServerSnapshotQuery.Data.toSnapshot(): ServerSnapshot {
             cores = infoBlock.cpu.cores ?: 0,
             threads = infoBlock.cpu.threads ?: 0,
             maxGhz = infoBlock.cpu.speedmax ?: 0.0,
-            // Live CPU% lives under the `metrics` root query; not fetched
-            // by GetServerSnapshot — surfaces as zero for now.
-            percent = 0.0,
+            percent = metricsBlock?.cpu?.percentTotal ?: 0.0,
         ),
         memory = MemoryStats(
             totalGb = totalMemBytes.bytesToGb(),
-            usedGb = 0.0,    // requires metrics query
-            buffersGb = 0.0, // requires metrics query
+            usedGb = usedMemBytes.bytesToGb(),
+            buffersGb = 0.0, // Unraid GraphQL doesn't expose buff/cache directly
         ),
+        // Network throughput isn't part of the Unraid GraphQL schema; leave 0.
         network = NetworkStats(rxMbps = 0.0, txMbps = 0.0),
         unraidVersion = infoBlock.versions.core.unraid.orEmpty(),
         kernel = infoBlock.versions.core.kernel ?: infoBlock.os.kernel.orEmpty(),
@@ -103,6 +105,7 @@ fun GetServerSnapshotQuery.Data.toSnapshot(): ServerSnapshot {
             status = c.state.toDomain(),
             autoStart = c.autoStart,
             iconColorHex = null,
+            iconUrl = c.iconUrl,
             cpu = 0.0,
             memMb = 0,
             ports = c.ports.map { p ->
@@ -126,7 +129,10 @@ fun GetServerSnapshotQuery.Data.toSnapshot(): ServerSnapshot {
         )
     }
 
-    return ServerSnapshot(info = sys, array = arr, containers = containers, vms = vmList)
+    return ServerSnapshot(
+        info = sys, array = arr, containers = containers, vms = vmList,
+        serverBaseUrl = serverBaseUrl,
+    )
 }
 
 // Common disk mapper — Apollo generates three distinct types for

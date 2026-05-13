@@ -54,10 +54,11 @@ class UnraidRepository @Inject constructor(
                         emit(SnapshotState.Error("Missing API key for ${active.server.name}"))
                         return@flow
                     }
-                    val client = buildClient(active)
+                    val url = activeUrl(active)
+                    val client = apolloFactory.build(url, active.apiKey)
                     emit(SnapshotState.Loading)
                     while (true) {
-                        emit(fetch(client))
+                        emit(fetch(client, url))
                         delay(pollMs)
                     }
                 }
@@ -66,23 +67,24 @@ class UnraidRepository @Inject constructor(
     suspend fun snapshotOnce(): SnapshotState {
         val active = servers.activeWithKey.first() ?: return SnapshotState.NoServer
         if (active.apiKey.isBlank()) return SnapshotState.Error("Missing API key")
-        return fetch(buildClient(active))
+        val url = activeUrl(active)
+        return fetch(apolloFactory.build(url, active.apiKey), url)
     }
 
-    private fun buildClient(active: ActiveServer): ApolloClient {
-        val url = when (active.mode) {
-            ConnectionMode.Local  -> active.server.localUrl
-            ConnectionMode.Remote -> active.server.remoteUrl.ifBlank { active.server.localUrl }
-        }
-        return apolloFactory.build(url, active.apiKey)
+    private fun activeUrl(active: ActiveServer): String = when (active.mode) {
+        ConnectionMode.Local  -> active.server.localUrl
+        ConnectionMode.Remote -> active.server.remoteUrl.ifBlank { active.server.localUrl }
     }
 
-    private suspend fun fetch(client: ApolloClient): SnapshotState = try {
+    private fun buildClient(active: ActiveServer): ApolloClient =
+        apolloFactory.build(activeUrl(active), active.apiKey)
+
+    private suspend fun fetch(client: ApolloClient, baseUrl: String): SnapshotState = try {
         val resp = client.query(GetServerSnapshotQuery()).execute()
         if (resp.hasErrors()) {
             SnapshotState.Error(resp.errors?.joinToString { it.message } ?: "Unknown GraphQL error")
         } else {
-            SnapshotState.Content(resp.data!!.toSnapshot())
+            SnapshotState.Content(resp.data!!.toSnapshot(serverBaseUrl = baseUrl))
         }
     } catch (e: ApolloException) {
         SnapshotState.Error(e.message ?: "Network error")
