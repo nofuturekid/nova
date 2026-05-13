@@ -49,10 +49,11 @@ import net.unraidcontrol.app.ui.theme.UnraidTheme
 fun OverviewTab(
     snapshot: SnapshotState,
     server: Server?,
+    onAddServer: () -> Unit,
 ) {
     when (snapshot) {
         SnapshotState.Loading -> LoadingState()
-        SnapshotState.NoServer -> NoServerState(onAdd = {})
+        SnapshotState.NoServer -> NoServerState(onAdd = onAddServer)
         is SnapshotState.Error -> ErrorState(snapshot.message)
         is SnapshotState.Content -> OverviewContent(snapshot.snapshot, server)
     }

@@ -8,8 +8,11 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.systemBars
+import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -74,7 +77,12 @@ fun SettingsScreen(
     val t = UnraidTheme.colors
     val ui by vm.state.collectAsState()
 
-    Column(modifier = Modifier.fillMaxSize().background(t.bg)) {
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(t.bg)
+            .windowInsetsPadding(WindowInsets.systemBars),
+    ) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()

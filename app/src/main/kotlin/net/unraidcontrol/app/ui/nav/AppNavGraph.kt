@@ -31,6 +31,7 @@ fun AppNavGraph() {
                 onOpenServerList = { navController.navigate(Routes.ServerList) },
                 onEditActiveServer = { sheetServer = SheetTarget.Edit(it) },
                 onOpenSettings = { navController.navigate(Routes.Settings) },
+                onAddServer = { sheetServer = SheetTarget.New },
             )
         }
         composable(Routes.ServerList) {

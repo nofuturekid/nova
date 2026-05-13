@@ -60,6 +60,7 @@ import net.unraidcontrol.app.ui.theme.UnraidTheme
 fun DockerTab(
     snapshot: SnapshotState,
     view: DockerView,
+    onAddServer: () -> Unit,
     onOpenContainer: (Container) -> Unit,
     onStart: (Container) -> Unit,
     onRestart: (Container) -> Unit,
@@ -67,7 +68,7 @@ fun DockerTab(
 ) {
     when (snapshot) {
         SnapshotState.Loading -> LoadingState()
-        SnapshotState.NoServer -> NoServerState(onAdd = {})
+        SnapshotState.NoServer -> NoServerState(onAdd = onAddServer)
         is SnapshotState.Error -> ErrorState(snapshot.message)
         is SnapshotState.Content -> DockerContent(
             containers = snapshot.snapshot.containers,

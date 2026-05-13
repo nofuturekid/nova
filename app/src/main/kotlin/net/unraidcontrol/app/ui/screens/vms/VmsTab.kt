@@ -43,6 +43,7 @@ import net.unraidcontrol.app.ui.theme.UnraidTheme
 @Composable
 fun VmsTab(
     snapshot: SnapshotState,
+    onAddServer: () -> Unit,
     onStart: (Vm) -> Unit,
     onResume: (Vm) -> Unit,
     onPause: (Vm) -> Unit,
@@ -50,7 +51,7 @@ fun VmsTab(
 ) {
     when (snapshot) {
         SnapshotState.Loading -> LoadingState()
-        SnapshotState.NoServer -> NoServerState(onAdd = {})
+        SnapshotState.NoServer -> NoServerState(onAdd = onAddServer)
         is SnapshotState.Error -> ErrorState(snapshot.message)
         is SnapshotState.Content -> {
             val vms = snapshot.snapshot.vms

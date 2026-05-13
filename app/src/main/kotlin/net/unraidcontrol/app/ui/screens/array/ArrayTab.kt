@@ -47,12 +47,13 @@ import net.unraidcontrol.app.ui.theme.UnraidTheme
 @Composable
 fun ArrayTab(
     snapshot: SnapshotState,
+    onAddServer: () -> Unit,
     onStartArray: () -> Unit,
     onStopArray: () -> Unit,
 ) {
     when (snapshot) {
         SnapshotState.Loading -> LoadingState()
-        SnapshotState.NoServer -> NoServerState(onAdd = {})
+        SnapshotState.NoServer -> NoServerState(onAdd = onAddServer)
         is SnapshotState.Error -> ErrorState(snapshot.message)
         is SnapshotState.Content -> ArrayContent(snapshot, onStartArray, onStopArray)
     }

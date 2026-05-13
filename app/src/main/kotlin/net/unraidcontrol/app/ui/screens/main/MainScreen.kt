@@ -9,11 +9,14 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.systemBars
+import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -71,6 +74,7 @@ fun MainScreen(
     onOpenServerList: () -> Unit,
     onEditActiveServer: (Server) -> Unit,
     onOpenSettings: () -> Unit,
+    onAddServer: () -> Unit,
     vm: MainViewModel = hiltViewModel(),
 ) {
     val t = UnraidTheme.colors
@@ -83,7 +87,12 @@ fun MainScreen(
     val pullState = rememberPullToRefreshState()
     var refreshing by remember { mutableStateOf(false) }
 
-    Column(modifier = Modifier.fillMaxSize().background(t.bg)) {
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(t.bg)
+            .windowInsetsPadding(WindowInsets.systemBars),
+    ) {
         TopBar(
             server = ui.activeServer,
             connection = ui.connectionMode,
@@ -109,9 +118,10 @@ fun MainScreen(
         ) {
             AnimatedContent(targetState = tab, label = "tab") { current ->
                 when (current) {
-                    MainTab.Overview -> OverviewTab(ui.snapshot, ui.activeServer)
+                    MainTab.Overview -> OverviewTab(ui.snapshot, ui.activeServer, onAddServer)
                     MainTab.Array    -> ArrayTab(
                         snapshot = ui.snapshot,
+                        onAddServer = onAddServer,
                         onStartArray = {
                             confirm = ConfirmRequest(
                                 title = "Start the array?",
@@ -136,6 +146,7 @@ fun MainScreen(
                     MainTab.Docker   -> DockerTab(
                         snapshot = ui.snapshot,
                         view = ui.dockerView,
+                        onAddServer = onAddServer,
                         onOpenContainer = { openContainer = it },
                         onStart = { c -> vm.startContainer(c.id) },
                         onRestart = { c -> vm.restartContainer(c.id) },
@@ -152,6 +163,7 @@ fun MainScreen(
                     )
                     MainTab.Vms      -> VmsTab(
                         snapshot = ui.snapshot,
+                        onAddServer = onAddServer,
                         onStart  = { v -> vm.startVm(v.id) },
                         onResume = { v -> vm.resumeVm(v.id) },
                         onPause  = { v -> vm.pauseVm(v.id) },
