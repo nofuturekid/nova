@@ -12,7 +12,9 @@ import net.unraidcontrol.app.data.api.ApolloClientFactory
 import net.unraidcontrol.app.data.api.toSnapshot
 import net.unraidcontrol.app.data.model.ConnectionMode
 import net.unraidcontrol.app.data.model.ServerSnapshot
+import net.unraidcontrol.app.data.api.parseMountString
 import net.unraidcontrol.app.graphql.FetchContainerLogsQuery
+import net.unraidcontrol.app.graphql.FetchContainerMountsQuery
 import net.unraidcontrol.app.graphql.ForceStopVmMutation
 import net.unraidcontrol.app.graphql.GetServerSnapshotQuery
 import net.unraidcontrol.app.graphql.PauseContainerMutation
@@ -153,6 +155,22 @@ class UnraidRepository @Inject constructor(
     }
     suspend fun pauseVm(id: String)  { activeClient()?.mutation(PauseVmMutation(id))?.execute() }
     suspend fun resumeVm(id: String) { activeClient()?.mutation(ResumeVmMutation(id))?.execute() }
+
+    /**
+     * Fetches mount mappings for a container. Lazy fetch so that schema
+     * versions which don't expose `mounts` (some Unraid Connect builds)
+     * don't break the main polled snapshot. Returns empty on any failure.
+     */
+    suspend fun containerMounts(id: String): List<String> {
+        val client = activeClient() ?: return emptyList()
+        return try {
+            val resp = client.query(FetchContainerMountsQuery(id = id)).execute()
+            resp.data?.docker?.container?.mounts.orEmpty()
+                .mapNotNull { parseMountString(it) }
+        } catch (e: Exception) {
+            emptyList()
+        }
+    }
 
     /**
      * Fetches the last [tail] log lines for the given container. Returns an

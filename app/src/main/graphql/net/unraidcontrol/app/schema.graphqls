@@ -180,6 +180,7 @@ enum ContainerPortType {
 
 type Docker {
     containers: [DockerContainer!]!
+    container(id: PrefixedID!): DockerContainer
     logs(id: PrefixedID!, since: DateTime, tail: Int): DockerContainerLogs!
 }
 

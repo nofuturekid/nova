@@ -14,6 +14,14 @@ query FetchContainerLogs($id: PrefixedID!, $tail: Int) {
     }
 }
 
+query FetchContainerMounts($id: PrefixedID!) {
+    docker {
+        container(id: $id) {
+            mounts
+        }
+    }
+}
+
 query GetServerSnapshot {
     info {
         cpu { brand cores threads speedmax }
@@ -33,7 +41,6 @@ query GetServerSnapshot {
         containers {
             id names image state status autoStart iconUrl
             ports { privatePort publicPort type }
-            mounts
         }
     }
     vms {
