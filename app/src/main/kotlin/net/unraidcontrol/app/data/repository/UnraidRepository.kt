@@ -40,7 +40,21 @@ class UnraidRepository @Inject constructor(
     private val servers: ServerRepository,
     private val apolloFactory: ApolloClientFactory,
 ) {
-    /** Polled snapshot flow keyed off the active server + connection mode. */
+    private companion object {
+        /** Number of consecutive poll failures before the UI shows an error
+         *  screen instead of the last successful snapshot. At pollMs=2000 this
+         *  is roughly a 6-second tolerance for transient network hiccups. */
+        const val TRANSIENT_ERROR_TOLERANCE = 3
+    }
+
+    /**
+     * Polled snapshot flow keyed off the active server + connection mode.
+     *
+     * Resilience: once we have a successful snapshot, we don't downgrade the
+     * UI to an Error state on every transient poll failure. The last good
+     * Content is re-emitted instead, until [TRANSIENT_ERROR_TOLERANCE]
+     * consecutive failures suggest the server is actually unreachable.
+     */
     fun snapshotStream(pollMs: Long = 2000L): Flow<SnapshotState> =
         servers.activeWithKey
             .distinctUntilChanged()
@@ -57,8 +71,25 @@ class UnraidRepository @Inject constructor(
                     val url = activeUrl(active)
                     val client = apolloFactory.build(url, active.apiKey)
                     emit(SnapshotState.Loading)
+
+                    var lastContent: SnapshotState.Content? = null
+                    var consecutiveErrors = 0
                     while (true) {
-                        emit(fetch(client, url))
+                        val result = fetch(client, url)
+                        when (result) {
+                            is SnapshotState.Content -> {
+                                lastContent = result
+                                consecutiveErrors = 0
+                                emit(result)
+                            }
+                            is SnapshotState.Error -> {
+                                consecutiveErrors++
+                                val tolerated = lastContent != null &&
+                                    consecutiveErrors < TRANSIENT_ERROR_TOLERANCE
+                                emit(if (tolerated) lastContent!! else result)
+                            }
+                            else -> emit(result)
+                        }
                         delay(pollMs)
                     }
                 }
