@@ -117,7 +117,9 @@ fun GetServerSnapshotQuery.Data.toSnapshot(serverBaseUrl: String = ""): ServerSn
                 val ctn  = p.privatePort?.toString().orEmpty()
                 if (host.isNotEmpty() && ctn.isNotEmpty()) "$host:$ctn" else (host.ifEmpty { ctn })
             },
-            volumes = c.mounts.orEmpty().mapNotNull { parseMount(it) },
+            // mounts are fetched lazily per-container via FetchContainerMounts
+            // to keep the polled snapshot independent of optional schema fields.
+            volumes = emptyList(),
         )
     }
 
@@ -216,8 +218,10 @@ private val mountJson = Json { ignoreUnknownKeys = true; isLenient = true }
  *     "Mode": "rw", "RW": true, "Propagation": "rprivate" }
  * Return a human-readable "source → destination" string, or null if the JSON
  * can't be parsed.
+ *
+ * Exposed at package level so the repository's lazy mount fetch can reuse it.
  */
-private fun parseMount(raw: String): String? = try {
+fun parseMountString(raw: String): String? = try {
     val obj = mountJson.parseToJsonElement(raw) as? JsonObject ?: return null
     val src = obj["Source"]?.jsonPrimitive?.contentOrNull
     val dst = obj["Destination"]?.jsonPrimitive?.contentOrNull
