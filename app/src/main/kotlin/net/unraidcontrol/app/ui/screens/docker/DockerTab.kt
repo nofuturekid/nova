@@ -16,6 +16,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.GridItemSpan
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
+import androidx.compose.foundation.lazy.grid.items as gridItems
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -117,7 +118,7 @@ private fun DockerContent(
             verticalArrangement = Arrangement.spacedBy(10.dp),
         ) {
             item(span = { GridItemSpan(maxLineSpan) }) { SearchBox(query, { query = it }) }
-            items(filtered, key = { it.id }) { c ->
+            gridItems(filtered, key = { it.id }) { c ->
                 ContainerGridTile(c, onOpenContainer)
             }
         }

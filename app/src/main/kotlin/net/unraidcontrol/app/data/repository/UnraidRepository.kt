@@ -23,7 +23,6 @@ import net.unraidcontrol.app.graphql.StartVmMutation
 import net.unraidcontrol.app.graphql.StopArrayMutation
 import net.unraidcontrol.app.graphql.StopContainerMutation
 import net.unraidcontrol.app.graphql.StopVmMutation
-import com.apollographql.apollo.api.Optional
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -107,7 +106,7 @@ class UnraidRepository @Inject constructor(
 
     suspend fun startVm(id: String)  { activeClient()?.mutation(StartVmMutation(id))?.execute() }
     suspend fun stopVm(id: String, force: Boolean = false) {
-        activeClient()?.mutation(StopVmMutation(id, force = Optional.present(force)))?.execute()
+        activeClient()?.mutation(StopVmMutation(id, force = force))?.execute()
     }
     suspend fun pauseVm(id: String)  { activeClient()?.mutation(PauseVmMutation(id))?.execute() }
     suspend fun resumeVm(id: String) { activeClient()?.mutation(ResumeVmMutation(id))?.execute() }
