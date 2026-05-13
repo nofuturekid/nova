@@ -1,12 +1,13 @@
-mutation StartArray { startArray { state } }
-mutation StopArray  { stopArray  { state } }
+mutation StartArray { array { setState(input: { desiredState: START }) { state } } }
+mutation StopArray  { array { setState(input: { desiredState: STOP  }) { state } } }
 
-mutation StartContainer(  $id: ID!) { startContainer(  id: $id) { id status } }
-mutation StopContainer(   $id: ID!) { stopContainer(   id: $id) { id status } }
-mutation RestartContainer($id: ID!) { restartContainer(id: $id) { id status } }
-mutation PauseContainer(  $id: ID!) { pauseContainer(  id: $id) { id status } }
+mutation StartContainer(  $id: PrefixedID!) { docker { start(  id: $id) { id state } } }
+mutation StopContainer(   $id: PrefixedID!) { docker { stop(   id: $id) { id state } } }
+mutation PauseContainer(  $id: PrefixedID!) { docker { pause(  id: $id) { id state } } }
+mutation UnpauseContainer($id: PrefixedID!) { docker { unpause(id: $id) { id state } } }
 
-mutation StartVm( $id: ID!)                  { startVm( id: $id)               { id state } }
-mutation StopVm(  $id: ID!, $force: Boolean) { stopVm(  id: $id, force: $force) { id state } }
-mutation PauseVm( $id: ID!)                  { pauseVm( id: $id)               { id state } }
-mutation ResumeVm($id: ID!)                  { resumeVm(id: $id)               { id state } }
+mutation StartVm(    $id: PrefixedID!) { vm { start(    id: $id) } }
+mutation StopVm(     $id: PrefixedID!) { vm { stop(     id: $id) } }
+mutation PauseVm(    $id: PrefixedID!) { vm { pause(    id: $id) } }
+mutation ResumeVm(   $id: PrefixedID!) { vm { resume(   id: $id) } }
+mutation ForceStopVm($id: PrefixedID!) { vm { forceStop(id: $id) } }

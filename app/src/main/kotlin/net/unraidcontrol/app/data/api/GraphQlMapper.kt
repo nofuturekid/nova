@@ -16,122 +16,191 @@ import net.unraidcontrol.app.data.model.SystemInfo
 import net.unraidcontrol.app.data.model.Vm
 import net.unraidcontrol.app.data.model.VmState
 import net.unraidcontrol.app.graphql.GetServerSnapshotQuery
+import net.unraidcontrol.app.graphql.type.ArrayDiskStatus
+import net.unraidcontrol.app.graphql.type.ArrayDiskType
 import net.unraidcontrol.app.graphql.type.ArrayState as GArrayState
-import net.unraidcontrol.app.graphql.type.ContainerStatus as GContainerStatus
-import net.unraidcontrol.app.graphql.type.DiskStatus as GDiskStatus
-import net.unraidcontrol.app.graphql.type.DiskType as GDiskType
+import net.unraidcontrol.app.graphql.type.ContainerState as GContainerState
 import net.unraidcontrol.app.graphql.type.VmState as GVmState
 
 /**
- * Maps Apollo-generated types → domain models.
+ * Maps Apollo-generated Unraid 7 GraphQL types → domain models.
  *
- * Reasoning: domain models are stable; GraphQL field names are not (the live
- * Unraid server may rename things between Connect plugin versions). All UI
- * code consumes domain models so a schema rename only requires updating the
- * .graphqls files and this file.
+ * Domain models in data/model/Models.kt are stable; GraphQL field names
+ * are not. If a future Unraid version renames fields, only schema.graphqls,
+ * the .graphql operations, and this file need updating.
  */
 fun GetServerSnapshotQuery.Data.toSnapshot(): ServerSnapshot {
+    val infoBlock = info
+    val arrBlock = array
+    val dockerBlock = docker
+    val vmsBlock = vms
+
+    // ── System info ────────────────────────────────────────────────
+    val totalMemBytes = infoBlock.memory.layout.sumOf { it.size }
     val sys = SystemInfo(
-        hostname = info.hostname,
-        uptime = info.uptime,
+        hostname = infoBlock.os.hostname.orEmpty(),
+        uptime = infoBlock.os.uptime.orEmpty(),
         cpu = CpuStats(
-            brand = info.cpu.brand,
-            cores = info.cpu.cores,
-            threads = info.cpu.threads,
-            maxGhz = info.cpu.maxGhz,
-            percent = info.cpu.percent,
+            brand = infoBlock.cpu.brand.orEmpty(),
+            cores = infoBlock.cpu.cores ?: 0,
+            threads = infoBlock.cpu.threads ?: 0,
+            maxGhz = infoBlock.cpu.speedmax ?: 0.0,
+            // Live CPU% lives under the `metrics` root query; not fetched
+            // by GetServerSnapshot — surfaces as zero for now.
+            percent = 0.0,
         ),
         memory = MemoryStats(
-            totalGb = info.memory.totalGb,
-            usedGb = info.memory.usedGb,
-            buffersGb = info.memory.buffersGb,
+            totalGb = totalMemBytes.bytesToGb(),
+            usedGb = 0.0,    // requires metrics query
+            buffersGb = 0.0, // requires metrics query
         ),
-        network = NetworkStats(rxMbps = info.network.rxMbps, txMbps = info.network.txMbps),
-        unraidVersion = info.versions.unraid,
-        kernel = info.versions.kernel,
+        network = NetworkStats(rxMbps = 0.0, txMbps = 0.0),
+        unraidVersion = infoBlock.versions.core.unraid.orEmpty(),
+        kernel = infoBlock.versions.core.kernel ?: infoBlock.os.kernel.orEmpty(),
     )
 
-    val arr = ArrayInfo(
-        state = array.state.toDomain(),
-        totalTb = array.totalTb,
-        usedTb = array.usedTb,
-        parity = array.parityCheck?.let {
-            ParityCheck(
-                progress = it.progress.toFloat(),
-                speedMbps = it.speedMbps,
-                errors = it.errors,
-                etaSeconds = it.etaSeconds,
-            )
-        },
-        disks = array.disks.map { d ->
-            Disk(
-                name = d.name,
-                device = d.device,
-                type = d.type.toDomain(),
-                sizeTb = d.sizeTb,
-                usedTb = d.usedTb,
-                tempC = d.tempC,
-                status = d.status.toDomain(),
-                model = d.model,
-            )
-        },
-    )
+    // ── Array ──────────────────────────────────────────────────────
+    val arr = if (arrBlock != null) {
+        val cap = arrBlock.capacity.kilobytes
+        val totalTb = cap.total.toLongOrNull()?.kbToTb() ?: 0.0
+        val usedTb  = cap.used.toLongOrNull()?.kbToTb() ?: 0.0
+        val parities = arrBlock.parities.map {
+            mapDisk(it.name, it.device, it.size, null, it.status, it.temp, it.type)
+        }
+        val data = arrBlock.disks.map {
+            mapDisk(it.name, it.device, it.size, it.fsUsed, it.status, it.temp, it.type)
+        }
+        val caches = arrBlock.caches.map {
+            mapDisk(it.name, it.device, it.size, it.fsUsed, it.status, it.temp, it.type)
+        }
+        ArrayInfo(
+            state = arrBlock.state.toDomain(),
+            totalTb = totalTb,
+            usedTb = usedTb,
+            parity = arrBlock.parityCheckStatus?.takeIf {
+                it.running == true && it.paused != true
+            }?.let { p ->
+                ParityCheck(
+                    progress = (p.progress ?: 0) / 100f,
+                    speedMbps = parseSpeedMbps(p.speed),
+                    errors = p.errors ?: 0,
+                    etaSeconds = 0,
+                )
+            },
+            disks = parities + data + caches,
+        )
+    } else {
+        ArrayInfo(ArrayState.Offline, 0.0, 0.0, null, emptyList())
+    }
 
-    val containers = dockerContainers.map { c ->
+    // ── Docker containers ──────────────────────────────────────────
+    val containers = dockerBlock?.containers.orEmpty().map { c ->
+        val displayName = c.names.firstOrNull()?.removePrefix("/").orEmpty()
         Container(
             id = c.id,
-            name = c.name,
+            name = displayName,
             image = c.image,
-            status = c.status.toDomain(),
+            status = c.state.toDomain(),
             autoStart = c.autoStart,
-            iconColorHex = c.iconColorHex,
-            cpu = c.cpu,
-            memMb = c.memMb,
-            ports = c.ports,
-            volumes = c.volumes,
+            iconColorHex = null,
+            cpu = 0.0,
+            memMb = 0,
+            ports = c.ports.map { p ->
+                val host = p.publicPort?.toString().orEmpty()
+                val ctn  = p.privatePort?.toString().orEmpty()
+                if (host.isNotEmpty() && ctn.isNotEmpty()) "$host:$ctn" else (host.ifEmpty { ctn })
+            },
+            volumes = emptyList(),
         )
     }
 
-    val vmList = vms.list.map { v ->
-        Vm(id = v.id, name = v.name, state = v.state.toDomain(),
-            vcpus = v.vcpus, memGb = v.memGb, gpu = v.gpu)
+    // ── VMs ─────────────────────────────────────────────────────────
+    val vmList = vmsBlock?.domains.orEmpty().map { d ->
+        Vm(
+            id = d.id,
+            name = d.name.orEmpty(),
+            state = d.state.toDomain(),
+            vcpus = 0,
+            memGb = 0,
+            gpu = null,
+        )
     }
 
     return ServerSnapshot(info = sys, array = arr, containers = containers, vms = vmList)
 }
 
+// Common disk mapper — Apollo generates three distinct types for
+// array.parities / array.disks / array.caches because they're three
+// separate inline selections, so we pass primitives instead of trying
+// to name the generated parent type.
+private fun mapDisk(
+    name: String?,
+    device: String?,
+    sizeBytes: Long?,
+    fsUsedBytes: Long?,
+    status: ArrayDiskStatus?,
+    temp: Int?,
+    type: ArrayDiskType,
+): Disk = Disk(
+    name = name.orEmpty(),
+    device = device.orEmpty(),
+    type = type.toDomain(),
+    sizeTb = (sizeBytes ?: 0L).bytesToTb(),
+    usedTb = (fsUsedBytes ?: 0L).bytesToTb(),
+    tempC = temp ?: 0,
+    status = status?.toDomain() ?: DiskStatus.Ok,
+    model = "",
+)
+
 private fun GArrayState.toDomain(): ArrayState = when (this) {
     GArrayState.STARTED -> ArrayState.Started
     GArrayState.STOPPED -> ArrayState.Stopped
-    GArrayState.PARITY  -> ArrayState.Parity
-    GArrayState.ERROR   -> ArrayState.Error
-    GArrayState.OFFLINE -> ArrayState.Offline
-    else                -> ArrayState.Stopped
+    GArrayState.RECON_DISK, GArrayState.DISABLE_DISK -> ArrayState.Parity
+    GArrayState.NEW_ARRAY, GArrayState.INVALID_EXPANSION,
+    GArrayState.PARITY_NOT_BIGGEST, GArrayState.TOO_MANY_MISSING_DISKS -> ArrayState.Error
+    else -> ArrayState.Stopped
 }
 
-private fun GDiskType.toDomain(): DiskType = when (this) {
-    GDiskType.PARITY -> DiskType.Parity
-    GDiskType.DATA   -> DiskType.Data
-    GDiskType.CACHE  -> DiskType.Cache
-    else             -> DiskType.Data
+private fun ArrayDiskType.toDomain(): DiskType = when (this) {
+    ArrayDiskType.PARITY -> DiskType.Parity
+    ArrayDiskType.DATA   -> DiskType.Data
+    ArrayDiskType.CACHE  -> DiskType.Cache
+    ArrayDiskType.FLASH  -> DiskType.Cache
+    else                 -> DiskType.Data
 }
 
-private fun GDiskStatus.toDomain(): DiskStatus = when (this) {
-    GDiskStatus.OK    -> DiskStatus.Ok
-    GDiskStatus.ERROR -> DiskStatus.Error
-    else              -> DiskStatus.Ok
+private fun ArrayDiskStatus.toDomain(): DiskStatus = when (this) {
+    ArrayDiskStatus.DISK_OK -> DiskStatus.Ok
+    else                    -> DiskStatus.Error
 }
 
-private fun GContainerStatus.toDomain(): ContainerStatus = when (this) {
-    GContainerStatus.RUNNING -> ContainerStatus.Running
-    GContainerStatus.PAUSED  -> ContainerStatus.Paused
-    GContainerStatus.EXITED  -> ContainerStatus.Exited
-    else                     -> ContainerStatus.Exited
+private fun GContainerState.toDomain(): ContainerStatus = when (this) {
+    GContainerState.RUNNING -> ContainerStatus.Running
+    GContainerState.PAUSED  -> ContainerStatus.Paused
+    GContainerState.EXITED  -> ContainerStatus.Exited
+    else                    -> ContainerStatus.Exited
 }
 
 private fun GVmState.toDomain(): VmState = when (this) {
-    GVmState.RUNNING -> VmState.Running
-    GVmState.PAUSED  -> VmState.Paused
-    GVmState.STOPPED -> VmState.Stopped
-    else             -> VmState.Stopped
+    GVmState.RUNNING                                   -> VmState.Running
+    GVmState.PAUSED, GVmState.PMSUSPENDED              -> VmState.Paused
+    GVmState.SHUTDOWN, GVmState.SHUTOFF,
+    GVmState.NOSTATE, GVmState.IDLE, GVmState.CRASHED  -> VmState.Stopped
+    else                                               -> VmState.Stopped
+}
+
+private fun Long.bytesToTb(): Double = this / 1_000_000_000_000.0
+private fun Long.kbToTb():    Double = this / 1_000_000_000.0
+private fun Long.bytesToGb(): Double = this / 1_000_000_000.0
+
+private fun parseSpeedMbps(speedString: String?): Double {
+    if (speedString.isNullOrBlank()) return 0.0
+    val numberPart = speedString.takeWhile { it.isDigit() || it == '.' }
+    val value = numberPart.toDoubleOrNull() ?: return 0.0
+    val unit = speedString.removePrefix(numberPart).trim().lowercase()
+    return when {
+        unit.startsWith("g") -> value * 1000
+        unit.startsWith("k") -> value / 1000
+        else                 -> value
+    }
 }

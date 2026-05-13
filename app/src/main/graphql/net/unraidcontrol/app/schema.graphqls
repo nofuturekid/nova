@@ -1,13 +1,21 @@
-# Hand-written schema for Unraid Connect (GraphQL).
+# Hand-written subset of the Unraid 7 GraphQL schema.
 #
-# Built from documented Unraid Connect API shapes — field names may need
-# adjustment against your live server. If a query fails with "Cannot query
-# field X", check the live introspection at {server}/graphql and rename here;
-# the UI is decoupled via domain models in data/model/ so only this file +
-# operations + the mapper need to change.
+# Sourced from https://github.com/domalab/unraid-api-client/blob/main/UNRAIDAPI.md
+# (verified against Unraid 7.1.4+, May 2026). Only the types and fields the
+# UnraidControl app actually consumes are declared — the live server may
+# expose dozens more.
+#
+# When the live server reports "Cannot query field X", check the diff
+# between this file and the introspection result and add/rename fields here.
+# The UI layer is decoupled via domain models in data/model/Models.kt, so
+# only this schema + queries + the mapper need changing.
 
-scalar Long
+scalar PrefixedID
+scalar BigInt
+scalar DateTime
 scalar JSON
+scalar Port
+scalar URL
 
 schema {
     query: Query
@@ -15,124 +23,214 @@ schema {
 }
 
 type Query {
+    online: Boolean
     info: Info!
-    array: ArrayInfo!
-    disks: [Disk!]!
-    dockerContainers: [Container!]!
-    vms: VmList!
+    array: UnraidArray
+    docker: Docker
+    vms: Vms
 }
 
 type Mutation {
-    startArray: ArrayInfo!
-    stopArray: ArrayInfo!
-
-    startContainer(id: ID!): Container!
-    stopContainer(id: ID!): Container!
-    restartContainer(id: ID!): Container!
-    pauseContainer(id: ID!): Container!
-
-    startVm(id: ID!): Vm!
-    stopVm(id: ID!, force: Boolean): Vm!
-    pauseVm(id: ID!): Vm!
-    resumeVm(id: ID!): Vm!
+    docker: DockerMutations!
+    vm: VmMutations!
+    array: ArrayMutations!
 }
+
+# ── Info ─────────────────────────────────────────────────────────────
 
 type Info {
-    hostname: String!
-    uptime: String!
-    os: OsInfo!
-    cpu: CpuInfo!
-    memory: MemoryInfo!
-    network: NetworkInfo!
-    versions: Versions!
+    cpu: InfoCpu!
+    memory: InfoMemory!
+    os: InfoOs!
+    versions: InfoVersions!
 }
 
-type Versions {
-    unraid: String!
-    kernel: String!
+type InfoCpu {
+    manufacturer: String
+    brand: String
+    cores: Int
+    threads: Int
+    speedmax: Float
 }
 
-type OsInfo {
-    distro: String!
-    release: String!
+type InfoMemory {
+    layout: [MemoryLayout!]!
 }
 
-type CpuInfo {
-    brand: String!
-    cores: Int!
-    threads: Int!
-    maxGhz: Float!
-    percent: Float!
+type MemoryLayout {
+    size: BigInt!
 }
 
-type MemoryInfo {
-    totalGb: Float!
-    usedGb: Float!
-    buffersGb: Float!
+type InfoOs {
+    hostname: String
+    kernel: String
+    uptime: String
 }
 
-type NetworkInfo {
-    rxMbps: Float!
-    txMbps: Float!
+type InfoVersions {
+    core: CoreVersions!
 }
 
-enum ArrayState { STARTED STOPPED PARITY ERROR OFFLINE }
+type CoreVersions {
+    unraid: String
+    kernel: String
+}
 
-type ArrayInfo {
+# ── Array ────────────────────────────────────────────────────────────
+
+enum ArrayState {
+    STARTED
+    STOPPED
+    NEW_ARRAY
+    RECON_DISK
+    DISABLE_DISK
+    INVALID_EXPANSION
+    PARITY_NOT_BIGGEST
+    TOO_MANY_MISSING_DISKS
+}
+
+enum ArrayDiskStatus {
+    DISK_NP
+    DISK_OK
+    DISK_NP_MISSING
+    DISK_INVALID
+    DISK_WRONG
+    DISK_DSBL
+    DISK_NP_DSBL
+    DISK_DSBL_NEW
+    DISK_NEW
+}
+
+enum ArrayDiskType {
+    DATA
+    PARITY
+    FLASH
+    CACHE
+}
+
+type UnraidArray {
     state: ArrayState!
-    totalTb: Float!
-    usedTb: Float!
-    parityCheck: ParityCheck
-    disks: [Disk!]!
+    capacity: ArrayCapacity!
+    parities: [ArrayDisk!]!
+    parityCheckStatus: ParityCheck
+    disks: [ArrayDisk!]!
+    caches: [ArrayDisk!]!
+}
+
+type ArrayCapacity {
+    kilobytes: Capacity!
+}
+
+type Capacity {
+    free: String!
+    used: String!
+    total: String!
+}
+
+type ArrayDisk {
+    id: PrefixedID!
+    name: String
+    device: String
+    size: BigInt
+    status: ArrayDiskStatus
+    temp: Int
+    fsSize: BigInt
+    fsFree: BigInt
+    fsUsed: BigInt
+    type: ArrayDiskType!
 }
 
 type ParityCheck {
-    progress: Float!
-    speedMbps: Float!
-    errors: Int!
-    etaSeconds: Int!
+    progress: Int
+    speed: String
+    errors: Int
+    running: Boolean
+    paused: Boolean
 }
 
-enum DiskType { PARITY DATA CACHE }
-enum DiskStatus { OK ERROR }
+# ── Docker ───────────────────────────────────────────────────────────
 
-type Disk {
-    name: String!
-    device: String!
-    type: DiskType!
-    sizeTb: Float!
-    usedTb: Float!
-    tempC: Int!
-    status: DiskStatus!
-    model: String!
+enum ContainerState {
+    RUNNING
+    PAUSED
+    EXITED
 }
 
-enum ContainerStatus { RUNNING PAUSED EXITED }
+enum ContainerPortType {
+    TCP
+    UDP
+}
 
-type Container {
-    id: ID!
-    name: String!
+type Docker {
+    containers: [DockerContainer!]!
+}
+
+type DockerContainer {
+    id: PrefixedID!
+    names: [String!]!
     image: String!
-    status: ContainerStatus!
+    state: ContainerState!
+    status: String!
     autoStart: Boolean!
-    iconColorHex: String
-    cpu: Float!
-    memMb: Int!
-    ports: [String!]!
-    volumes: [String!]!
+    ports: [ContainerPort!]!
+    iconUrl: String
 }
 
-enum VmState { RUNNING PAUSED STOPPED }
-
-type VmList {
-    list: [Vm!]!
+type ContainerPort {
+    privatePort: Port
+    publicPort: Port
+    type: ContainerPortType!
 }
 
-type Vm {
-    id: ID!
-    name: String!
+# ── VMs ──────────────────────────────────────────────────────────────
+
+enum VmState {
+    NOSTATE
+    RUNNING
+    IDLE
+    PAUSED
+    SHUTDOWN
+    SHUTOFF
+    CRASHED
+    PMSUSPENDED
+}
+
+type Vms {
+    domains: [VmDomain!]
+}
+
+type VmDomain {
+    id: PrefixedID!
+    name: String
     state: VmState!
-    vcpus: Int!
-    memGb: Int!
-    gpu: String
+}
+
+# ── Mutations (Unraid 7 nests mutations under types) ─────────────────
+
+input ArrayStateInputBlock {
+    desiredState: ArrayStateInput!
+}
+
+enum ArrayStateInput {
+    START
+    STOP
+}
+
+type ArrayMutations {
+    setState(input: ArrayStateInputBlock!): UnraidArray
+}
+
+type DockerMutations {
+    start(id: PrefixedID!): DockerContainer
+    stop(id: PrefixedID!): DockerContainer
+    pause(id: PrefixedID!): DockerContainer
+    unpause(id: PrefixedID!): DockerContainer
+}
+
+type VmMutations {
+    start(id: PrefixedID!): Boolean!
+    stop(id: PrefixedID!): Boolean!
+    pause(id: PrefixedID!): Boolean!
+    resume(id: PrefixedID!): Boolean!
+    forceStop(id: PrefixedID!): Boolean!
 }

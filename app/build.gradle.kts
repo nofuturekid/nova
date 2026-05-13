@@ -16,8 +16,8 @@ android {
         applicationId = "net.unraidcontrol.app"
         minSdk = 26
         targetSdk = 36
-        versionCode = 4
-        versionName = "0.1.3"
+        versionCode = 5
+        versionName = "0.1.4"
 
         vectorDrawables { useSupportLibrary = true }
     }
@@ -88,9 +88,15 @@ apollo {
     service("unraid") {
         packageName.set("net.unraidcontrol.app.graphql")
         generateOptionalOperationVariables.set(false)
-        // Loose mapping — schema field names may differ from the live server.
-        // See app/src/main/graphql/.../schema.graphqls for assumed shapes.
-        mapScalar("Long", "kotlin.Long")
+        // Custom scalars used by the Unraid 7 schema. PrefixedID and DateTime
+        // are opaque strings to us; BigInt is a Long; JSON/URL/Port stay as
+        // their natural Kotlin counterparts.
+        mapScalar("PrefixedID", "kotlin.String")
+        mapScalar("DateTime",   "kotlin.String")
+        mapScalar("BigInt",     "kotlin.Long")
+        mapScalar("JSON",       "kotlin.String")
+        mapScalar("URL",        "kotlin.String")
+        mapScalar("Port",       "kotlin.Int")
     }
 }
 

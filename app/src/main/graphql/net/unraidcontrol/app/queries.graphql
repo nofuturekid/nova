@@ -4,34 +4,26 @@ query Ping {
 
 query GetServerSnapshot {
     info {
-        hostname
-        uptime
-        cpu { brand cores threads maxGhz percent }
-        memory { totalGb usedGb buffersGb }
-        network { rxMbps txMbps }
-        versions { unraid kernel }
+        cpu { brand cores threads speedmax }
+        memory { layout { size } }
+        os { hostname kernel uptime }
+        versions { core { unraid kernel } }
     }
     array {
         state
-        totalTb
-        usedTb
-        parityCheck { progress speedMbps errors etaSeconds }
-        disks { name device type sizeTb usedTb tempC status model }
+        capacity { kilobytes { total used free } }
+        parities  { id name device size status temp type }
+        disks     { id name device size status temp fsSize fsFree fsUsed type }
+        caches    { id name device size status temp fsSize fsFree fsUsed type }
+        parityCheckStatus { progress speed errors running paused }
     }
-    dockerContainers {
-        id name image status autoStart iconColorHex
-        cpu memMb ports volumes
+    docker {
+        containers {
+            id names image state status autoStart iconUrl
+            ports { privatePort publicPort type }
+        }
     }
     vms {
-        list { id name state vcpus memGb gpu }
-    }
-}
-
-query GetInfoLight {
-    info {
-        hostname
-        cpu { percent }
-        memory { totalGb usedGb buffersGb }
-        network { rxMbps txMbps }
+        domains { id name state }
     }
 }
