@@ -149,3 +149,19 @@ Alternatively, set up Downloadable Fonts via `androidx.compose.ui.text.googlefon
 ## Reference
 
 The original design prototype is in the handoff bundle (`/tmp/design_extracted/unraid-control/`). Use it as the visual spec when adjusting the Compose UI — colors, spacing, and component shapes there are the source of truth.
+
+## License
+
+[![License: CC BY-NC-SA 4.0](https://img.shields.io/badge/License-CC%20BY--NC--SA%204.0-lightgrey.svg)](https://creativecommons.org/licenses/by-nc-sa/4.0/)
+
+This project is licensed under the **Creative Commons Attribution-NonCommercial-ShareAlike 4.0 International** license. In plain English:
+
+- ✅ Use it privately, on your own server, for any non-commercial purpose
+- ✅ Modify it and run modifications privately
+- 📤 If you distribute modifications, you must publish the modified source under the same CC BY-NC-SA 4.0 license
+- ❌ No commercial sale or paid hosting of this app or its derivatives
+- 🏷️ Credit the original author when redistributing
+
+Full legal text: [LICENSE](./LICENSE) · summary: [creativecommons.org](https://creativecommons.org/licenses/by-nc-sa/4.0/)
+
+© 2026 nofuturekid
