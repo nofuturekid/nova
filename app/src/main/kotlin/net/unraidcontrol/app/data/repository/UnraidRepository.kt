@@ -18,7 +18,6 @@ import net.unraidcontrol.app.graphql.GetServerSnapshotQuery
 import net.unraidcontrol.app.graphql.PauseContainerMutation
 import net.unraidcontrol.app.graphql.PauseVmMutation
 import net.unraidcontrol.app.graphql.PingQuery
-import com.apollographql.apollo.api.Optional
 import net.unraidcontrol.app.data.model.LogLine
 import net.unraidcontrol.app.graphql.ResumeVmMutation
 import net.unraidcontrol.app.graphql.StartArrayMutation
@@ -164,7 +163,7 @@ class UnraidRepository @Inject constructor(
         val client = activeClient() ?: return emptyList()
         return try {
             val resp = client.query(
-                FetchContainerLogsQuery(id = id, tail = Optional.present(tail)),
+                FetchContainerLogsQuery(id = id, tail = tail),
             ).execute()
             resp.data?.docker?.logs?.lines.orEmpty().map { line ->
                 LogLine(time = line.timestamp, message = line.message)
