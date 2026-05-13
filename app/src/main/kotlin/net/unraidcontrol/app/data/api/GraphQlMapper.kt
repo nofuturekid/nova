@@ -139,11 +139,15 @@ fun GetServerSnapshotQuery.Data.toSnapshot(serverBaseUrl: String = ""): ServerSn
 // array.parities / array.disks / array.caches because they're three
 // separate inline selections, so we pass primitives instead of trying
 // to name the generated parent type.
+//
+// NB: per the Unraid 7 schema, `ArrayDisk.size` and `ArrayDisk.fs*` are
+// expressed in KILOBYTES (not bytes — that's only true for the top-level
+// `Disk` type). Mixing those up shows a 1 TB drive as "1 GB". Use kbToTb.
 private fun mapDisk(
     name: String?,
     device: String?,
-    sizeBytes: Long?,
-    fsUsedBytes: Long?,
+    sizeKb: Long?,
+    fsUsedKb: Long?,
     status: ArrayDiskStatus?,
     temp: Int?,
     type: ArrayDiskType,
@@ -151,8 +155,8 @@ private fun mapDisk(
     name = name.orEmpty(),
     device = device.orEmpty(),
     type = type.toDomain(),
-    sizeTb = (sizeBytes ?: 0L).bytesToTb(),
-    usedTb = (fsUsedBytes ?: 0L).bytesToTb(),
+    sizeTb = (sizeKb ?: 0L).kbToTb(),
+    usedTb = (fsUsedKb ?: 0L).kbToTb(),
     tempC = temp ?: 0,
     status = status?.toDomain() ?: DiskStatus.Ok,
     model = "",
