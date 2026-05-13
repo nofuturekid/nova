@@ -76,7 +76,11 @@ class AddEditServerViewModel @Inject constructor(
             name = server?.name.orEmpty(),
             localUrl = server?.localUrl.orEmpty(),
             remoteUrl = server?.remoteUrl.orEmpty(),
-            apiKey = if (server != null) "••••••••••••••••" else "",
+            // Pre-populate the actual stored key when editing so the user
+            // can see, copy, or modify it. Falls back to empty for a new
+            // server. Earlier versions used a '••••' placeholder which got
+            // typed-onto and then saved as the literal new key.
+            apiKey = server?.id?.let { servers.apiKeyFor(it) }.orEmpty(),
         )
     }
 

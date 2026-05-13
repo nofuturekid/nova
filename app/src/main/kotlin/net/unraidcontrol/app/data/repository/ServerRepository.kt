@@ -40,7 +40,7 @@ class ServerRepository @Inject constructor(
         val resolved = if (input.id.isBlank()) input.copy(id = UUID.randomUUID().toString()) else input
         val next = current.filter { it.id != resolved.id } + resolved
         store.setServers(next)
-        if (apiKey.isNotBlank() && !apiKey.all { it == '•' }) {
+        if (apiKey.isNotBlank()) {
             keys.put(resolved.id, apiKey)
         }
         if (store.activeServerId.first() == null) store.setActiveServer(resolved.id)
@@ -61,4 +61,7 @@ class ServerRepository @Inject constructor(
     suspend fun setConnectionMode(mode: ConnectionMode) {
         store.setConnectionMode(mode)
     }
+
+    /** Returns the stored API key for a server, or null if none. */
+    fun apiKeyFor(id: String): String? = keys.get(id)
 }

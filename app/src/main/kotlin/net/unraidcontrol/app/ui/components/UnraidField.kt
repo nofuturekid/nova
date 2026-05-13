@@ -80,6 +80,7 @@ fun UnraidField(
                 BasicTextField(
                     value = value,
                     onValueChange = onChange,
+                    modifier = Modifier.fillMaxWidth(),
                     interactionSource = interaction,
                     singleLine = true,
                     cursorBrush = SolidColor(t.accent),
