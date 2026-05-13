@@ -1,0 +1,132 @@
+plugins {
+    alias(libs.plugins.android.application)
+    alias(libs.plugins.kotlin.android)
+    alias(libs.plugins.kotlin.compose)
+    alias(libs.plugins.kotlin.serialization)
+    alias(libs.plugins.ksp)
+    alias(libs.plugins.hilt)
+    alias(libs.plugins.apollo)
+}
+
+android {
+    namespace = "net.unraidcontrol.app"
+    compileSdk = 36
+
+    defaultConfig {
+        applicationId = "net.unraidcontrol.app"
+        minSdk = 26
+        targetSdk = 36
+        versionCode = 1
+        versionName = "0.1.0"
+
+        vectorDrawables { useSupportLibrary = true }
+    }
+
+    val releaseKeystore = rootProject.file("app/release.keystore")
+
+    signingConfigs {
+        create("release") {
+            if (releaseKeystore.exists()) {
+                storeFile     = releaseKeystore
+                storePassword = System.getenv("KEYSTORE_PASSWORD")
+                    ?: providers.gradleProperty("KEYSTORE_PASSWORD").orNull
+                keyAlias      = System.getenv("KEY_ALIAS")
+                    ?: providers.gradleProperty("KEY_ALIAS").orNull
+                keyPassword   = System.getenv("KEY_PASSWORD")
+                    ?: providers.gradleProperty("KEY_PASSWORD").orNull
+            }
+        }
+    }
+
+    buildTypes {
+        debug {
+            isMinifyEnabled = false
+        }
+        release {
+            signingConfig = if (releaseKeystore.exists())
+                signingConfigs.getByName("release")
+            else
+                signingConfigs.getByName("debug")
+            isMinifyEnabled = true
+            isShrinkResources = true
+            proguardFiles(
+                getDefaultProguardFile("proguard-android-optimize.txt"),
+                "proguard-rules.pro",
+            )
+        }
+    }
+
+    compileOptions {
+        sourceCompatibility = JavaVersion.VERSION_17
+        targetCompatibility = JavaVersion.VERSION_17
+    }
+
+    kotlin {
+        jvmToolchain(17)
+    }
+
+    sourceSets["main"].kotlin.srcDir("src/main/kotlin")
+
+    buildFeatures {
+        compose = true
+        buildConfig = true
+    }
+
+    packaging {
+        resources {
+            excludes += setOf(
+                "/META-INF/{AL2.0,LGPL2.1}",
+                "/META-INF/LICENSE*",
+                "/META-INF/NOTICE*",
+                "/META-INF/DEPENDENCIES",
+            )
+        }
+    }
+}
+
+apollo {
+    service("unraid") {
+        packageName.set("net.unraidcontrol.app.graphql")
+        generateOptionalOperationVariables.set(false)
+        // Loose mapping — schema field names may differ from the live server.
+        // See app/src/main/graphql/.../schema.graphqls for assumed shapes.
+        mapScalar("Long", "kotlin.Long")
+    }
+}
+
+dependencies {
+    implementation(libs.androidx.core.ktx)
+    implementation(libs.androidx.lifecycle.runtime.ktx)
+    implementation(libs.androidx.lifecycle.viewmodel.compose)
+    implementation(libs.androidx.lifecycle.runtime.compose)
+    implementation(libs.androidx.activity.compose)
+    implementation(libs.androidx.splashscreen)
+
+    implementation(platform(libs.androidx.compose.bom))
+    implementation(libs.androidx.compose.ui)
+    implementation(libs.androidx.compose.ui.graphics)
+    implementation(libs.androidx.compose.ui.tooling.preview)
+    implementation(libs.androidx.compose.material3)
+    implementation(libs.androidx.compose.material.icons.extended)
+    implementation(libs.androidx.compose.foundation)
+    implementation(libs.androidx.compose.animation)
+    debugImplementation(libs.androidx.compose.ui.tooling)
+
+    implementation(libs.androidx.nav.compose)
+    implementation(libs.hilt.navigation.compose)
+
+    implementation(libs.androidx.datastore.preferences)
+    implementation(libs.androidx.security.crypto)
+
+    implementation(libs.hilt.android)
+    ksp(libs.hilt.compiler)
+
+    implementation(libs.apollo.runtime)
+    implementation(libs.apollo.api)
+
+    implementation(libs.okhttp)
+    implementation(libs.okhttp.logging)
+
+    implementation(libs.kotlinx.coroutines.android)
+    implementation(libs.kotlinx.serialization.json)
+}

@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Splash-window theme. The full UI is Compose; this theme only controls
+         the launch window/splash screen background before Compose mounts. -->
+    <style name="Theme.UnraidControl" parent="Theme.SplashScreen">
+        <item name="windowSplashScreenBackground">@color/uc_bg</item>
+        <item name="postSplashScreenTheme">@style/Theme.UnraidControl.Material</item>
+    </style>
+
+    <style name="Theme.UnraidControl.Material" parent="android:Theme.Material.NoActionBar">
+        <item name="android:windowBackground">@color/uc_bg</item>
+        <item name="android:statusBarColor">@android:color/transparent</item>
+        <item name="android:navigationBarColor">@android:color/transparent</item>
+        <item name="android:windowLightStatusBar">false</item>
+    </style>
+</resources>

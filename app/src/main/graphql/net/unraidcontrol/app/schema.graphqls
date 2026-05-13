@@ -1,0 +1,138 @@
+# Hand-written schema for Unraid Connect (GraphQL).
+#
+# Built from documented Unraid Connect API shapes — field names may need
+# adjustment against your live server. If a query fails with "Cannot query
+# field X", check the live introspection at {server}/graphql and rename here;
+# the UI is decoupled via domain models in data/model/ so only this file +
+# operations + the mapper need to change.
+
+scalar Long
+scalar JSON
+
+schema {
+    query: Query
+    mutation: Mutation
+}
+
+type Query {
+    info: Info!
+    array: ArrayInfo!
+    disks: [Disk!]!
+    dockerContainers: [Container!]!
+    vms: VmList!
+}
+
+type Mutation {
+    startArray: ArrayInfo!
+    stopArray: ArrayInfo!
+
+    startContainer(id: ID!): Container!
+    stopContainer(id: ID!): Container!
+    restartContainer(id: ID!): Container!
+    pauseContainer(id: ID!): Container!
+
+    startVm(id: ID!): Vm!
+    stopVm(id: ID!, force: Boolean): Vm!
+    pauseVm(id: ID!): Vm!
+    resumeVm(id: ID!): Vm!
+}
+
+type Info {
+    hostname: String!
+    uptime: String!
+    os: OsInfo!
+    cpu: CpuInfo!
+    memory: MemoryInfo!
+    network: NetworkInfo!
+    versions: Versions!
+}
+
+type Versions {
+    unraid: String!
+    kernel: String!
+}
+
+type OsInfo {
+    distro: String!
+    release: String!
+}
+
+type CpuInfo {
+    brand: String!
+    cores: Int!
+    threads: Int!
+    maxGhz: Float!
+    percent: Float!
+}
+
+type MemoryInfo {
+    totalGb: Float!
+    usedGb: Float!
+    buffersGb: Float!
+}
+
+type NetworkInfo {
+    rxMbps: Float!
+    txMbps: Float!
+}
+
+enum ArrayState { STARTED STOPPED PARITY ERROR OFFLINE }
+
+type ArrayInfo {
+    state: ArrayState!
+    totalTb: Float!
+    usedTb: Float!
+    parityCheck: ParityCheck
+    disks: [Disk!]!
+}
+
+type ParityCheck {
+    progress: Float!
+    speedMbps: Float!
+    errors: Int!
+    etaSeconds: Int!
+}
+
+enum DiskType { PARITY DATA CACHE }
+enum DiskStatus { OK ERROR }
+
+type Disk {
+    name: String!
+    device: String!
+    type: DiskType!
+    sizeTb: Float!
+    usedTb: Float!
+    tempC: Int!
+    status: DiskStatus!
+    model: String!
+}
+
+enum ContainerStatus { RUNNING PAUSED EXITED }
+
+type Container {
+    id: ID!
+    name: String!
+    image: String!
+    status: ContainerStatus!
+    autoStart: Boolean!
+    iconColorHex: String
+    cpu: Float!
+    memMb: Int!
+    ports: [String!]!
+    volumes: [String!]!
+}
+
+enum VmState { RUNNING PAUSED STOPPED }
+
+type VmList {
+    list: [Vm!]!
+}
+
+type Vm {
+    id: ID!
+    name: String!
+    state: VmState!
+    vcpus: Int!
+    memGb: Int!
+    gpu: String
+}

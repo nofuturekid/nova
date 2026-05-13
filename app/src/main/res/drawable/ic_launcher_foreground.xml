@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Simple "UC" mark on a transparent background.
+     Adaptive icons get a 108dp canvas; the safe zone is the center 72dp. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <group android:translateX="22" android:translateY="32">
+        <path
+            android:fillColor="#22D3A4"
+            android:pathData="M8 6 L8 28 Q8 38 22 38 Q36 38 36 28 L36 6 L30 6 L30 27 Q30 32 22 32 Q14 32 14 27 L14 6 Z" />
+        <path
+            android:fillColor="#22D3A4"
+            android:pathData="M52 38 Q40 38 40 22 Q40 6 52 6 Q60 6 64 12 L60 16 Q57 12 52 12 Q46 12 46 22 Q46 32 52 32 Q57 32 60 28 L64 32 Q60 38 52 38 Z" />
+    </group>
+</vector>

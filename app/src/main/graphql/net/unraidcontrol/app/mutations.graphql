@@ -1,0 +1,12 @@
+mutation StartArray { startArray { state } }
+mutation StopArray  { stopArray  { state } }
+
+mutation StartContainer(  $id: ID!) { startContainer(  id: $id) { id status } }
+mutation StopContainer(   $id: ID!) { stopContainer(   id: $id) { id status } }
+mutation RestartContainer($id: ID!) { restartContainer(id: $id) { id status } }
+mutation PauseContainer(  $id: ID!) { pauseContainer(  id: $id) { id status } }
+
+mutation StartVm( $id: ID!)                  { startVm( id: $id)               { id state } }
+mutation StopVm(  $id: ID!, $force: Boolean) { stopVm(  id: $id, force: $force) { id state } }
+mutation PauseVm( $id: ID!)                  { pauseVm( id: $id)               { id state } }
+mutation ResumeVm($id: ID!)                  { resumeVm(id: $id)               { id state } }

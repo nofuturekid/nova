@@ -1,0 +1,33 @@
+query GetServerSnapshot {
+    info {
+        hostname
+        uptime
+        cpu { brand cores threads maxGhz percent }
+        memory { totalGb usedGb buffersGb }
+        network { rxMbps txMbps }
+        versions { unraid kernel }
+    }
+    array {
+        state
+        totalTb
+        usedTb
+        parityCheck { progress speedMbps errors etaSeconds }
+        disks { name device type sizeTb usedTb tempC status model }
+    }
+    dockerContainers {
+        id name image status autoStart iconColorHex
+        cpu memMb ports volumes
+    }
+    vms {
+        list { id name state vcpus memGb gpu }
+    }
+}
+
+query GetInfoLight {
+    info {
+        hostname
+        cpu { percent }
+        memory { totalGb usedGb buffersGb }
+        network { rxMbps txMbps }
+    }
+}
