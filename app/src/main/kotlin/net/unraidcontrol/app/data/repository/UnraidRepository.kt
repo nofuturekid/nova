@@ -13,6 +13,7 @@ import net.unraidcontrol.app.data.api.toSnapshot
 import net.unraidcontrol.app.data.model.ConnectionMode
 import net.unraidcontrol.app.data.model.ServerSnapshot
 import net.unraidcontrol.app.graphql.GetServerSnapshotQuery
+import net.unraidcontrol.app.graphql.PingQuery
 import net.unraidcontrol.app.graphql.PauseContainerMutation
 import net.unraidcontrol.app.graphql.PauseVmMutation
 import net.unraidcontrol.app.graphql.RestartContainerMutation
@@ -112,13 +113,19 @@ class UnraidRepository @Inject constructor(
     suspend fun resumeVm(id: String) { activeClient()?.mutation(ResumeVmMutation(id))?.execute() }
 
     /** One-shot ping. Returns null on success or a message on failure. */
+    /**
+     * Pings the server with the minimal possible GraphQL query (`{ __typename }`).
+     * Confirms TCP reachability, TLS handshake, auth header acceptance and that the
+     * endpoint is actually GraphQL — without depending on whether our hand-written
+     * schema matches the live server's field names.
+     */
     suspend fun testConnection(baseUrl: String, apiKey: String): String? = try {
         val resp = apolloFactory.build(baseUrl, apiKey)
-            .query(GetServerSnapshotQuery()).execute()
+            .query(PingQuery()).execute()
         when {
-            resp.hasErrors()       -> resp.errors?.firstOrNull()?.message ?: "GraphQL error"
-            resp.data == null      -> "Empty response"
-            else                   -> null
+            resp.hasErrors() -> resp.errors?.firstOrNull()?.message ?: "GraphQL error"
+            resp.data == null -> "Empty GraphQL response"
+            else -> null
         }
     } catch (e: ApolloException) { e.message ?: "Network error" }
       catch (e: Exception) { e.message ?: "Unknown error" }

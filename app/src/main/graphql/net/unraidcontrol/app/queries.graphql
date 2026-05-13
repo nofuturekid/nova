@@ -1,3 +1,7 @@
+query Ping {
+    __typename
+}
+
 query GetServerSnapshot {
     info {
         hostname
