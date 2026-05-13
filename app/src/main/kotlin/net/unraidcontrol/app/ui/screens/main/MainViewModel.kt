@@ -75,4 +75,7 @@ class MainViewModel @Inject constructor(
     fun resumeVm(id: String)           = viewModelScope.launch { unraid.resumeVm(id) }
 
     fun setDockerView(view: DockerView) = viewModelScope.launch { settings.setDockerView(view) }
+
+    suspend fun containerLogs(id: String): List<net.unraidcontrol.app.data.model.LogLine> =
+        unraid.containerLogs(id)
 }

@@ -12,11 +12,14 @@ import net.unraidcontrol.app.data.api.ApolloClientFactory
 import net.unraidcontrol.app.data.api.toSnapshot
 import net.unraidcontrol.app.data.model.ConnectionMode
 import net.unraidcontrol.app.data.model.ServerSnapshot
+import net.unraidcontrol.app.graphql.FetchContainerLogsQuery
 import net.unraidcontrol.app.graphql.ForceStopVmMutation
 import net.unraidcontrol.app.graphql.GetServerSnapshotQuery
 import net.unraidcontrol.app.graphql.PauseContainerMutation
 import net.unraidcontrol.app.graphql.PauseVmMutation
 import net.unraidcontrol.app.graphql.PingQuery
+import com.apollographql.apollo.api.Optional
+import net.unraidcontrol.app.data.model.LogLine
 import net.unraidcontrol.app.graphql.ResumeVmMutation
 import net.unraidcontrol.app.graphql.StartArrayMutation
 import net.unraidcontrol.app.graphql.StartContainerMutation
@@ -151,6 +154,25 @@ class UnraidRepository @Inject constructor(
     }
     suspend fun pauseVm(id: String)  { activeClient()?.mutation(PauseVmMutation(id))?.execute() }
     suspend fun resumeVm(id: String) { activeClient()?.mutation(ResumeVmMutation(id))?.execute() }
+
+    /**
+     * Fetches the last [tail] log lines for the given container. Returns an
+     * empty list if no active server, no key, or the request fails — the UI
+     * can distinguish "no logs" from "still loading" via its own state.
+     */
+    suspend fun containerLogs(id: String, tail: Int = 200): List<LogLine> {
+        val client = activeClient() ?: return emptyList()
+        return try {
+            val resp = client.query(
+                FetchContainerLogsQuery(id = id, tail = Optional.present(tail)),
+            ).execute()
+            resp.data?.docker?.logs?.lines.orEmpty().map { line ->
+                LogLine(time = line.timestamp, message = line.message)
+            }
+        } catch (e: Exception) {
+            emptyList()
+        }
+    }
 
     /** One-shot ping. Returns null on success or a message on failure. */
     /**

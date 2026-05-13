@@ -102,6 +102,11 @@ data class SystemInfo(
     val kernel: String,
 )
 
+data class LogLine(
+    val time: String,
+    val message: String,
+)
+
 data class ServerSnapshot(
     val info: SystemInfo,
     val array: ArrayInfo,
