@@ -52,7 +52,14 @@ class MainViewModel @Inject constructor(
         )
     }
 
-    fun refresh() = viewModelScope.launch { unraid.snapshotOnce() }
+    /**
+     * Suspends until the snapshot fetch finishes — pulled by the pull-to-refresh
+     * UI so the spinner stays animated for the actual duration of the call.
+     * Caller is responsible for launching this on a UI-bound scope.
+     */
+    suspend fun refresh() {
+        unraid.snapshotOnce()
+    }
 
     fun startArray() = viewModelScope.launch { unraid.startArray() }
     fun stopArray()  = viewModelScope.launch { unraid.stopArray() }

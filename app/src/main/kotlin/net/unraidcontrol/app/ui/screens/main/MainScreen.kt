@@ -108,10 +108,14 @@ fun MainScreen(
             isRefreshing = refreshing,
             state = pullState,
             onRefresh = {
+                if (refreshing) return@PullToRefreshBox
                 refreshing = true
                 scope.launch {
-                    vm.refresh()
-                    refreshing = false
+                    try {
+                        vm.refresh()
+                    } finally {
+                        refreshing = false
+                    }
                 }
             },
             modifier = Modifier.weight(1f),
