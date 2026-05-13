@@ -195,6 +195,7 @@ fun MainScreen(
         ContainerDetailSheet(
             container = openContainer!!,
             serverBaseUrl = baseUrl,
+            onFetchLogs = { id -> vm.containerLogs(id) },
             onDismiss = { openContainer = null },
             onStart   = { vm.startContainer(it.id); openContainer = null },
             onRestart = { vm.restartContainer(it.id) },

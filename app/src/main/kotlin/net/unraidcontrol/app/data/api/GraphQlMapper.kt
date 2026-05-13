@@ -15,6 +15,10 @@ import net.unraidcontrol.app.data.model.ServerSnapshot
 import net.unraidcontrol.app.data.model.SystemInfo
 import net.unraidcontrol.app.data.model.Vm
 import net.unraidcontrol.app.data.model.VmState
+import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.contentOrNull
+import kotlinx.serialization.json.jsonPrimitive
 import net.unraidcontrol.app.graphql.GetServerSnapshotQuery
 import net.unraidcontrol.app.graphql.type.ArrayDiskStatus
 import net.unraidcontrol.app.graphql.type.ArrayDiskType
@@ -113,7 +117,7 @@ fun GetServerSnapshotQuery.Data.toSnapshot(serverBaseUrl: String = ""): ServerSn
                 val ctn  = p.privatePort?.toString().orEmpty()
                 if (host.isNotEmpty() && ctn.isNotEmpty()) "$host:$ctn" else (host.ifEmpty { ctn })
             },
-            volumes = emptyList(),
+            volumes = c.mounts.orEmpty().mapNotNull { parseMount(it) },
         )
     }
 
@@ -202,6 +206,30 @@ private fun GVmState.toDomain(): VmState = when (this) {
 private fun Long.bytesToTb(): Double = this / 1_000_000_000_000.0
 private fun Long.kbToTb():    Double = this / 1_000_000_000.0
 private fun Long.bytesToGb(): Double = this / 1_000_000_000.0
+
+private val mountJson = Json { ignoreUnknownKeys = true; isLenient = true }
+
+/**
+ * Docker mount entries are returned as opaque JSON blobs (`mounts: [JSON!]`).
+ * Real shape from the Docker engine:
+ *   { "Type": "bind", "Source": "/mnt/user/appdata/x", "Destination": "/config",
+ *     "Mode": "rw", "RW": true, "Propagation": "rprivate" }
+ * Return a human-readable "source → destination" string, or null if the JSON
+ * can't be parsed.
+ */
+private fun parseMount(raw: String): String? = try {
+    val obj = mountJson.parseToJsonElement(raw) as? JsonObject ?: return null
+    val src = obj["Source"]?.jsonPrimitive?.contentOrNull
+    val dst = obj["Destination"]?.jsonPrimitive?.contentOrNull
+    when {
+        !src.isNullOrBlank() && !dst.isNullOrBlank() -> "$src → $dst"
+        !dst.isNullOrBlank() -> dst
+        !src.isNullOrBlank() -> src
+        else -> null
+    }
+} catch (e: Exception) {
+    null
+}
 
 private fun parseSpeedMbps(speedString: String?): Double {
     if (speedString.isNullOrBlank()) return 0.0

@@ -180,6 +180,7 @@ enum ContainerPortType {
 
 type Docker {
     containers: [DockerContainer!]!
+    logs(id: PrefixedID!, since: DateTime, tail: Int): DockerContainerLogs!
 }
 
 type DockerContainer {
@@ -191,6 +192,18 @@ type DockerContainer {
     autoStart: Boolean!
     ports: [ContainerPort!]!
     iconUrl: String
+    mounts: [JSON!]
+}
+
+type DockerContainerLogs {
+    containerId: PrefixedID!
+    lines: [DockerContainerLogLine!]!
+    cursor: DateTime
+}
+
+type DockerContainerLogLine {
+    timestamp: DateTime!
+    message: String!
 }
 
 type ContainerPort {

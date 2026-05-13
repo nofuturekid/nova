@@ -19,6 +19,7 @@ import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Text
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -53,6 +54,7 @@ private enum class DetailTab { Info, Logs, Ports, Volumes }
 fun ContainerDetailSheet(
     container: Container,
     serverBaseUrl: String,
+    onFetchLogs: suspend (id: String) -> List<net.unraidcontrol.app.data.model.LogLine>,
     onDismiss: () -> Unit,
     onStart: (Container) -> Unit,
     onRestart: (Container) -> Unit,
@@ -61,6 +63,15 @@ fun ContainerDetailSheet(
     val t = UnraidTheme.colors
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     var tab by remember { mutableStateOf(DetailTab.Info) }
+    var logs by remember(container.id) { mutableStateOf<List<net.unraidcontrol.app.data.model.LogLine>?>(null) }
+    var logsLoading by remember(container.id) { mutableStateOf(false) }
+    LaunchedEffect(tab, container.id, container.status) {
+        if (tab == DetailTab.Logs && container.status == ContainerStatus.Running && logs == null) {
+            logsLoading = true
+            try { logs = onFetchLogs(container.id) }
+            finally { logsLoading = false }
+        }
+    }
 
     ModalBottomSheet(
         onDismissRequest = onDismiss,
@@ -180,7 +191,7 @@ fun ContainerDetailSheet(
 
             when (tab) {
                 DetailTab.Info    -> InfoTabContent(container)
-                DetailTab.Logs    -> LogsTabPlaceholder(container)
+                DetailTab.Logs    -> LogsTabContent(container, logs, logsLoading)
                 DetailTab.Ports   -> PortsTabContent(container)
                 DetailTab.Volumes -> VolumesTabContent(container)
             }
@@ -259,7 +270,11 @@ private fun Kv(key: String, value: String, mono: Boolean = false, last: Boolean 
 }
 
 @Composable
-private fun LogsTabPlaceholder(c: Container) {
+private fun LogsTabContent(
+    c: Container,
+    logs: List<net.unraidcontrol.app.data.model.LogLine>?,
+    loading: Boolean,
+) {
     val t = UnraidTheme.colors
     if (c.status != ContainerStatus.Running) {
         Text(
@@ -270,24 +285,61 @@ private fun LogsTabPlaceholder(c: Container) {
         )
         return
     }
-    // Live log streaming requires a GraphQL subscription or websocket bridge.
-    // The schema field hasn't been hand-modelled here; show a placeholder so
-    // the screen behaves correctly until that wire-up lands.
+    if (loading || logs == null) {
+        Box(modifier = Modifier.fillMaxWidth().padding(24.dp), contentAlignment = Alignment.Center) {
+            androidx.compose.material3.CircularProgressIndicator(color = t.accent)
+        }
+        return
+    }
+    if (logs.isEmpty()) {
+        Text(
+            text = "No log lines.",
+            color = t.muted,
+            fontSize = 13.sp,
+            modifier = Modifier.padding(vertical = 24.dp, horizontal = 12.dp),
+        )
+        return
+    }
     Column(
         modifier = Modifier
             .fillMaxWidth()
             .background(Color(0xFF06090A), RoundedCornerShape(12.dp))
             .padding(12.dp),
     ) {
-        Text(
-            text = "Logs subscription pending wire-up against live Unraid Connect.\n" +
-                "Container ID: ${c.id}",
-            color = t.muted,
-            fontSize = 11.sp,
-            fontFamily = JetBrainsMono,
-            lineHeight = 18.sp,
-        )
+        logs.forEach { line ->
+            val color = when {
+                line.message.contains("error", ignoreCase = true) -> t.danger
+                line.message.contains("warn",  ignoreCase = true) -> t.warn
+                line.message.contains("debug", ignoreCase = true) -> t.muted
+                else                                              -> t.accent
+            }
+            Row {
+                Text(
+                    text = formatLogTime(line.time),
+                    color = t.muted,
+                    fontSize = 11.sp,
+                    fontFamily = JetBrainsMono,
+                    modifier = Modifier.padding(end = 8.dp),
+                )
+                Text(
+                    text = line.message,
+                    color = color,
+                    fontSize = 11.sp,
+                    fontFamily = JetBrainsMono,
+                    lineHeight = 16.sp,
+                )
+            }
+        }
     }
+}
+
+private fun formatLogTime(iso: String): String {
+    // Strip the date portion for compactness: "2026-05-13T18:24:07.123Z" → "18:24:07"
+    val tIdx = iso.indexOf('T')
+    if (tIdx < 0) return iso
+    val rest = iso.substring(tIdx + 1)
+    val cut = rest.indexOfAny(charArrayOf('.', 'Z', '+', '-'))
+    return if (cut > 0) rest.substring(0, cut) else rest
 }
 
 @Composable

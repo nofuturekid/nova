@@ -2,6 +2,18 @@ query Ping {
     __typename
 }
 
+query FetchContainerLogs($id: PrefixedID!, $tail: Int) {
+    docker {
+        logs(id: $id, tail: $tail) {
+            lines {
+                timestamp
+                message
+            }
+            cursor
+        }
+    }
+}
+
 query GetServerSnapshot {
     info {
         cpu { brand cores threads speedmax }
@@ -21,6 +33,7 @@ query GetServerSnapshot {
         containers {
             id names image state status autoStart iconUrl
             ports { privatePort publicPort type }
+            mounts
         }
     }
     vms {
