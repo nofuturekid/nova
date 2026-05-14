@@ -50,4 +50,5 @@ ADRs live under `docs/` so the CI docs-only bypass applies — pure-ADR PRs comp
 | [0013](./0013-versionname-includes-prerelease-suffix.md) | `versionName` includes the pre-release suffix | Accepted |
 | [0014](./0014-single-ci-run-per-pr.md) | Single CI run per PR — release workflow resolves through PR | Accepted |
 | [0015](./0015-promotion-requires-new-commit.md) | Promotion to a different version-string requires a new commit | Accepted |
+| [0016](./0016-long-running-apollo-client.md) | Separate Apollo client for long-running mutations | Proposed |
 | [0017](./0017-domain-split-queries-with-lifecycle-polling.md) | Domain-split queries with lifecycle-aware polling | Proposed |
