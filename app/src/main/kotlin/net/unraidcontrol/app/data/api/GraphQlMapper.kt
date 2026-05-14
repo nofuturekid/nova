@@ -4,6 +4,7 @@ import net.unraidcontrol.app.data.model.ArrayInfo
 import net.unraidcontrol.app.data.model.ArrayState
 import net.unraidcontrol.app.data.model.Container
 import net.unraidcontrol.app.data.model.ContainerStatus
+import net.unraidcontrol.app.data.model.ContainerUpdateStatus
 import net.unraidcontrol.app.data.model.CpuStats
 import net.unraidcontrol.app.data.model.Disk
 import net.unraidcontrol.app.data.model.DiskStatus
@@ -20,6 +21,7 @@ import net.unraidcontrol.app.graphql.type.ArrayDiskStatus
 import net.unraidcontrol.app.graphql.type.ArrayDiskType
 import net.unraidcontrol.app.graphql.type.ArrayState as GArrayState
 import net.unraidcontrol.app.graphql.type.ContainerState as GContainerState
+import net.unraidcontrol.app.graphql.type.UpdateStatus as GUpdateStatus
 import net.unraidcontrol.app.graphql.type.VmState as GVmState
 
 /**
@@ -115,6 +117,7 @@ fun GetServerSnapshotQuery.Data.toSnapshot(serverBaseUrl: String = ""): ServerSn
                 if (host.isNotEmpty() && ctn.isNotEmpty()) "$host:$ctn" else (host.ifEmpty { ctn })
             },
             volumes = parseMountsArray(c.mounts),
+            updateStatus = c.updateStatus.toDomain(),
         )
     }
 
@@ -190,6 +193,14 @@ private fun GContainerState.toDomain(): ContainerStatus = when (this) {
     GContainerState.PAUSED  -> ContainerStatus.Paused
     GContainerState.EXITED  -> ContainerStatus.Exited
     else                    -> ContainerStatus.Exited
+}
+
+private fun GUpdateStatus.toDomain(): ContainerUpdateStatus = when (this) {
+    GUpdateStatus.UP_TO_DATE       -> ContainerUpdateStatus.UpToDate
+    GUpdateStatus.UPDATE_AVAILABLE -> ContainerUpdateStatus.UpdateAvailable
+    GUpdateStatus.REBUILD_READY    -> ContainerUpdateStatus.RebuildReady
+    GUpdateStatus.UNKNOWN          -> ContainerUpdateStatus.Unknown
+    else                           -> ContainerUpdateStatus.Unknown
 }
 
 private fun GVmState.toDomain(): VmState = when (this) {

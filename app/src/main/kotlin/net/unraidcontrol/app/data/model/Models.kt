@@ -48,6 +48,11 @@ data class ArrayInfo(
 
 enum class ContainerStatus { Running, Paused, Exited }
 
+enum class ContainerUpdateStatus { UpToDate, UpdateAvailable, RebuildReady, Unknown }
+
+fun ContainerUpdateStatus.hasUpdate(): Boolean =
+    this == ContainerUpdateStatus.UpdateAvailable || this == ContainerUpdateStatus.RebuildReady
+
 data class Container(
     val id: String,
     val name: String,
@@ -60,6 +65,7 @@ data class Container(
     val memMb: Int,
     val ports: List<String>,
     val volumes: List<String>,
+    val updateStatus: ContainerUpdateStatus,
 )
 
 enum class VmState { Running, Paused, Stopped }

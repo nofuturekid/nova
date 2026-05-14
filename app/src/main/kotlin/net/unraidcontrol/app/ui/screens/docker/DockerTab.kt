@@ -42,6 +42,7 @@ import androidx.compose.ui.unit.sp
 import net.unraidcontrol.app.data.local.DockerView
 import net.unraidcontrol.app.data.model.Container
 import net.unraidcontrol.app.data.model.ContainerStatus
+import net.unraidcontrol.app.data.model.hasUpdate
 import net.unraidcontrol.app.data.repository.SnapshotState
 import net.unraidcontrol.app.ui.components.ContainerIcon
 import net.unraidcontrol.app.ui.components.Pill
@@ -234,6 +235,9 @@ private fun ContainerRow(
                 Spacer(Modifier.height(3.dp))
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     Pill(statusLabel, tone = tone, dot = true)
+                    if (c.updateStatus.hasUpdate()) {
+                        Pill("update", tone = Tone.Info, dot = true)
+                    }
                     Text(
                         text = c.image,
                         color = t.muted,
@@ -295,6 +299,15 @@ private fun ContainerGridTile(c: Container, serverBaseUrl: String, onOpen: (Cont
                         .clip(CircleShape)
                         .background(statusColor),
                 )
+                if (c.updateStatus.hasUpdate()) {
+                    Box(
+                        modifier = Modifier
+                            .align(Alignment.TopStart)
+                            .size(8.dp)
+                            .clip(CircleShape)
+                            .background(t.info),
+                    )
+                }
             }
             Spacer(Modifier.height(8.dp))
             Text(
