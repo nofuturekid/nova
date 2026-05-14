@@ -24,7 +24,7 @@ jobs:
   release:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
         with:
           fetch-depth: 0  # need history to resolve tag → commit SHA
 
@@ -87,7 +87,7 @@ jobs:
           echo "id=$RUN_ID" >> "$GITHUB_OUTPUT"
 
       - name: Download release APK from CI run
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v7
         with:
           name: app-release
           path: artifacts/apk
@@ -95,7 +95,7 @@ jobs:
           github-token: ${{ github.token }}
 
       - name: Download mapping from CI run
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v7
         with:
           name: mapping
           path: artifacts/mapping
