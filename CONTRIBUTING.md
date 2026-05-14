@@ -37,57 +37,39 @@ If you tag too early (before CI is green), the release workflow fails with a cle
 
 ### Pre-releases (beta → rc → stable)
 
-Tags following the convention `vX.Y.Z-beta1`, `-beta2`, …, `-rc1`, `-rc2`, … (also `-alpha1`, `-pre1`) get the GitHub "Pre-release" flag automatically. They don't appear as "Latest release" on the repo page. The in-app updater treats them as updates only when "Include pre-releases" is enabled in Settings.
-
 ```bash
 git tag -a v0.2.0-beta1 -m "v0.2.0 beta 1"
 git push origin v0.2.0-beta1
 ```
 
-The trailing number is required — `v0.2.0-beta` without a digit is rejected (catches typos).
+Trailing digit is required (`v0.2.0-beta` without a number is rejected). See **[ADR-0005](docs/adr/0005-prerelease-tag-convention.md)** for the convention; **[ADR-0006](docs/adr/0006-pragmatic-beta-first-release-policy.md)** for when beta-first is required.
 
-### Release policy
+### Cheat-sheet — what triggers what
 
-Two failed "stable" releases in a row taught us: not every change is safe to ship to "Latest" without a sniff test. We now follow a **pragmatic risk-categorised** rule.
+| If the PR touches… | Action |
+|---|---|
+| Compose UI / single-file bug fix / docs | Direct stable allowed (ADR-0006). |
+| Docs only (`*.md`, `LICENSE`, `docs/`, AI-assistant configs) | **No version bump, no tag** — CI skips the APK build automatically (ADR-0009). |
+| `schema.graphqls`, GraphQL ops, `GraphQlMapper.kt`, Apollo config | Beta-first required (ADR-0006). |
+| `AndroidManifest.xml` (new permissions/components) | Beta-first required (ADR-0006). |
+| `SettingsStore.kt` keys / DataStore migration | Beta-first required (ADR-0006). |
+| `app/build.gradle.kts` plugin/dependency bumps | Beta-first required (ADR-0006). |
+| New end-to-end feature touching install + UI flow | Beta-first required (ADR-0006). |
+| Anything affecting how the app talks to the Unraid server | Beta-first required (ADR-0006). |
 
-**Direct stable (`vX.Y.Z`) is allowed when the PR only touches:**
+When in doubt: beta-first. The in-app updater (ADR-0008) means betas reach the dev's device with no extra friction.
 
-- Compose UI (visuals, copy, layout)
-- README / CONTRIBUTING / HANDOFF / other docs
-- `.github/workflows/*` (doesn't ship to users)
-- A single-file bug fix the dev has already verified on their device
+### Cleaning up old releases
 
-**Beta-first is required when the PR touches any of:**
+```bash
+gh release delete <tag> --yes      # never --cleanup-tag
+```
 
-- `schema.graphqls`, `*.graphql` operations — schema drift bugs (v0.1.11, v0.1.13)
-- `GraphQlMapper.kt` or Apollo scalar config
-- `AndroidManifest.xml` — new permissions / components
-- `SettingsStore.kt` keys or DataStore migration
-- `app/build.gradle.kts` plugin / dependency bumps
-- New end-to-end features touching the install + UI flow
-- Anything affecting how the app talks to the Unraid server
+Keeps the git tag so the auto-generated `Full Changelog` compare-links on newer releases keep resolving. See **[ADR-0010](docs/adr/0010-release-cleanup-keeps-tags.md)** (incl. recovery recipe for accidentally-deleted tags).
 
-**Flow for risky changes:**
+## Architecture decisions
 
-1. Merge PR to `main` as normal.
-2. Tag `vX.Y.Z-beta1`. Release workflow publishes as pre-release. Test on a device.
-3. Bug found → fix-PR → tag `-beta2`, repeat.
-4. Stable on a beta → promote to `vX.Y.Z-rc1` (same commit, different tag). Last quick sanity check.
-5. Quiet on the RC → tag the same commit as `vX.Y.Z` stable.
-
-In practice for solo dev: usually `beta1` → user tests on the device with "Include pre-releases" turned on → if good, jump straight to stable (skip the rc step) for minor changes; use rc only when the gap between the previous stable and this one feels material (lots of changes, schema work, etc.).
-
-When in doubt: beta-first. The in-app updater means betas reach the dev's own device with no extra friction.
-
-**Docs-only PRs need no version bump and produce no release.** Pure documentation and assistant-config changes merge to `main` without bumping `versionCode` / `versionName` and without a `v*` tag — they don't ship to users. CI detects them automatically and skips the APK build (~10 seconds instead of ~4 minutes), still reporting `SUCCESS` on the `build` check so branch protection is happy. The whitelist covers:
-
-- `*.md` anywhere (README, CONTRIBUTING, HANDOFF, `CLAUDE.md`, `AGENTS.md`, `GEMINI.md`, `.github/copilot-instructions.md`, …)
-- `LICENSE`, `docs/`, `.gitattributes`, `.editorconfig`
-- AI assistant config: `.claude/`, `.cursor/`, `.cursorrules`, `.continue/`, `.aider*`, `.windsurfrules`, `.github/instructions/` (Cursor, Claude Code, Continue, Aider, Windsurf, Copilot)
-
-If the PR also changes anything else (Kotlin, Gradle, workflows, manifest, resources), treat it as a code change and bump the version normally.
-
-**Cleaning up old releases keeps the tags.** When trimming the Releases page, use `gh release delete <tag> --yes` — **never** `--cleanup-tag`. The Releases UI gets shorter, but the underlying git tag stays. This matters because each release's auto-generated `**Full Changelog**: …/compare/vPREV...vCURR` link is resolved at view time — if `vPREV` is deleted, the link breaks on every still-published release that pointed at it. Tags cost almost nothing; keep them.
+Major decisions live as ADRs under [`docs/adr/`](docs/adr/). Read those first if you're wondering *why* something is the way it is; this file describes *how* to work within the conventions.
 
 ## Local builds
 
