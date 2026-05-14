@@ -125,7 +125,7 @@ Direct stable allowed for: pure Compose UI changes, docs, `.github/workflows/*`,
 
 Beta → (optional) RC → stable. Same commit gets re-tagged at promotion. The in-app updater (v0.1.16+) means the dev's own device pulls betas automatically when "Include pre-releases" is on, so beta-first costs no extra friction.
 
-Docs-only PRs (`*.md`, `LICENSE`, `docs/`, `.gitattributes`, `.editorconfig`) skip both the version bump and the APK build entirely — ci.yml auto-detects via path diff and reports `SUCCESS` in ~10s without running Gradle, and no `v*` tag is pushed.
+Docs-only PRs skip both the version bump and the APK build entirely — ci.yml auto-detects via path diff and reports `SUCCESS` in ~10s without running Gradle, and no `v*` tag is pushed. The whitelist covers `*.md` anywhere (incl. `CLAUDE.md`, `AGENTS.md`, etc.), `LICENSE`, `docs/`, `.gitattributes`, `.editorconfig`, and AI-assistant config dirs/files (`.claude/`, `.cursor/`, `.continue/`, `.aider*`, `.windsurfrules`, `.cursorrules`, `.github/instructions/`). Anything else — Kotlin, Gradle, workflows, manifest, resources — forces the full build.
 
 ### Release procedure
 

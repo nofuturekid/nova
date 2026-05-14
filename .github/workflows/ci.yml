@@ -47,10 +47,18 @@ jobs:
           CHANGED=$(git diff --name-only "$BASE" "$HEAD")
           echo "Changed files:"
           echo "$CHANGED" | sed 's/^/  /'
-          # Whitelist: anything matching this regex is treated as docs.
-          # Everything else (code, gradle, workflows, manifest, resources, …)
-          # forces a full build.
-          NON_DOCS=$(echo "$CHANGED" | grep -vE '\.md$|^LICENSE$|^docs/|^\.gitattributes$|^\.editorconfig$' || true)
+          # Whitelist: anything matching this regex is treated as non-shipping
+          # (docs + AI assistant context). Everything else (code, gradle,
+          # workflows, manifest, resources, …) forces a full build.
+          #
+          #   *.md                       — README, CLAUDE.md, AGENTS.md, GEMINI.md, …
+          #   LICENSE                    — legal text
+          #   docs/                      — long-form docs (future-proof, dir doesn't exist yet)
+          #   .gitattributes, .editorconfig — repo hygiene
+          #   .claude/, .cursor/, .continue/, .aider*, .windsurfrules, .cursorrules, …
+          #                              — AI assistant config (Claude Code, Cursor, Continue, Aider, Windsurf)
+          #   .github/instructions/      — Copilot path-specific instructions
+          NON_DOCS=$(echo "$CHANGED" | grep -vE '\.md$|^LICENSE$|^docs/|^\.gitattributes$|^\.editorconfig$|^\.(claude|cursor|continue|aider|windsurf|sourcegraph|codeium)|^\.github/instructions/' || true)
           if [ -z "$NON_DOCS" ]; then
             echo "::notice::Docs-only change — skipping APK build."
             echo "code=false" >> "$GITHUB_OUTPUT"
