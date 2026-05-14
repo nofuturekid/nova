@@ -1,5 +1,8 @@
 package net.unraidcontrol.app.ui.screens.settings
 
+import android.content.Intent
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -22,6 +25,9 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -42,8 +48,13 @@ import kotlinx.coroutines.launch
 import net.unraidcontrol.app.BuildConfig
 import net.unraidcontrol.app.data.local.DockerView
 import net.unraidcontrol.app.data.model.AppSettings
+import net.unraidcontrol.app.data.model.InstallState
+import net.unraidcontrol.app.data.model.UpdateInfo
 import net.unraidcontrol.app.data.model.UpdateState
 import net.unraidcontrol.app.data.repository.SettingsRepository
+import net.unraidcontrol.app.data.update.InstallEvent
+import net.unraidcontrol.app.data.update.InstallStatusReceiver
+import net.unraidcontrol.app.data.update.UpdateInstaller
 import net.unraidcontrol.app.data.update.UpdateRepository
 import net.unraidcontrol.app.ui.components.BtnVariant
 import net.unraidcontrol.app.ui.components.Pill
@@ -55,6 +66,7 @@ import net.unraidcontrol.app.ui.components.UnraidCard
 import net.unraidcontrol.app.ui.components.UnraidIconButton
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import net.unraidcontrol.app.ui.screens.update.UpdateDialog
 import net.unraidcontrol.app.ui.theme.AccentSwatches
 import net.unraidcontrol.app.ui.theme.Density
 import net.unraidcontrol.app.ui.theme.UnraidTheme
@@ -71,6 +83,7 @@ data class SettingsUi(
 class SettingsViewModel @Inject constructor(
     private val repo: SettingsRepository,
     private val updates: UpdateRepository,
+    private val installer: UpdateInstaller,
 ) : ViewModel() {
     val state: StateFlow<SettingsUi> = combine(
         repo.settings,
@@ -84,8 +97,29 @@ class SettingsViewModel @Inject constructor(
             SettingsUi(AppSettings(), DockerView.List, includePrereleases = false, lastUpdateCheck = null),
         )
 
-    private val _checkState = MutableStateFlow<UpdateState>(UpdateState.UpToDate)
+    private val _checkState = MutableStateFlow<UpdateState>(UpdateState.Checking)
     val checkState: StateFlow<UpdateState> = _checkState.asStateFlow()
+
+    private val _installState = MutableStateFlow<InstallState>(InstallState.Idle)
+    val installState: StateFlow<InstallState> = _installState.asStateFlow()
+
+    init {
+        // Refresh the snapshot when the user opens Settings so they see the
+        // current update state instead of a stale 'Up to date'.
+        checkNow()
+
+        // Mirror PackageInstaller broadcasts into our install-state flow so
+        // the dialog reacts to system confirm / success / failure.
+        viewModelScope.launch {
+            InstallStatusReceiver.events.collect { event ->
+                _installState.value = when (event) {
+                    is InstallEvent.UserConfirmShown -> InstallState.Installing
+                    is InstallEvent.Success          -> InstallState.Idle
+                    is InstallEvent.Failed           -> InstallState.Failed(event.message)
+                }
+            }
+        }
+    }
 
     fun setAccent(hex: Long)            = viewModelScope.launch { repo.setAccent(hex) }
     fun setDark(isDark: Boolean)        = viewModelScope.launch { repo.setDark(isDark) }
@@ -95,12 +129,40 @@ class SettingsViewModel @Inject constructor(
         repo.setIncludePrereleases(value)
         // Reset dismissal so a previously-hidden update becomes visible again.
         repo.setDismissedUpdateTag(null)
+        // Re-check immediately so the user sees the right answer for the new toggle.
+        checkNow()
     }
 
     fun checkNow() = viewModelScope.launch {
         _checkState.value = UpdateState.Checking
         _checkState.value = updates.check(state.value.includePrereleases)
         repo.setLastUpdateCheck(System.currentTimeMillis())
+    }
+
+    fun installUpdate(info: UpdateInfo) = viewModelScope.launch {
+        _installState.value = InstallState.Downloading(0f)
+        try {
+            val apk = installer.download(info.downloadUrl) { progress ->
+                _installState.value = InstallState.Downloading(progress)
+            }
+            _installState.value = InstallState.Installing
+            try {
+                installer.install(apk)
+            } catch (e: UpdateInstaller.NeedsPermissionException) {
+                _installState.value = InstallState.NeedsPermission(e.intent)
+            }
+        } catch (e: Exception) {
+            _installState.value = InstallState.Failed(e.message ?: "Update failed")
+        }
+    }
+
+    fun resetInstall() {
+        _installState.value = InstallState.Idle
+    }
+
+    fun launchPermissionIntent(state: InstallState.NeedsPermission, launch: (Intent) -> Unit) {
+        launch(state.intent)
+        _installState.value = InstallState.Idle
     }
 }
 
@@ -112,6 +174,11 @@ fun SettingsScreen(
     val t = UnraidTheme.colors
     val ui by vm.state.collectAsState()
     val checkState by vm.checkState.collectAsState()
+    val installState by vm.installState.collectAsState()
+    var showUpdateDialog by remember { mutableStateOf(false) }
+    val permissionLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.StartActivityForResult(),
+    ) { /* user returns from system settings; they'll re-tap Install */ }
 
     Column(
         modifier = Modifier
@@ -226,7 +293,7 @@ fun SettingsScreen(
                     SettingRow(label = "Include pre-releases") {
                         Toggle(value = ui.includePrereleases, onChange = vm::setIncludePrereleases)
                     }
-                    Row {
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         Spacer(Modifier.weight(1f))
                         UnraidButton(
                             onClick = { vm.checkNow() },
@@ -234,10 +301,33 @@ fun SettingsScreen(
                             variant = BtnVariant.Tonal,
                             leadingIcon = { UC.Refresh(14.dp, t.accent) },
                         )
+                        if (cs is UpdateState.Available) {
+                            UnraidButton(
+                                onClick = { showUpdateDialog = true },
+                                label = "Install update",
+                                variant = BtnVariant.Filled,
+                            )
+                        }
                     }
                 }
             }
         }
+    }
+
+    val cs2 = checkState
+    if (showUpdateDialog && cs2 is UpdateState.Available) {
+        UpdateDialog(
+            info = cs2.info,
+            install = installState,
+            onInstall = { vm.installUpdate(cs2.info) },
+            onDismiss = {
+                showUpdateDialog = false
+                if (installState is InstallState.Failed) vm.resetInstall()
+            },
+            onGrantPermission = { state ->
+                vm.launchPermissionIntent(state) { permissionLauncher.launch(it) }
+            },
+        )
     }
 }
 
