@@ -35,9 +35,9 @@ git push origin v0.2.0
 
 If you tag too early (before CI is green), the release workflow fails with a clear message; just wait for CI and push the tag again.
 
-### Pre-releases (beta / rc)
+### Pre-releases (beta → rc → stable)
 
-Tags following the convention `vX.Y.Z-beta1`, `-beta2`, …, `-rc1`, `-rc2`, … (also `-alpha1`, `-pre1`) get the GitHub "Pre-release" flag automatically. They don't appear as "Latest release" on the repo page.
+Tags following the convention `vX.Y.Z-beta1`, `-beta2`, …, `-rc1`, `-rc2`, … (also `-alpha1`, `-pre1`) get the GitHub "Pre-release" flag automatically. They don't appear as "Latest release" on the repo page. The in-app updater treats them as updates only when "Include pre-releases" is enabled in Settings.
 
 ```bash
 git tag -a v0.2.0-beta1 -m "v0.2.0 beta 1"
@@ -46,7 +46,38 @@ git push origin v0.2.0-beta1
 
 The trailing number is required — `v0.2.0-beta` without a digit is rejected (catches typos).
 
-This is the test channel — sideload these for early validation without pushing them on every user.
+### Release policy
+
+Two failed "stable" releases in a row taught us: not every change is safe to ship to "Latest" without a sniff test. We now follow a **pragmatic risk-categorised** rule.
+
+**Direct stable (`vX.Y.Z`) is allowed when the PR only touches:**
+
+- Compose UI (visuals, copy, layout)
+- README / CONTRIBUTING / HANDOFF / other docs
+- `.github/workflows/*` (doesn't ship to users)
+- A single-file bug fix the dev has already verified on their device
+
+**Beta-first is required when the PR touches any of:**
+
+- `schema.graphqls`, `*.graphql` operations — schema drift bugs (v0.1.11, v0.1.13)
+- `GraphQlMapper.kt` or Apollo scalar config
+- `AndroidManifest.xml` — new permissions / components
+- `SettingsStore.kt` keys or DataStore migration
+- `app/build.gradle.kts` plugin / dependency bumps
+- New end-to-end features touching the install + UI flow
+- Anything affecting how the app talks to the Unraid server
+
+**Flow for risky changes:**
+
+1. Merge PR to `main` as normal.
+2. Tag `vX.Y.Z-beta1`. Release workflow publishes as pre-release. Test on a device.
+3. Bug found → fix-PR → tag `-beta2`, repeat.
+4. Stable on a beta → promote to `vX.Y.Z-rc1` (same commit, different tag). Last quick sanity check.
+5. Quiet on the RC → tag the same commit as `vX.Y.Z` stable.
+
+In practice for solo dev: usually `beta1` → user tests on the device with "Include pre-releases" turned on → if good, jump straight to stable (skip the rc step) for minor changes; use rc only when the gap between the previous stable and this one feels material (lots of changes, schema work, etc.).
+
+When in doubt: beta-first. The in-app updater means betas reach the dev's own device with no extra friction.
 
 ## Local builds
 

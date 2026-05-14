@@ -111,13 +111,28 @@ app/src/main/
 - **RC**: `v0.X.Y-rc1`, `v0.X.Y-rc2`, …
 - The trailing digit is **required**. Plain `-beta` rejected as typo guard.
 
+### Release-class policy (when to beta-first)
+
+Lesson learnt from v0.1.11 and v0.1.13: tagging stable immediately after a green CI is not enough — schema/network changes can ship a working build that breaks against the live server. Always beta-first when the PR touches:
+
+- `schema.graphqls`, `*.graphql`, Apollo scalar config, `GraphQlMapper.kt`
+- `AndroidManifest.xml` (permissions / components)
+- `SettingsStore.kt` keys / DataStore migration
+- `app/build.gradle.kts` plugin / dependency bumps
+- New end-to-end features (e.g. updater)
+
+Direct stable allowed for: pure Compose UI changes, docs, `.github/workflows/*`, single-file fixes already verified.
+
+Beta → (optional) RC → stable. Same commit gets re-tagged at promotion. The in-app updater (v0.1.16+) means the dev's own device pulls betas automatically when "Include pre-releases" is on, so beta-first costs no extra friction.
+
 ### Release procedure
 
 1. Feature branch → PR → CI green → squash-merge → branch auto-deleted
 2. ci.yml runs on main (auto)
 3. Wait for green
-4. Tag: `git tag -a v0.X.Y -m "..." && git push origin v0.X.Y`
+4. Tag — risky change: `git tag -a v0.X.Y-beta1 -m "..." && git push origin v0.X.Y-beta1`
 5. release.yml promotes the existing artifact (~16s)
+6. Once tested OK on device: re-tag the same commit as stable (or as `-rc1` first).
 
 If a tag is pushed before CI on its commit is green, `release.yml` fails with "no successful CI run found for commit". Push to main first, wait, then tag.
 
