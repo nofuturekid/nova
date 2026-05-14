@@ -78,6 +78,4 @@ class MainViewModel @Inject constructor(
 
     suspend fun containerLogs(id: String): List<net.unraidcontrol.app.data.model.LogLine> =
         unraid.containerLogs(id)
-
-    suspend fun containerMounts(id: String): List<String> = unraid.containerMounts(id)
 }

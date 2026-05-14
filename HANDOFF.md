@@ -142,6 +142,7 @@ mapScalar("Port",       "kotlin.Int")
 - **VMs** live under `vms.domains`, NOT a top-level list.
 - Apollo with `generateOptionalOperationVariables = false`: optional GraphQL vars become `T?` directly. **Never wrap in `Optional.present()`** — it won't compile.
 - **KSP1 only**: `ksp.useKSP2=false` in `gradle.properties`. Hilt 2.52 + KSP2 fails with "Did you forget to apply the Gradle plugin?" even when the plugin is applied.
+- **`DockerContainer.mounts` is `JSON` (single scalar) NOT `[JSON!]`** — the JSON content itself is an encoded array of mount objects. Easy to mistype based on intuition; v0.1.11 made the snapshot fail server-wide because of this exact wrong type. Parse via `parseMountsArray` in `GraphQlMapper.kt`.
 - Cleartext HTTP requires `android:usesCleartextTraffic="true"` in the manifest. LAN access against `http://192.168.x.x` needs this.
 
 ### What the Unraid API does NOT expose

@@ -55,7 +55,6 @@ fun ContainerDetailSheet(
     container: Container,
     serverBaseUrl: String,
     onFetchLogs: suspend (id: String) -> List<net.unraidcontrol.app.data.model.LogLine>,
-    onFetchMounts: suspend (id: String) -> List<String>,
     onDismiss: () -> Unit,
     onStart: (Container) -> Unit,
     onRestart: (Container) -> Unit,
@@ -66,15 +65,11 @@ fun ContainerDetailSheet(
     var tab by remember { mutableStateOf(DetailTab.Info) }
     var logs by remember(container.id) { mutableStateOf<List<net.unraidcontrol.app.data.model.LogLine>?>(null) }
     var logsLoading by remember(container.id) { mutableStateOf(false) }
-    var mounts by remember(container.id) { mutableStateOf<List<String>?>(null) }
     LaunchedEffect(tab, container.id, container.status) {
         if (tab == DetailTab.Logs && container.status == ContainerStatus.Running && logs == null) {
             logsLoading = true
             try { logs = onFetchLogs(container.id) }
             finally { logsLoading = false }
-        }
-        if (tab == DetailTab.Volumes && mounts == null) {
-            mounts = onFetchMounts(container.id)
         }
     }
 
@@ -198,7 +193,7 @@ fun ContainerDetailSheet(
                 DetailTab.Info    -> InfoTabContent(container)
                 DetailTab.Logs    -> LogsTabContent(container, logs, logsLoading)
                 DetailTab.Ports   -> PortsTabContent(container)
-                DetailTab.Volumes -> VolumesTabContent(container, mounts)
+                DetailTab.Volumes -> VolumesTabContent(container)
             }
             Spacer(Modifier.height(24.dp))
         }
@@ -375,20 +370,14 @@ private fun PortsTabContent(c: Container) {
 }
 
 @Composable
-private fun VolumesTabContent(c: Container, mounts: List<String>?) {
+private fun VolumesTabContent(c: Container) {
     val t = UnraidTheme.colors
-    if (mounts == null) {
-        Box(modifier = Modifier.fillMaxWidth().padding(24.dp), contentAlignment = Alignment.Center) {
-            androidx.compose.material3.CircularProgressIndicator(color = t.accent)
-        }
-        return
-    }
-    if (mounts.isEmpty()) {
+    if (c.volumes.isEmpty()) {
         Empty("No volume mounts")
         return
     }
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        mounts.forEach { mount ->
+        c.volumes.forEach { mount ->
             UnraidCard(padding = 12.dp) {
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                     UC.Folder(18.dp, t.muted)
