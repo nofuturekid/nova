@@ -14,13 +14,30 @@ query FetchContainerLogs($id: PrefixedID!, $tail: Int) {
     }
 }
 
-query GetServerSnapshot {
+# ── Per-domain queries (replace GetServerSnapshot, see ADR-0017) ──────
+#
+# Each query is fetched by its own polling Flow in UnraidRepository,
+# gated on whether the corresponding tab is currently visible and the
+# app is in the foreground. Poll intervals are tuned per domain — see
+# UnraidRepository for the actual numbers.
+
+query GetServerInfo {
     info {
         cpu { brand cores threads speedmax }
         memory { layout { size } }
         os { hostname kernel uptime }
         versions { core { unraid kernel } }
     }
+}
+
+query GetMetrics {
+    metrics {
+        cpu { percentTotal }
+        memory { total used buffcache }
+    }
+}
+
+query GetArray {
     array {
         state
         capacity { kilobytes { total used free } }
@@ -29,6 +46,9 @@ query GetServerSnapshot {
         caches    { id name device size status temp fsSize fsFree fsUsed type }
         parityCheckStatus { progress speed errors running paused }
     }
+}
+
+query GetDockerContainers {
     docker {
         containers {
             id names image state status autoStart iconUrl
@@ -37,11 +57,10 @@ query GetServerSnapshot {
             mounts
         }
     }
+}
+
+query GetVms {
     vms {
         domains { id name state }
-    }
-    metrics {
-        cpu { percentTotal }
-        memory { total used buffcache }
     }
 }

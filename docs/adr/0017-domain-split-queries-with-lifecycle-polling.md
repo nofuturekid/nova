@@ -1,6 +1,6 @@
 # ADR-0017: Domain-split queries with lifecycle-aware polling
 
-- **Status**: Proposed
+- **Status**: Accepted
 - **Date**: 2026-05-14
 - **Tags**: data, ui, performance, resilience
 

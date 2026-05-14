@@ -25,12 +25,16 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import net.unraidcontrol.app.data.model.ArrayInfo
 import net.unraidcontrol.app.data.model.ArrayState
+import net.unraidcontrol.app.data.model.Container
 import net.unraidcontrol.app.data.model.ContainerStatus
+import net.unraidcontrol.app.data.model.LiveMetrics
 import net.unraidcontrol.app.data.model.Server
-import net.unraidcontrol.app.data.model.ServerSnapshot
+import net.unraidcontrol.app.data.model.ServerInfo
+import net.unraidcontrol.app.data.model.Vm
 import net.unraidcontrol.app.data.model.VmState
-import net.unraidcontrol.app.data.repository.SnapshotState
+import net.unraidcontrol.app.data.repository.DomainState
 import net.unraidcontrol.app.ui.components.Pill
 import net.unraidcontrol.app.ui.components.Sparkline
 import net.unraidcontrol.app.ui.components.StackBar
@@ -45,49 +49,101 @@ import net.unraidcontrol.app.ui.screens.NoServerState
 import net.unraidcontrol.app.ui.theme.JetBrainsMono
 import net.unraidcontrol.app.ui.theme.UnraidTheme
 
+/**
+ * Overview is the only tab that subscribes to *all* five per-domain streams
+ * (info + metrics + array + docker + vms) — every stat card needs a different
+ * source. We render progressively: any sub-state that hasn't loaded yet
+ * contributes default/empty values to the layout, so the user sees the
+ * dashboard fill in as polls complete rather than a single overall spinner.
+ */
 @Composable
 fun OverviewTab(
-    snapshot: SnapshotState,
+    infoState: DomainState<ServerInfo>,
+    metricsState: DomainState<LiveMetrics>,
+    arrayState: DomainState<ArrayInfo>,
+    dockerState: DomainState<List<Container>>,
+    vmsState: DomainState<List<Vm>>,
     server: Server?,
     onAddServer: () -> Unit,
 ) {
-    when (snapshot) {
-        SnapshotState.Loading -> LoadingState()
-        SnapshotState.NoServer -> NoServerState(onAdd = onAddServer)
-        is SnapshotState.Error -> ErrorState(snapshot.message)
-        is SnapshotState.Content -> OverviewContent(snapshot.snapshot, server)
+    // Any single NoServer → no server picked.
+    if (infoState is DomainState.NoServer || metricsState is DomainState.NoServer ||
+        arrayState is DomainState.NoServer || dockerState is DomainState.NoServer ||
+        vmsState is DomainState.NoServer) {
+        NoServerState(onAdd = onAddServer)
+        return
     }
+
+    val info = (infoState as? DomainState.Content<ServerInfo>)?.value
+    val metrics = (metricsState as? DomainState.Content<LiveMetrics>)?.value
+    val array = (arrayState as? DomainState.Content<ArrayInfo>)?.value
+    val containers = (dockerState as? DomainState.Content<List<Container>>)?.value
+    val vms = (vmsState as? DomainState.Content<List<Vm>>)?.value
+
+    // Nothing yet → either Loading or surface the first Error.
+    if (info == null && metrics == null && array == null && containers == null && vms == null) {
+        val err = listOfNotNull(
+            (infoState as? DomainState.Error)?.message,
+            (metricsState as? DomainState.Error)?.message,
+            (arrayState as? DomainState.Error)?.message,
+            (dockerState as? DomainState.Error)?.message,
+            (vmsState as? DomainState.Error)?.message,
+        ).firstOrNull()
+        if (err != null) ErrorState(err) else LoadingState()
+        return
+    }
+
+    OverviewContent(info, metrics, array, containers, vms, server)
 }
 
 @Composable
-private fun OverviewContent(snap: ServerSnapshot, server: Server?) {
+private fun OverviewContent(
+    info: ServerInfo?,
+    metrics: LiveMetrics?,
+    array: ArrayInfo?,
+    containers: List<Container>?,
+    vms: List<Vm>?,
+    server: Server?,
+) {
     val t = UnraidTheme.colors
 
-    // Rolling sparkline buffers — extend from the polled value each tick.
-    val cpuSeries = remember { mutableStateOf(List(40) { snap.info.cpu.percent.toFloat() }) }
-    val ramSeries = remember { mutableStateOf(List(40) { ((snap.info.memory.usedGb / snap.info.memory.totalGb) * 100).toFloat() }) }
-    val netSeries = remember { mutableStateOf(List(40) { snap.info.network.rxMbps.toFloat() }) }
+    val cpuPercent = metrics?.cpuPercent ?: 0.0
+    val memUsedGb = metrics?.memUsedGb ?: 0.0
+    val memBuffGb = metrics?.memBuffGb ?: 0.0
+    val memTotalGb = info?.memTotalGb ?: 0.0
 
-    LaunchedEffect(snap) {
-        cpuSeries.value = cpuSeries.value.drop(1) + snap.info.cpu.percent.toFloat()
-        ramSeries.value = ramSeries.value.drop(1) +
-            ((snap.info.memory.usedGb / snap.info.memory.totalGb) * 100).toFloat()
-        netSeries.value = netSeries.value.drop(1) + snap.info.network.rxMbps.toFloat()
+    // Rolling sparkline buffers — extend from the polled value each tick.
+    val cpuSeries = remember { mutableStateOf(List(40) { cpuPercent.toFloat() }) }
+    val ramSeries = remember {
+        val pct = if (memTotalGb > 0) ((memUsedGb / memTotalGb) * 100).toFloat() else 0f
+        mutableStateOf(List(40) { pct })
+    }
+    val netSeries = remember { mutableStateOf(List(40) { 0f }) }
+
+    LaunchedEffect(metrics, memTotalGb) {
+        cpuSeries.value = cpuSeries.value.drop(1) + cpuPercent.toFloat()
+        val pct = if (memTotalGb > 0) ((memUsedGb / memTotalGb) * 100).toFloat() else 0f
+        ramSeries.value = ramSeries.value.drop(1) + pct
+        netSeries.value = netSeries.value.drop(1) + 0f
     }
 
-    val arrayPct = (snap.array.usedTb / snap.array.totalTb).coerceIn(0.0, 1.0)
-    val running = snap.containers.count { it.status == ContainerStatus.Running }
-    val stopped = snap.containers.count { it.status == ContainerStatus.Exited }
-    val paused  = snap.containers.count { it.status == ContainerStatus.Paused }
-    val vmRunning = snap.vms.count { it.state == VmState.Running }
+    val arrTotalTb = array?.totalTb ?: 0.0
+    val arrUsedTb = array?.usedTb ?: 0.0
+    val arrayPct = if (arrTotalTb > 0) (arrUsedTb / arrTotalTb).coerceIn(0.0, 1.0) else 0.0
+    val arrState = array?.state ?: ArrayState.Offline
+    val running = containers?.count { it.status == ContainerStatus.Running } ?: 0
+    val stopped = containers?.count { it.status == ContainerStatus.Exited } ?: 0
+    val paused  = containers?.count { it.status == ContainerStatus.Paused } ?: 0
+    val vmRunning = vms?.count { it.state == VmState.Running } ?: 0
+    val vmCount = vms?.size ?: 0
 
-    val arrTone = when (snap.array.state) {
+    val arrTone = when (arrState) {
         ArrayState.Started -> Tone.Accent
         ArrayState.Parity  -> Tone.Info
         ArrayState.Error   -> Tone.Danger
         else               -> Tone.Neutral
     }
-    val arrLabel = when (snap.array.state) {
+    val arrLabel = when (arrState) {
         ArrayState.Started -> "STARTED"
         ArrayState.Stopped -> "STOPPED"
         ArrayState.Parity  -> "PARITY"
@@ -115,14 +171,14 @@ private fun OverviewContent(snap: ServerSnapshot, server: Server?) {
                     Spacer(Modifier.height(10.dp))
                     Row(verticalAlignment = Alignment.Bottom, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         Text(
-                            text = "%.1f".format(snap.array.usedTb),
+                            text = "%.1f".format(arrUsedTb),
                             color = t.text,
                             fontSize = 32.sp,
                             fontWeight = FontWeight.SemiBold,
                             letterSpacing = (-0.5).sp,
                         )
                         Text(
-                            text = "/ ${"%.0f".format(snap.array.totalTb)} TB used",
+                            text = "/ ${"%.0f".format(arrTotalTb)} TB used",
                             color = t.muted,
                             fontSize = 16.sp,
                         )
@@ -130,20 +186,20 @@ private fun OverviewContent(snap: ServerSnapshot, server: Server?) {
                     Spacer(Modifier.height(12.dp))
                     StackBar(
                         segments = listOf(
-                            StackSegment(snap.array.usedTb.toFloat(), t.accent),
-                            StackSegment((snap.array.totalTb - snap.array.usedTb).coerceAtLeast(0.0).toFloat(), Color.White.copy(alpha = 0.07f)),
+                            StackSegment(arrUsedTb.toFloat(), t.accent),
+                            StackSegment((arrTotalTb - arrUsedTb).coerceAtLeast(0.0).toFloat(), Color.White.copy(alpha = 0.07f)),
                         ),
                     )
                     Spacer(Modifier.height(8.dp))
                     Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                         Text("${(arrayPct * 100).toInt()}% used", color = t.muted, fontSize = 12.sp)
                         Text(
-                            "${"%.1f".format(snap.array.totalTb - snap.array.usedTb)} TB free",
+                            "${"%.1f".format(arrTotalTb - arrUsedTb)} TB free",
                             color = t.muted,
                             fontSize = 12.sp,
                         )
                     }
-                    snap.array.parity?.let { p ->
+                    array?.parity?.let { p ->
                         Spacer(Modifier.height(14.dp))
                         Column(
                             modifier = Modifier
@@ -175,21 +231,21 @@ private fun OverviewContent(snap: ServerSnapshot, server: Server?) {
                 iconColor = t.muted,
                 icon = { UC.Cpu(18.dp, t.muted) },
                 label = "CPU",
-                value = "%.1f%%".format(snap.info.cpu.percent),
-                sub = "${snap.info.cpu.cores} cores · ${snap.info.cpu.brand.split(" ").takeLast(2).joinToString(" ")}",
+                value = "%.1f%%".format(cpuPercent),
+                sub = "${info?.cpuCores ?: 0} cores · ${info?.cpuBrand?.split(" ")?.takeLast(2)?.joinToString(" ").orEmpty()}",
                 series = cpuSeries.value,
-                seriesColor = if (snap.info.cpu.percent > 80) t.warn else t.accent,
+                seriesColor = if (cpuPercent > 80) t.warn else t.accent,
                 max = 100f,
             )
         }
         item {
-            val pct = if (snap.info.memory.totalGb > 0) (snap.info.memory.usedGb / snap.info.memory.totalGb * 100).toInt() else 0
+            val pct = if (memTotalGb > 0) (memUsedGb / memTotalGb * 100).toInt() else 0
             StatCard(
                 iconColor = t.muted,
                 icon = { UC.Ram(18.dp, t.muted) },
                 label = "Memory",
-                value = "%.1f GB".format(snap.info.memory.usedGb),
-                sub = "$pct% of ${"%.0f".format(snap.info.memory.totalGb)} GB · ${"%.1f".format(snap.info.memory.buffersGb)} GB cached",
+                value = "%.1f GB".format(memUsedGb),
+                sub = "$pct% of ${"%.0f".format(memTotalGb)} GB · ${"%.1f".format(memBuffGb)} GB cached",
                 series = ramSeries.value,
                 seriesColor = t.accent,
                 max = 100f,
@@ -200,8 +256,8 @@ private fun OverviewContent(snap: ServerSnapshot, server: Server?) {
                 iconColor = t.muted,
                 icon = { UC.Network(18.dp, t.muted) },
                 label = "Network",
-                value = "%.1f Mbps".format(snap.info.network.rxMbps),
-                sub = "↓ ${"%.1f".format(snap.info.network.rxMbps)}  ·  ↑ ${"%.1f".format(snap.info.network.txMbps)} Mbps",
+                value = "%.1f Mbps".format(0.0),
+                sub = "↓ 0.0  ·  ↑ 0.0 Mbps",
                 series = netSeries.value,
                 seriesColor = Color(0xFFA78BFA),
                 max = null,
@@ -249,7 +305,7 @@ private fun OverviewContent(snap: ServerSnapshot, server: Server?) {
                             Text("running", color = t.muted, fontSize = 13.sp)
                         }
                         Spacer(Modifier.height(6.dp))
-                        Text("${snap.vms.size} configured", color = t.muted, fontSize = 11.sp)
+                        Text("$vmCount configured", color = t.muted, fontSize = 11.sp)
                     }
                 }
             }
@@ -266,10 +322,10 @@ private fun OverviewContent(snap: ServerSnapshot, server: Server?) {
                         letterSpacing = 1.3.sp,
                         modifier = Modifier.padding(bottom = 8.dp),
                     )
-                    InfoRow(icon = { UC.Server(15.dp, t.muted) }, label = "Hostname", value = server?.hostname ?: snap.info.hostname)
-                    InfoRow(icon = { UC.Power(15.dp, t.muted) },  label = "Uptime",   value = snap.info.uptime)
-                    InfoRow(icon = { UC.Info(15.dp, t.muted) },   label = "Unraid",   value = snap.info.unraidVersion)
-                    InfoRow(icon = { UC.Terminal(15.dp, t.muted) }, label = "Kernel", value = snap.info.kernel, last = true)
+                    InfoRow(icon = { UC.Server(15.dp, t.muted) }, label = "Hostname", value = server?.hostname ?: info?.hostname.orEmpty())
+                    InfoRow(icon = { UC.Power(15.dp, t.muted) },  label = "Uptime",   value = info?.uptime.orEmpty())
+                    InfoRow(icon = { UC.Info(15.dp, t.muted) },   label = "Unraid",   value = info?.unraidVersion.orEmpty())
+                    InfoRow(icon = { UC.Terminal(15.dp, t.muted) }, label = "Kernel", value = info?.kernel.orEmpty(), last = true)
                 }
             }
         }
@@ -336,4 +392,3 @@ private fun InfoRow(
         if (!last) HorizontalDivider(color = t.border)
     }
 }
-

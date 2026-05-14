@@ -79,46 +79,27 @@ data class Vm(
     val gpu: String?,
 )
 
-data class CpuStats(
-    val brand: String,
-    val cores: Int,
-    val threads: Int,
-    val maxGhz: Double,
-    val percent: Double,
-)
-
-data class MemoryStats(
-    val totalGb: Double,
-    val usedGb: Double,
-    val buffersGb: Double,
-)
-
-data class NetworkStats(
-    val rxMbps: Double,
-    val txMbps: Double,
-)
-
-data class SystemInfo(
+/** Static server identity + hardware spec. Polled rarely (info changes only between reboots). */
+data class ServerInfo(
     val hostname: String,
     val uptime: String,
-    val cpu: CpuStats,
-    val memory: MemoryStats,
-    val network: NetworkStats,
     val unraidVersion: String,
     val kernel: String,
+    val cpuBrand: String,
+    val cpuCores: Int,
+    val cpuThreads: Int,
+    val cpuMaxGhz: Double,
+    val memTotalGb: Double,
+)
+
+/** Dynamic CPU/memory metrics. Polled at high frequency while Overview is visible. */
+data class LiveMetrics(
+    val cpuPercent: Double,
+    val memUsedGb: Double,
+    val memBuffGb: Double,
 )
 
 data class LogLine(
     val time: String,
     val message: String,
-)
-
-data class ServerSnapshot(
-    val info: SystemInfo,
-    val array: ArrayInfo,
-    val containers: List<Container>,
-    val vms: List<Vm>,
-    /** Base URL of the server the snapshot came from, used by the UI to
-     *  resolve relative container icon paths. Empty when unknown. */
-    val serverBaseUrl: String = "",
 )
