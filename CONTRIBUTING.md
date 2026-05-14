@@ -79,6 +79,8 @@ In practice for solo dev: usually `beta1` → user tests on the device with "Inc
 
 When in doubt: beta-first. The in-app updater means betas reach the dev's own device with no extra friction.
 
+**Docs-only PRs need no version bump and produce no release.** Pure documentation changes (`*.md`, `LICENSE`, `docs/`, `.gitattributes`, `.editorconfig`) merge to `main` without bumping `versionCode` / `versionName` and without a `v*` tag — they don't ship to users. CI detects them automatically and skips the APK build (~10 seconds instead of ~4 minutes), still reporting `SUCCESS` on the `build` check so branch protection is happy. If the PR also changes anything else, treat it as a code change and bump the version normally.
+
 ## Local builds
 
 Daily debug builds (no keystore needed):
