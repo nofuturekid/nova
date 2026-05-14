@@ -20,7 +20,7 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
         with:
           fetch-depth: 0   # need history so docs-only diff works on PRs and pushes
 
@@ -75,20 +75,20 @@ jobs:
 
       - name: Set up JDK 17
         if: steps.filter.outputs.code == 'true'
-        uses: actions/setup-java@v4
+        uses: actions/setup-java@v5
         with:
           distribution: temurin
           java-version: '17'
 
       - name: Set up Gradle (build cache)
         if: steps.filter.outputs.code == 'true'
-        uses: gradle/actions/setup-gradle@v4
+        uses: gradle/actions/setup-gradle@v5
         with:
           cache-read-only: ${{ github.event_name == 'pull_request' }}
 
       - name: Set up Android SDK
         if: steps.filter.outputs.code == 'true'
-        uses: android-actions/setup-android@v3
+        uses: android-actions/setup-android@v4
         with:
           log-accepted-android-sdk-licenses: false
 
@@ -128,7 +128,7 @@ jobs:
 
       - name: Upload debug APK
         if: steps.filter.outputs.code == 'true'
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: app-debug
           path: app/build/outputs/apk/debug/*.apk
@@ -137,7 +137,7 @@ jobs:
 
       - name: Upload release APK
         if: steps.filter.outputs.code == 'true' && steps.keystore.outputs.available == 'true'
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: app-release
           path: app/build/outputs/apk/release/*.apk
@@ -146,7 +146,7 @@ jobs:
 
       - name: Upload mapping
         if: steps.filter.outputs.code == 'true' && steps.keystore.outputs.available == 'true'
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: mapping
           path: app/build/outputs/mapping/release/mapping.txt
@@ -155,7 +155,7 @@ jobs:
 
       - name: Upload lint report
         if: always() && steps.filter.outputs.code == 'true'
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: lint-report
           path: app/build/reports/lint-results-debug.html
