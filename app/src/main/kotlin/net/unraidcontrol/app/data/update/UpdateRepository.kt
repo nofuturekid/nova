@@ -41,6 +41,7 @@ class UpdateRepository @Inject constructor() {
                 val body = resp.body?.string().orEmpty()
                 val releases = json.decodeFromString<List<GhRelease>>(body)
                 val current = parseVersion(BuildConfig.VERSION_NAME)
+                    ?: return@withContext UpdateState.Error("Can't parse own version ${BuildConfig.VERSION_NAME}")
                 val match = releases.asSequence()
                     .filter { !it.draft }
                     .filter { includePrereleases || !it.prerelease }
