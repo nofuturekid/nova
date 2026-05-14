@@ -78,7 +78,6 @@ enum class MainTab(val id: String, val label: String) {
 @Composable
 fun MainScreen(
     onOpenServerList: () -> Unit,
-    onEditActiveServer: (Server) -> Unit,
     onOpenSettings: () -> Unit,
     onAddServer: () -> Unit,
     vm: MainViewModel = hiltViewModel(),
@@ -112,9 +111,7 @@ fun MainScreen(
             connection = ui.connectionMode,
             snapshot = ui.snapshot,
             onOpenServerList = onOpenServerList,
-            onMenu = {
-                ui.activeServer?.let(onEditActiveServer) ?: onOpenSettings()
-            },
+            onMenu = onOpenSettings,
             onToggleConnection = { vm.toggleConnection() },
         )
 
@@ -324,7 +321,7 @@ private fun TopBar(
             Box(modifier = Modifier.clickable(onClick = onToggleConnection)) {
                 Pill(label = connLabel, tone = connTone, dot = true)
             }
-            UnraidIconButton(icon = { UC.Menu(20.dp, t.text) }, onClick = onMenu)
+            UnraidIconButton(icon = { UC.Settings(20.dp, t.text) }, onClick = onMenu)
         }
         HorizontalDivider(color = t.border, thickness = 1.dp)
     }
