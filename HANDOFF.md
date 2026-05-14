@@ -138,6 +138,8 @@ Docs-only PRs skip both the version bump and the APK build entirely — ci.yml a
 
 If a tag is pushed before CI on its commit is green, `release.yml` fails with "no successful CI run found for commit". Push to main first, wait, then tag.
 
+**Release cleanup keeps tags.** When trimming old releases, use `gh release delete <tag> --yes` — **not** `--cleanup-tag`. Deleting a tag breaks the `Full Changelog: compare/vPREV...vCURR` link on every newer release that still points at it. If a tag does get deleted by mistake and the commit is still on `main`, restore it by re-pushing the local ref (disable the `Release` workflow first via `gh workflow disable Release`, push the tag, re-enable — otherwise release.yml fires for the tag and fails on the missing CI artifact).
+
 ## Schema mapping decisions
 
 ### Apollo scalar mappings (`app/build.gradle.kts`)
