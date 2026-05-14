@@ -16,8 +16,8 @@ android {
         applicationId = "net.unraidcontrol.app"
         minSdk = 26
         targetSdk = 36
-        versionCode = 14
-        versionName = "0.1.14"
+        versionCode = 15
+        versionName = "0.1.15"
 
         vectorDrawables { useSupportLibrary = true }
     }
@@ -89,12 +89,15 @@ apollo {
         packageName.set("net.unraidcontrol.app.graphql")
         generateOptionalOperationVariables.set(false)
         // Custom scalars used by the Unraid 7 schema. PrefixedID and DateTime
-        // are opaque strings to us; BigInt is a Long; JSON/URL/Port stay as
-        // their natural Kotlin counterparts.
+        // are opaque strings to us; BigInt is a Long; URL/Port are their
+        // natural Kotlin counterparts. JSON is mapped to kotlin.Any? via
+        // our JsonAnyAdapter — the server returns inline JSON values
+        // (objects/arrays/primitives), NOT pre-stringified text, so a
+        // String mapping crashes the polled snapshot.
         mapScalar("PrefixedID", "kotlin.String")
         mapScalar("DateTime",   "kotlin.String")
         mapScalar("BigInt",     "kotlin.Long")
-        mapScalar("JSON",       "kotlin.String")
+        mapScalar("JSON",       "kotlin.Any",  "com.apollographql.apollo.api.AnyAdapter")
         mapScalar("URL",        "kotlin.String")
         mapScalar("Port",       "kotlin.Int")
     }
