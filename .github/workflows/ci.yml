@@ -8,7 +8,11 @@ on:
 
 concurrency:
   group: ci-${{ github.ref }}
-  cancel-in-progress: true
+  # Cancel superseded runs on PR branches, but never on main: release.yml
+  # needs a successful CI run for each tagged commit, so a later docs-only
+  # push to main must not abort the still-building APK for the previous
+  # code commit.
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
 
 jobs:
   build:
