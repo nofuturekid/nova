@@ -79,79 +79,43 @@ app/src/main/
 
 ## CI / CD workflow
 
-### Branch protection
+The "why" for everything in this section lives in ADRs under [`docs/adr/`](docs/adr/). What follows is the operational summary.
 
-- `main` requires PRs to merge
-- Required status check: `build` (the job name in `ci.yml`)
-- 0 required approvals (solo-dev-friendly, fork-PR-tolerant)
-- Admin (nofuturekid) can direct-push for emergencies
+- **Branch protection** on `main`: PRs required, required status check `build`, 0 required approvals (solo-dev-friendly). See [ADR-0003](docs/adr/0003-pr-gate-required-status-check.md).
+- **Build-once-promote** split between `ci.yml` (builds debug+release APKs, uploads artifacts) and `release.yml` (`v*` tag → finds the SHA's CI run, downloads its `app-release` artifact, publishes GitHub Release; ~16s, **never rebuilds**). See [ADR-0004](docs/adr/0004-build-once-promote-pipeline.md).
+- **Concurrency**: `cancel-in-progress` only on PR branches, never on main — main runs must complete so `release.yml` can find them. See [ADR-0011](docs/adr/0011-cancel-in-progress-only-on-pr-branches.md).
+- **Docs-only CI bypass**: `ci.yml` skips heavy steps when the diff is `*.md` / `LICENSE` / `docs/` / AI-assistant configs — finishes in ~10s, still reports `SUCCESS` on `build`. No version bump, no tag for these. See [ADR-0009](docs/adr/0009-docs-only-ci-bypass.md).
+- **Tag conventions**: stable `v0.X.Y`, pre-release `v0.X.Y-beta1` / `-rc1` with trailing digit required. See [ADR-0005](docs/adr/0005-prerelease-tag-convention.md).
+- **Release-class policy**: pragmatic risk-categorised beta-first. UI/docs → direct stable. Schema / manifest / SettingsStore / dependency bumps / install-flow → beta-first. See [ADR-0006](docs/adr/0006-pragmatic-beta-first-release-policy.md).
 
-### Workflows
+### Release procedure (operational)
 
-**`.github/workflows/ci.yml`** — push to main + PR + workflow_dispatch
-- Builds BOTH `app-debug` and `app-release` APKs in one Gradle invocation
-- Conditionally decodes `KEYSTORE_B64` secret; fork PRs without secrets get debug-only and still go green
-- Verifies release APK signature via `apksigner`
-- Uploads artifacts: `app-debug` (30d), `app-release` (90d), `mapping` (90d), `lint-report` (14d)
-- `concurrency: cancel-in-progress: true` — newer push cancels older run
+1. Feature branch → PR → CI green → squash-merge → branch auto-deleted.
+2. `ci.yml` runs on main automatically. Wait for green.
+3. Tag: `git tag -a v0.X.Y[-beta1] -m "..." && git push origin v0.X.Y[-beta1]`.
+4. `release.yml` promotes the existing artifact (~16s).
+5. If beta: test on device → re-tag the same commit as stable (or `-rc1` first) once happy.
 
-**`.github/workflows/release.yml`** — push tag `v*`
-- Resolves tag → commit SHA
-- Calls Actions API to find the latest **successful** `ci.yml` run for that SHA
-- Downloads `app-release` + `mapping` artifacts from that run — **does NOT rebuild**
-- Renames APK to `UnraidControl-vX.Y.Z.apk`
-- Detects pre-release: tag matches `-(alpha|beta|rc|pre)[0-9]+$` → flagged on GitHub
-- Publishes via `softprops/action-gh-release@v2`
-- Total runtime: ~16 seconds (vs 3-4 min if it rebuilt)
+If a tag is pushed before CI on its commit is green, `release.yml` fails with "no successful CI run found for commit". Wait, then tag.
 
-### Tag conventions
+### Release cleanup
 
-- **Stable**: `v0.X.Y` → `isLatest = true`
-- **Beta**: `v0.X.Y-beta1`, `v0.X.Y-beta2`, … → `isPrerelease = true`, not Latest
-- **RC**: `v0.X.Y-rc1`, `v0.X.Y-rc2`, …
-- The trailing digit is **required**. Plain `-beta` rejected as typo guard.
-
-### Release-class policy (when to beta-first)
-
-Lesson learnt from v0.1.11 and v0.1.13: tagging stable immediately after a green CI is not enough — schema/network changes can ship a working build that breaks against the live server. Always beta-first when the PR touches:
-
-- `schema.graphqls`, `*.graphql`, Apollo scalar config, `GraphQlMapper.kt`
-- `AndroidManifest.xml` (permissions / components)
-- `SettingsStore.kt` keys / DataStore migration
-- `app/build.gradle.kts` plugin / dependency bumps
-- New end-to-end features (e.g. updater)
-
-Direct stable allowed for: pure Compose UI changes, docs, `.github/workflows/*`, single-file fixes already verified.
-
-Beta → (optional) RC → stable. Same commit gets re-tagged at promotion. The in-app updater (v0.1.16+) means the dev's own device pulls betas automatically when "Include pre-releases" is on, so beta-first costs no extra friction.
-
-Docs-only PRs skip both the version bump and the APK build entirely — ci.yml auto-detects via path diff and reports `SUCCESS` in ~10s without running Gradle, and no `v*` tag is pushed. The whitelist covers `*.md` anywhere (incl. `CLAUDE.md`, `AGENTS.md`, etc.), `LICENSE`, `docs/`, `.gitattributes`, `.editorconfig`, and AI-assistant config dirs/files (`.claude/`, `.cursor/`, `.continue/`, `.aider*`, `.windsurfrules`, `.cursorrules`, `.github/instructions/`). Anything else — Kotlin, Gradle, workflows, manifest, resources — forces the full build.
-
-### Release procedure
-
-1. Feature branch → PR → CI green → squash-merge → branch auto-deleted
-2. ci.yml runs on main (auto)
-3. Wait for green
-4. Tag — risky change: `git tag -a v0.X.Y-beta1 -m "..." && git push origin v0.X.Y-beta1`
-5. release.yml promotes the existing artifact (~16s)
-6. Once tested OK on device: re-tag the same commit as stable (or as `-rc1` first).
-
-If a tag is pushed before CI on its commit is green, `release.yml` fails with "no successful CI run found for commit". Push to main first, wait, then tag.
-
-**Release cleanup keeps tags.** When trimming old releases, use `gh release delete <tag> --yes` — **not** `--cleanup-tag`. Deleting a tag breaks the `Full Changelog: compare/vPREV...vCURR` link on every newer release that still points at it. If a tag does get deleted by mistake and the commit is still on `main`, restore it by re-pushing the local ref (disable the `Release` workflow first via `gh workflow disable Release`, push the tag, re-enable — otherwise release.yml fires for the tag and fails on the missing CI artifact).
+`gh release delete <tag> --yes` — never `--cleanup-tag`. Recovery recipe for accidentally-deleted tags lives in [ADR-0010](docs/adr/0010-release-cleanup-keeps-tags.md).
 
 ## Schema mapping decisions
 
-### Apollo scalar mappings (`app/build.gradle.kts`)
+Apollo scalar mappings (`app/build.gradle.kts`):
 
 ```kotlin
 mapScalar("PrefixedID", "kotlin.String")
 mapScalar("DateTime",   "kotlin.String")
 mapScalar("BigInt",     "kotlin.Long")
-mapScalar("JSON",       "kotlin.String")  // parsed downstream
+mapScalar("JSON",       "kotlin.Any",  "com.apollographql.apollo.api.AnyAdapter")
 mapScalar("URL",        "kotlin.String")
 mapScalar("Port",       "kotlin.Int")
 ```
+
+JSON-scalar decision rationale (incl. why-not-String): [ADR-0007](docs/adr/0007-apollo-json-scalar-anyadapter.md). In-app updater architecture: [ADR-0008](docs/adr/0008-in-app-updater-packageinstaller.md).
 
 ### Critical gotchas (don't relearn the hard way)
 
