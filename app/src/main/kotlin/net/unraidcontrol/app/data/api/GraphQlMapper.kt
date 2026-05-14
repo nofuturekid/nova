@@ -45,7 +45,6 @@ fun GetServerSnapshotQuery.Data.toSnapshot(serverBaseUrl: String = ""): ServerSn
     val totalMemBytes = metricsBlock?.memory?.total
         ?: infoBlock.memory.layout.sumOf { it.size }
     val usedMemBytes = metricsBlock?.memory?.used ?: 0L
-    val buffCacheBytes = metricsBlock?.memory?.buffcache ?: 0L
     val sys = SystemInfo(
         hostname = infoBlock.os.hostname.orEmpty(),
         uptime = infoBlock.os.uptime.orEmpty(),
@@ -59,7 +58,7 @@ fun GetServerSnapshotQuery.Data.toSnapshot(serverBaseUrl: String = ""): ServerSn
         memory = MemoryStats(
             totalGb = totalMemBytes.bytesToGb(),
             usedGb = usedMemBytes.bytesToGb(),
-            buffersGb = buffCacheBytes.bytesToGb(),
+            buffersGb = 0.0, // see DockerContainer.mounts comment — pending JSON Any adapter
         ),
         // Network throughput isn't part of the Unraid GraphQL schema; leave 0.
         network = NetworkStats(rxMbps = 0.0, txMbps = 0.0),
@@ -119,7 +118,11 @@ fun GetServerSnapshotQuery.Data.toSnapshot(serverBaseUrl: String = ""): ServerSn
                 val ctn  = p.privatePort?.toString().orEmpty()
                 if (host.isNotEmpty() && ctn.isNotEmpty()) "$host:$ctn" else (host.ifEmpty { ctn })
             },
-            volumes = parseMountsArray(c.mounts),
+            // Volumes are not currently fetched. The Unraid API exposes
+            // `mounts: JSON` as inline JSON arrays which Apollo's String
+            // adapter can't parse — needs a custom Any-adapter. Tracked for
+            // a follow-up release.
+            volumes = emptyList(),
         )
     }
 
