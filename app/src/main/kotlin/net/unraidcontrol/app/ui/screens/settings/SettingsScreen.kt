@@ -278,6 +278,13 @@ fun SettingsScreen(
                                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                                     Text("v${cs.info.version}", color = t.text, fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
                                     if (cs.info.isPrerelease) Pill("BETA", tone = Tone.Warn)
+                                    cs.info.publishedAtEpochMs?.let {
+                                        Text(
+                                            "· ${formatRelativeAge(it)}",
+                                            color = t.muted,
+                                            fontSize = 13.sp,
+                                        )
+                                    }
                                 }
                             is UpdateState.Error ->
                                 Text("Couldn't check", color = t.danger, fontSize = 13.sp)
@@ -304,7 +311,7 @@ fun SettingsScreen(
                         if (cs is UpdateState.Available) {
                             UnraidButton(
                                 onClick = { showUpdateDialog = true },
-                                label = "Install update",
+                                label = "Install v${cs.info.version}",
                                 variant = BtnVariant.Filled,
                             )
                         }
@@ -331,16 +338,18 @@ fun SettingsScreen(
     }
 }
 
-private fun formatLastCheck(epochMs: Long?): String {
-    if (epochMs == null) return "Never"
+private fun formatLastCheck(epochMs: Long?): String =
+    epochMs?.let { formatRelativeAge(it) } ?: "Never"
+
+private fun formatRelativeAge(epochMs: Long): String {
     val diff = System.currentTimeMillis() - epochMs
     if (diff < 0) return "Just now"
     val minutes = diff / 60_000
     return when {
-        minutes < 1   -> "Just now"
-        minutes < 60  -> "${minutes}m ago"
+        minutes < 1    -> "Just now"
+        minutes < 60   -> "${minutes}m ago"
         minutes < 1440 -> "${minutes / 60}h ago"
-        else          -> "${minutes / 1440}d ago"
+        else           -> "${minutes / 1440}d ago"
     }
 }
 
