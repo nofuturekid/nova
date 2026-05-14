@@ -223,7 +223,6 @@ private fun InfoTabContent(c: Container) {
         UnraidCard(padding = 14.dp) {
             Column {
                 Kv("Image", c.image, mono = true)
-                Kv("Container ID", c.id)
                 Kv("Auto-start", if (c.autoStart) "Enabled" else "Disabled")
                 Kv("Status", c.status.name, last = true)
             }

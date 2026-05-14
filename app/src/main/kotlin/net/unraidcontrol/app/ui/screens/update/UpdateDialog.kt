@@ -26,6 +26,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.mikepenz.markdown.m3.Markdown
 import net.unraidcontrol.app.BuildConfig
 import net.unraidcontrol.app.data.model.InstallState
 import net.unraidcontrol.app.data.model.UpdateInfo
@@ -113,10 +114,11 @@ fun UpdateDialog(
                         .background(Color.White.copy(alpha = 0.04f))
                         .padding(12.dp),
                 ) {
-                    Text(
-                        text = info.releaseNotes.trim(),
-                        color = t.text,
-                        fontSize = 12.sp,
+                    // Markdown picks up MaterialTheme.colorScheme + typography
+                    // for headers/lists/links/code; appearance follows the
+                    // app's existing M3 theme.
+                    Markdown(
+                        content = info.releaseNotes.trim(),
                         modifier = Modifier.verticalScroll(rememberScrollState()),
                     )
                 }

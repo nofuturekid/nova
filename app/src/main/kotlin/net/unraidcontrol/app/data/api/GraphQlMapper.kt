@@ -49,7 +49,7 @@ fun GetServerInfoQuery.Data.toServerInfo(): ServerInfo {
         cpuCores = info.cpu.cores ?: 0,
         cpuThreads = info.cpu.threads ?: 0,
         cpuMaxGhz = info.cpu.speedmax ?: 0.0,
-        memTotalGb = totalMemBytes.bytesToGb(),
+        memTotalGb = totalMemBytes.bytesToGib(),
     )
 }
 
@@ -59,9 +59,9 @@ fun GetMetricsQuery.Data.toLiveMetrics(): LiveMetrics {
     val m = metrics
     return LiveMetrics(
         cpuPercent = m?.cpu?.percentTotal ?: 0.0,
-        memTotalGb = (m?.memory?.total ?: 0L).bytesToGb(),
-        memUsedGb = (m?.memory?.used ?: 0L).bytesToGb(),
-        memBuffGb = (m?.memory?.buffcache ?: 0L).bytesToGb(),
+        memTotalGb = (m?.memory?.total ?: 0L).bytesToGib(),
+        memUsedGb = (m?.memory?.used ?: 0L).bytesToGib(),
+        memBuffGb = (m?.memory?.buffcache ?: 0L).bytesToGib(),
     )
 }
 
@@ -222,8 +222,11 @@ private fun parseSpeedMbps(speedString: String?): Double {
     }
 }
 
-private fun Long.kbToTb():    Double = this / 1_000_000_000.0
-private fun Long.bytesToGb(): Double = this / 1_000_000_000.0
+/** Storage capacity uses *decimal* GB/TB (HDD-marketing convention).  */
+private fun Long.kbToTb():     Double = this / 1_000_000_000.0
+/** RAM uses *binary* GiB (matches `/proc/meminfo`, `free -h`, `htop`).
+ *  We display it as "GB" because that's what users mentally call it. */
+private fun Long.bytesToGib(): Double = this / 1_073_741_824.0
 
 /**
  * Parse Docker container mount entries.
