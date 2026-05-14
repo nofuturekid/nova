@@ -4,24 +4,33 @@ import android.content.Intent
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.emptyFlow
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import net.unraidcontrol.app.data.local.DockerView
 import net.unraidcontrol.app.data.model.AppSettings
+import net.unraidcontrol.app.data.model.ArrayInfo
 import net.unraidcontrol.app.data.model.ConnectionMode
+import net.unraidcontrol.app.data.model.Container
 import net.unraidcontrol.app.data.model.InstallState
+import net.unraidcontrol.app.data.model.LiveMetrics
 import net.unraidcontrol.app.data.model.Server
+import net.unraidcontrol.app.data.model.ServerInfo
 import net.unraidcontrol.app.data.model.UpdateInfo
 import net.unraidcontrol.app.data.model.UpdateState
+import net.unraidcontrol.app.data.model.Vm
+import net.unraidcontrol.app.data.repository.DomainState
 import net.unraidcontrol.app.data.repository.ServerRepository
 import net.unraidcontrol.app.data.repository.SettingsRepository
-import net.unraidcontrol.app.data.repository.SnapshotState
 import net.unraidcontrol.app.data.repository.UnraidRepository
 import net.unraidcontrol.app.data.update.InstallEvent
 import net.unraidcontrol.app.data.update.InstallStatusReceiver
@@ -32,12 +41,12 @@ import javax.inject.Inject
 data class MainUi(
     val activeServer: Server?,
     val connectionMode: ConnectionMode,
-    val snapshot: SnapshotState,
     val settings: AppSettings,
     val dockerView: DockerView,
 )
 
 @HiltViewModel
+@OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
 class MainViewModel @Inject constructor(
     private val servers: ServerRepository,
     private val unraid: UnraidRepository,
@@ -46,18 +55,76 @@ class MainViewModel @Inject constructor(
     private val installer: UpdateInstaller,
 ) : ViewModel() {
 
+    // ── Server identity + settings (cheap, always on) ─────────────────
+
     val ui: StateFlow<MainUi> = combine(
         servers.activeServer,
         servers.connectionMode,
-        unraid.snapshotStream(2000L),
         settings.settings,
         settings.dockerView,
-    ) { active, mode, snap, s, view -> MainUi(active, mode, snap, s, view) }
+    ) { active, mode, s, view -> MainUi(active, mode, s, view) }
         .stateIn(
             scope = viewModelScope,
             started = SharingStarted.WhileSubscribed(5_000),
-            initialValue = MainUi(null, ConnectionMode.Local, SnapshotState.Loading, AppSettings(), DockerView.List),
+            initialValue = MainUi(null, ConnectionMode.Local, AppSettings(), DockerView.List),
         )
+
+    // ── UI-driven gates ───────────────────────────────────────────────
+
+    private val _selectedTab = MutableStateFlow(MainTab.Overview)
+    val selectedTab: StateFlow<MainTab> = _selectedTab.asStateFlow()
+    fun setSelectedTab(tab: MainTab) { _selectedTab.value = tab }
+
+    private val _dockerSheetOpen = MutableStateFlow(false)
+    fun setDockerSheetOpen(open: Boolean) { _dockerSheetOpen.value = open }
+
+    private val _appVisible = MutableStateFlow(true)
+    fun setAppVisible(visible: Boolean) { _appVisible.value = visible }
+
+    // ── Per-domain polling state (gated, lifecycle-aware) ─────────────
+    //
+    // Each StateFlow polls only while its gate is true. When the gate
+    // closes, the upstream Flow is dropped (emptyFlow), but stateIn's
+    // cached last value remains visible — re-entering a tab shows the
+    // last-known data instantly, while a fresh poll runs in the background.
+
+    private fun overviewOnly(): Flow<Boolean> =
+        combine(_selectedTab, _appVisible) { tab, visible -> visible && tab == MainTab.Overview }
+
+    private fun overviewOr(tab: MainTab): Flow<Boolean> =
+        combine(_selectedTab, _appVisible) { current, visible ->
+            visible && (current == MainTab.Overview || current == tab)
+        }
+
+    private fun dockerGate(): Flow<Boolean> =
+        combine(_selectedTab, _dockerSheetOpen, _appVisible) { tab, sheet, visible ->
+            visible && (tab == MainTab.Overview || tab == MainTab.Docker || sheet)
+        }
+
+    private fun <T> gatedStream(
+        gate: Flow<Boolean>,
+        stream: Flow<DomainState<T>>,
+    ): StateFlow<DomainState<T>> = gate
+        .distinctUntilChanged()
+        .flatMapLatest { active -> if (active) stream else emptyFlow() }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), DomainState.Loading)
+
+    val infoState: StateFlow<DomainState<ServerInfo>> =
+        gatedStream(overviewOnly(), unraid.infoStream())
+
+    val metricsState: StateFlow<DomainState<LiveMetrics>> =
+        gatedStream(overviewOnly(), unraid.metricsStream())
+
+    val arrayState: StateFlow<DomainState<ArrayInfo>> =
+        gatedStream(overviewOr(MainTab.Array), unraid.arrayStream())
+
+    val dockerState: StateFlow<DomainState<List<Container>>> =
+        gatedStream(dockerGate(), unraid.dockerStream())
+
+    val vmsState: StateFlow<DomainState<List<Vm>>> =
+        gatedStream(overviewOr(MainTab.Vms), unraid.vmsStream())
+
+    // ── App-updater plumbing (unchanged) ──────────────────────────────
 
     private val _updateState = MutableStateFlow<UpdateState>(UpdateState.Checking)
     val updateState: StateFlow<UpdateState> = _updateState.asStateFlow()
@@ -69,10 +136,8 @@ class MainViewModel @Inject constructor(
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
 
     init {
-        // One-shot check on app launch.
         checkForUpdate()
 
-        // Mirror PackageInstaller events into our install state flow.
         viewModelScope.launch {
             InstallStatusReceiver.events.collect { event ->
                 _installState.value = when (event) {
@@ -127,13 +192,11 @@ class MainViewModel @Inject constructor(
         )
     }
 
-    /**
-     * Suspends until the snapshot fetch finishes — pulled by the pull-to-refresh
-     * UI so the spinner stays animated for the actual duration of the call.
-     * Caller is responsible for launching this on a UI-bound scope.
-     */
+    /** Pull-to-refresh: force a fetch of every domain right now. The
+     *  active gated streams pick up the new values via their pollers
+     *  on the next iteration; this call just shortens the wait. */
     suspend fun refresh() {
-        unraid.snapshotOnce()
+        unraid.refreshAll()
     }
 
     fun startArray() = viewModelScope.launch { unraid.startArray() }

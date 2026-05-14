@@ -1,6 +1,7 @@
 package net.unraidcontrol.app.data.repository
 
 import com.apollographql.apollo.ApolloClient
+import com.apollographql.apollo.api.Query
 import com.apollographql.apollo.exception.ApolloException
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
@@ -9,16 +10,28 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flow
 import net.unraidcontrol.app.data.api.ApolloClientFactory
-import net.unraidcontrol.app.data.api.toSnapshot
+import net.unraidcontrol.app.data.api.toArrayInfo
+import net.unraidcontrol.app.data.api.toContainers
+import net.unraidcontrol.app.data.api.toLiveMetrics
+import net.unraidcontrol.app.data.api.toServerInfo
+import net.unraidcontrol.app.data.api.toVms
+import net.unraidcontrol.app.data.model.ArrayInfo
 import net.unraidcontrol.app.data.model.ConnectionMode
-import net.unraidcontrol.app.data.model.ServerSnapshot
+import net.unraidcontrol.app.data.model.Container
+import net.unraidcontrol.app.data.model.LiveMetrics
+import net.unraidcontrol.app.data.model.LogLine
+import net.unraidcontrol.app.data.model.ServerInfo
+import net.unraidcontrol.app.data.model.Vm
 import net.unraidcontrol.app.graphql.FetchContainerLogsQuery
 import net.unraidcontrol.app.graphql.ForceStopVmMutation
-import net.unraidcontrol.app.graphql.GetServerSnapshotQuery
+import net.unraidcontrol.app.graphql.GetArrayQuery
+import net.unraidcontrol.app.graphql.GetDockerContainersQuery
+import net.unraidcontrol.app.graphql.GetMetricsQuery
+import net.unraidcontrol.app.graphql.GetServerInfoQuery
+import net.unraidcontrol.app.graphql.GetVmsQuery
 import net.unraidcontrol.app.graphql.PauseContainerMutation
 import net.unraidcontrol.app.graphql.PauseVmMutation
 import net.unraidcontrol.app.graphql.PingQuery
-import net.unraidcontrol.app.data.model.LogLine
 import net.unraidcontrol.app.graphql.ResumeVmMutation
 import net.unraidcontrol.app.graphql.StartArrayMutation
 import net.unraidcontrol.app.graphql.StartContainerMutation
@@ -29,13 +42,6 @@ import net.unraidcontrol.app.graphql.StopVmMutation
 import javax.inject.Inject
 import javax.inject.Singleton
 
-sealed interface SnapshotState {
-    data object Loading : SnapshotState
-    data class Content(val snapshot: ServerSnapshot) : SnapshotState
-    data class Error(val message: String) : SnapshotState
-    data object NoServer : SnapshotState
-}
-
 @Singleton
 @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
 class UnraidRepository @Inject constructor(
@@ -43,65 +49,140 @@ class UnraidRepository @Inject constructor(
     private val apolloFactory: ApolloClientFactory,
 ) {
     private companion object {
-        /** Number of consecutive poll failures before the UI shows an error
-         *  screen instead of the last successful snapshot. At pollMs=2000 this
-         *  is roughly a 6-second tolerance for transient network hiccups. */
+        /** Default poll interval per domain (ms). Values reflect how often
+         *  each domain actually changes — info almost never, metrics often. */
+        const val POLL_INFO_MS = 60_000L      // hostname/version/CPU specs change between reboots
+        const val POLL_METRICS_MS = 2_000L    // CPU/memory sparklines want a smooth refresh
+        const val POLL_ARRAY_MS = 5_000L      // disk states / parity-check progress
+        const val POLL_DOCKER_MS = 2_000L     // container start/stop/update reactions
+        const val POLL_VMS_MS = 3_000L        // VM state transitions
+
+        /** Consecutive poll failures before the UI drops to an Error state. */
         const val TRANSIENT_ERROR_TOLERANCE = 3
     }
 
-    /**
-     * Polled snapshot flow keyed off the active server + connection mode.
-     *
-     * Resilience: once we have a successful snapshot, we don't downgrade the
-     * UI to an Error state on every transient poll failure. The last good
-     * Content is re-emitted instead, until [TRANSIENT_ERROR_TOLERANCE]
-     * consecutive failures suggest the server is actually unreachable.
-     */
-    fun snapshotStream(pollMs: Long = 2000L): Flow<SnapshotState> =
-        servers.activeWithKey
-            .distinctUntilChanged()
-            .flatMapLatest { active ->
-                flow {
-                    if (active == null) {
-                        emit(SnapshotState.NoServer)
-                        return@flow
-                    }
-                    if (active.apiKey.isBlank()) {
-                        emit(SnapshotState.Error("Missing API key for ${active.server.name}"))
-                        return@flow
-                    }
-                    val url = activeUrl(active)
-                    val client = apolloFactory.build(url, active.apiKey)
-                    emit(SnapshotState.Loading)
+    // ── Domain polling streams ────────────────────────────────────────
+    //
+    // Each is a cold Flow keyed off the active server + connection mode.
+    // The Flow polls only while it has at least one subscriber — when the
+    // ViewModel un-subscribes (because the corresponding tab isn't visible
+    // or the app is backgrounded), the polling loop suspends automatically.
 
-                    var lastContent: SnapshotState.Content? = null
-                    var consecutiveErrors = 0
-                    while (true) {
-                        val result = fetch(client, url)
-                        when (result) {
-                            is SnapshotState.Content -> {
-                                lastContent = result
-                                consecutiveErrors = 0
-                                emit(result)
-                            }
-                            is SnapshotState.Error -> {
-                                consecutiveErrors++
-                                val tolerated = lastContent != null &&
-                                    consecutiveErrors < TRANSIENT_ERROR_TOLERANCE
-                                emit(if (tolerated) lastContent!! else result)
-                            }
-                            else -> emit(result)
+    fun infoStream(intervalMs: Long = POLL_INFO_MS): Flow<DomainState<ServerInfo>> =
+        domainStream(intervalMs) { client, baseUrl ->
+            fetch(client, GetServerInfoQuery()) { data -> data.toServerInfo() }.withBaseUrl(baseUrl)
+        }
+
+    fun metricsStream(intervalMs: Long = POLL_METRICS_MS): Flow<DomainState<LiveMetrics>> =
+        domainStream(intervalMs) { client, baseUrl ->
+            fetch(client, GetMetricsQuery()) { data -> data.toLiveMetrics() }.withBaseUrl(baseUrl)
+        }
+
+    fun arrayStream(intervalMs: Long = POLL_ARRAY_MS): Flow<DomainState<ArrayInfo>> =
+        domainStream(intervalMs) { client, baseUrl ->
+            fetch(client, GetArrayQuery()) { data -> data.toArrayInfo() }.withBaseUrl(baseUrl)
+        }
+
+    fun dockerStream(intervalMs: Long = POLL_DOCKER_MS): Flow<DomainState<List<Container>>> =
+        domainStream(intervalMs) { client, baseUrl ->
+            fetch(client, GetDockerContainersQuery()) { data -> data.toContainers() }.withBaseUrl(baseUrl)
+        }
+
+    fun vmsStream(intervalMs: Long = POLL_VMS_MS): Flow<DomainState<List<Vm>>> =
+        domainStream(intervalMs) { client, baseUrl ->
+            fetch(client, GetVmsQuery()) { data -> data.toVms() }.withBaseUrl(baseUrl)
+        }
+
+    /**
+     * Generic per-domain polling loop.
+     *
+     * Resilience: once we have a successful Content, we don't downgrade to
+     * Error on every transient failure. The last good Content is re-emitted
+     * for up to [TRANSIENT_ERROR_TOLERANCE] consecutive failures, only after
+     * which an Error replaces it. Reset on the next success.
+     */
+    private fun <T> domainStream(
+        intervalMs: Long,
+        fetch: suspend (ApolloClient, String) -> DomainState<T>,
+    ): Flow<DomainState<T>> = servers.activeWithKey
+        .distinctUntilChanged()
+        .flatMapLatest { active ->
+            flow {
+                if (active == null) {
+                    emit(DomainState.NoServer)
+                    return@flow
+                }
+                if (active.apiKey.isBlank()) {
+                    emit(DomainState.Error("Missing API key for ${active.server.name}"))
+                    return@flow
+                }
+                val url = activeUrl(active)
+                val client = apolloFactory.build(url, active.apiKey)
+
+                var lastContent: DomainState.Content<T>? = null
+                var consecutiveErrors = 0
+                while (true) {
+                    when (val result = fetch(client, url)) {
+                        is DomainState.Content<T> -> {
+                            lastContent = result
+                            consecutiveErrors = 0
+                            emit(result)
                         }
-                        delay(pollMs)
+                        is DomainState.Error -> {
+                            consecutiveErrors++
+                            val tolerated = lastContent != null &&
+                                consecutiveErrors < TRANSIENT_ERROR_TOLERANCE
+                            emit(if (tolerated) lastContent!! else result)
+                        }
+                        else -> emit(result)
                     }
+                    delay(intervalMs)
                 }
             }
+        }
 
-    suspend fun snapshotOnce(): SnapshotState {
-        val active = servers.activeWithKey.first() ?: return SnapshotState.NoServer
-        if (active.apiKey.isBlank()) return SnapshotState.Error("Missing API key")
+    /** Single Apollo query → DomainState wrapper. The base URL is filled in
+     *  by [withBaseUrl] after the call so we keep [fetch] generic. */
+    private suspend fun <D : Query.Data, T> fetch(
+        client: ApolloClient,
+        query: Query<D>,
+        map: (D) -> T,
+    ): DomainState<T> = try {
+        val resp = client.query(query).execute()
+        when {
+            resp.hasErrors() -> DomainState.Error(
+                resp.errors?.joinToString { it.message } ?: "Unknown GraphQL error"
+            )
+            resp.data == null -> DomainState.Error("Empty GraphQL response")
+            else -> DomainState.Content(map(resp.data!!))
+        }
+    } catch (e: ApolloException) {
+        DomainState.Error(e.message ?: "Network error")
+    } catch (e: Exception) {
+        DomainState.Error(e.message ?: "Unexpected error")
+    }
+
+    private fun <T> DomainState<T>.withBaseUrl(baseUrl: String): DomainState<T> = when (this) {
+        is DomainState.Content<T> -> DomainState.Content(value, baseUrl)
+        else -> this
+    }
+
+    // ── One-shot helpers (refresh, ping, logs) ────────────────────────
+
+    /** Force a single fetch of every domain. Used by pull-to-refresh.
+     *  Doesn't return data — the live streams pick up the new values. */
+    suspend fun refreshAll() {
+        val active = servers.activeWithKey.first() ?: return
+        if (active.apiKey.isBlank()) return
         val url = activeUrl(active)
-        return fetch(apolloFactory.build(url, active.apiKey), url)
+        val client = apolloFactory.build(url, active.apiKey)
+        // Fire all five queries in sequence; errors are ignored — the polling
+        // streams will surface them on their own cadence.
+        runCatching { client.query(GetServerInfoQuery()).execute() }
+        runCatching { client.query(GetMetricsQuery()).execute() }
+        runCatching { client.query(GetArrayQuery()).execute() }
+        runCatching { client.query(GetDockerContainersQuery()).execute() }
+        runCatching { client.query(GetVmsQuery()).execute() }
     }
 
     private fun activeUrl(active: ActiveServer): String = when (active.mode) {
@@ -112,20 +193,7 @@ class UnraidRepository @Inject constructor(
     private fun buildClient(active: ActiveServer): ApolloClient =
         apolloFactory.build(activeUrl(active), active.apiKey)
 
-    private suspend fun fetch(client: ApolloClient, baseUrl: String): SnapshotState = try {
-        val resp = client.query(GetServerSnapshotQuery()).execute()
-        if (resp.hasErrors()) {
-            SnapshotState.Error(resp.errors?.joinToString { it.message } ?: "Unknown GraphQL error")
-        } else {
-            SnapshotState.Content(resp.data!!.toSnapshot(serverBaseUrl = baseUrl))
-        }
-    } catch (e: ApolloException) {
-        SnapshotState.Error(e.message ?: "Network error")
-    } catch (e: Exception) {
-        SnapshotState.Error(e.message ?: "Unexpected error")
-    }
-
-    // ── Mutations ─────────────────────────────────────────────────
+    // ── Mutations ─────────────────────────────────────────────────────
     private suspend fun activeClient(): ApolloClient? {
         val active = servers.activeWithKey.first() ?: return null
         if (active.apiKey.isBlank()) return null
@@ -173,12 +241,11 @@ class UnraidRepository @Inject constructor(
         }
     }
 
-    /** One-shot ping. Returns null on success or a message on failure. */
     /**
      * Pings the server with the minimal possible GraphQL query (`{ __typename }`).
-     * Confirms TCP reachability, TLS handshake, auth header acceptance and that the
-     * endpoint is actually GraphQL — without depending on whether our hand-written
-     * schema matches the live server's field names.
+     * Confirms TCP reachability, TLS handshake, auth header acceptance and that
+     * the endpoint is actually GraphQL — without depending on whether our
+     * hand-written schema matches the live server's field names.
      */
     suspend fun testConnection(baseUrl: String, apiKey: String): String? = try {
         val resp = apolloFactory.build(baseUrl, apiKey)

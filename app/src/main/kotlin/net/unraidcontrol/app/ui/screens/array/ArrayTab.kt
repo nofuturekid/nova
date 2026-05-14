@@ -26,10 +26,11 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import net.unraidcontrol.app.data.model.ArrayInfo
 import net.unraidcontrol.app.data.model.ArrayState
 import net.unraidcontrol.app.data.model.Disk
 import net.unraidcontrol.app.data.model.DiskType
-import net.unraidcontrol.app.data.repository.SnapshotState
+import net.unraidcontrol.app.data.repository.DomainState
 import net.unraidcontrol.app.ui.components.BtnVariant
 import net.unraidcontrol.app.ui.components.Pill
 import net.unraidcontrol.app.ui.components.SectionLabel
@@ -46,27 +47,26 @@ import net.unraidcontrol.app.ui.theme.UnraidTheme
 
 @Composable
 fun ArrayTab(
-    snapshot: SnapshotState,
+    state: DomainState<ArrayInfo>,
     onAddServer: () -> Unit,
     onStartArray: () -> Unit,
     onStopArray: () -> Unit,
 ) {
-    when (snapshot) {
-        SnapshotState.Loading -> LoadingState()
-        SnapshotState.NoServer -> NoServerState(onAdd = onAddServer)
-        is SnapshotState.Error -> ErrorState(snapshot.message)
-        is SnapshotState.Content -> ArrayContent(snapshot, onStartArray, onStopArray)
+    when (state) {
+        DomainState.Loading    -> LoadingState()
+        DomainState.NoServer   -> NoServerState(onAdd = onAddServer)
+        is DomainState.Error   -> ErrorState(state.message)
+        is DomainState.Content -> ArrayContent(state.value, onStartArray, onStopArray)
     }
 }
 
 @Composable
 private fun ArrayContent(
-    s: SnapshotState.Content,
+    arr: ArrayInfo,
     onStart: () -> Unit,
     onStop: () -> Unit,
 ) {
     val t = UnraidTheme.colors
-    val arr = s.snapshot.array
     val arrayOn = arr.state != ArrayState.Stopped && arr.state != ArrayState.Offline
     val parity  = arr.state == ArrayState.Parity
     val errored = arr.state == ArrayState.Error

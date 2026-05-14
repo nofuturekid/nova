@@ -50,7 +50,7 @@ import net.unraidcontrol.app.data.model.InstallState
 import net.unraidcontrol.app.data.model.Server
 import net.unraidcontrol.app.data.model.UpdateState
 import net.unraidcontrol.app.data.model.Vm
-import net.unraidcontrol.app.data.repository.SnapshotState
+import net.unraidcontrol.app.data.repository.DomainState
 import net.unraidcontrol.app.ui.components.ConfirmDialog
 import net.unraidcontrol.app.ui.components.ConfirmRequest
 import net.unraidcontrol.app.ui.components.Pill
@@ -84,10 +84,34 @@ fun MainScreen(
 ) {
     val t = UnraidTheme.colors
     val ui by vm.ui.collectAsState()
+    val tab by vm.selectedTab.collectAsState()
+    val infoState by vm.infoState.collectAsState()
+    val metricsState by vm.metricsState.collectAsState()
+    val arrayState by vm.arrayState.collectAsState()
+    val dockerState by vm.dockerState.collectAsState()
+    val vmsState by vm.vmsState.collectAsState()
     val scope = rememberCoroutineScope()
 
-    var tab by remember { mutableStateOf(MainTab.Overview) }
+    // Pause polling when app is backgrounded (ADR-0017). Bound to the
+    // hosting LifecycleOwner — when user navigates to Settings the polls
+    // also pause, since this composable's lifecycle event sequence stops.
+    val lifecycleOwner = androidx.lifecycle.compose.LocalLifecycleOwner.current
+    androidx.compose.runtime.DisposableEffect(lifecycleOwner) {
+        val observer = androidx.lifecycle.LifecycleEventObserver { _, event ->
+            when (event) {
+                androidx.lifecycle.Lifecycle.Event.ON_START -> vm.setAppVisible(true)
+                androidx.lifecycle.Lifecycle.Event.ON_STOP  -> vm.setAppVisible(false)
+                else -> Unit
+            }
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
+    }
+
     var openContainer by remember { mutableStateOf<Container?>(null) }
+    androidx.compose.runtime.LaunchedEffect(openContainer) {
+        vm.setDockerSheetOpen(openContainer != null)
+    }
     var confirm by remember { mutableStateOf<ConfirmRequest?>(null) }
     val pullState = rememberPullToRefreshState()
     var refreshing by remember { mutableStateOf(false) }
@@ -106,10 +130,19 @@ fun MainScreen(
             .background(t.bg)
             .windowInsetsPadding(WindowInsets.systemBars),
     ) {
+        // TopBar's offline-pill reflects whatever the *current tab's* primary
+        // domain stream is doing. We pick the most relevant per tab; Overview
+        // bundles the worst of array/docker/vms.
+        val topBarState: DomainState<*> = when (tab) {
+            MainTab.Overview -> firstErrorOrAny(infoState, arrayState, dockerState, vmsState)
+            MainTab.Array    -> arrayState
+            MainTab.Docker   -> dockerState
+            MainTab.Vms      -> vmsState
+        }
         TopBar(
             server = ui.activeServer,
             connection = ui.connectionMode,
-            snapshot = ui.snapshot,
+            state = topBarState,
             onOpenServerList = onOpenServerList,
             onMenu = onOpenSettings,
             onToggleConnection = { vm.toggleConnection() },
@@ -142,9 +175,17 @@ fun MainScreen(
         ) {
             AnimatedContent(targetState = tab, label = "tab") { current ->
                 when (current) {
-                    MainTab.Overview -> OverviewTab(ui.snapshot, ui.activeServer, onAddServer)
+                    MainTab.Overview -> OverviewTab(
+                        infoState = infoState,
+                        metricsState = metricsState,
+                        arrayState = arrayState,
+                        dockerState = dockerState,
+                        vmsState = vmsState,
+                        server = ui.activeServer,
+                        onAddServer = onAddServer,
+                    )
                     MainTab.Array    -> ArrayTab(
-                        snapshot = ui.snapshot,
+                        state = arrayState,
                         onAddServer = onAddServer,
                         onStartArray = {
                             confirm = ConfirmRequest(
@@ -168,7 +209,7 @@ fun MainScreen(
                         },
                     )
                     MainTab.Docker   -> DockerTab(
-                        snapshot = ui.snapshot,
+                        state = dockerState,
                         view = ui.dockerView,
                         onAddServer = onAddServer,
                         onOpenContainer = { openContainer = it },
@@ -186,7 +227,7 @@ fun MainScreen(
                         },
                     )
                     MainTab.Vms      -> VmsTab(
-                        snapshot = ui.snapshot,
+                        state = vmsState,
                         onAddServer = onAddServer,
                         onStart  = { v -> vm.startVm(v.id) },
                         onResume = { v -> vm.resumeVm(v.id) },
@@ -206,12 +247,12 @@ fun MainScreen(
             }
         }
 
-        TabBar(active = tab, onChange = { tab = it })
+        TabBar(active = tab, onChange = { vm.setSelectedTab(it) })
     }
 
     if (openContainer != null) {
-        val baseUrl = (ui.snapshot as? net.unraidcontrol.app.data.repository.SnapshotState.Content)
-            ?.snapshot?.serverBaseUrl.orEmpty()
+        val baseUrl = (dockerState as? DomainState.Content<List<Container>>)
+            ?.serverBaseUrl.orEmpty()
         ContainerDetailSheet(
             container = openContainer!!,
             serverBaseUrl = baseUrl,
@@ -251,24 +292,37 @@ fun MainScreen(
     }
 }
 
+/**
+ * Compare a handful of domain states and prefer Error/NoServer over
+ * Loading/Content. Used by [TopBar]'s offline-indicator on the Overview tab
+ * (which would otherwise need to invent its own meta-state across five
+ * separate domain streams).
+ */
+private fun firstErrorOrAny(vararg states: DomainState<*>): DomainState<*> {
+    states.firstOrNull { it is DomainState.NoServer }?.let { return it }
+    states.firstOrNull { it is DomainState.Error }?.let { return it }
+    states.firstOrNull { it is DomainState.Content<*> }?.let { return it }
+    return DomainState.Loading
+}
+
 @Composable
 private fun TopBar(
     server: Server?,
     connection: ConnectionMode,
-    snapshot: SnapshotState,
+    state: DomainState<*>,
     onOpenServerList: () -> Unit,
     onMenu: () -> Unit,
     onToggleConnection: () -> Unit,
 ) {
     val t = UnraidTheme.colors
-    val offline = snapshot is SnapshotState.Error || snapshot is SnapshotState.NoServer
+    val offline = state is DomainState.Error || state is DomainState.NoServer
     val connTone: Tone = when {
         offline -> Tone.Danger
         connection == ConnectionMode.Remote -> Tone.Info
         else -> Tone.Accent
     }
     val connLabel = when {
-        snapshot is SnapshotState.NoServer -> "No server"
+        state is DomainState.NoServer -> "No server"
         offline -> "Offline"
         connection == ConnectionMode.Remote -> "Remote"
         else -> "Local"

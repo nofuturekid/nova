@@ -43,7 +43,7 @@ import net.unraidcontrol.app.data.local.DockerView
 import net.unraidcontrol.app.data.model.Container
 import net.unraidcontrol.app.data.model.ContainerStatus
 import net.unraidcontrol.app.data.model.hasUpdate
-import net.unraidcontrol.app.data.repository.SnapshotState
+import net.unraidcontrol.app.data.repository.DomainState
 import net.unraidcontrol.app.ui.components.ContainerIcon
 import net.unraidcontrol.app.ui.components.Pill
 import net.unraidcontrol.app.ui.components.SectionLabel
@@ -59,7 +59,7 @@ import net.unraidcontrol.app.ui.theme.UnraidTheme
 
 @Composable
 fun DockerTab(
-    snapshot: SnapshotState,
+    state: DomainState<List<Container>>,
     view: DockerView,
     onAddServer: () -> Unit,
     onOpenContainer: (Container) -> Unit,
@@ -67,13 +67,13 @@ fun DockerTab(
     onRestart: (Container) -> Unit,
     onStop: (Container) -> Unit,
 ) {
-    when (snapshot) {
-        SnapshotState.Loading -> LoadingState()
-        SnapshotState.NoServer -> NoServerState(onAdd = onAddServer)
-        is SnapshotState.Error -> ErrorState(snapshot.message)
-        is SnapshotState.Content -> DockerContent(
-            containers = snapshot.snapshot.containers,
-            serverBaseUrl = snapshot.snapshot.serverBaseUrl,
+    when (state) {
+        DomainState.Loading    -> LoadingState()
+        DomainState.NoServer   -> NoServerState(onAdd = onAddServer)
+        is DomainState.Error   -> ErrorState(state.message)
+        is DomainState.Content -> DockerContent(
+            containers = state.value,
+            serverBaseUrl = state.serverBaseUrl,
             view = view,
             onOpenContainer = onOpenContainer,
             onStart = onStart,

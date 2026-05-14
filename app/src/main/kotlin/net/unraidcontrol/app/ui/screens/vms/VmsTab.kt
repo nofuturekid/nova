@@ -28,7 +28,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import net.unraidcontrol.app.data.model.Vm
 import net.unraidcontrol.app.data.model.VmState
-import net.unraidcontrol.app.data.repository.SnapshotState
+import net.unraidcontrol.app.data.repository.DomainState
 import net.unraidcontrol.app.ui.components.BtnVariant
 import net.unraidcontrol.app.ui.components.Pill
 import net.unraidcontrol.app.ui.components.Tone
@@ -42,19 +42,19 @@ import net.unraidcontrol.app.ui.theme.UnraidTheme
 
 @Composable
 fun VmsTab(
-    snapshot: SnapshotState,
+    state: DomainState<List<Vm>>,
     onAddServer: () -> Unit,
     onStart: (Vm) -> Unit,
     onResume: (Vm) -> Unit,
     onPause: (Vm) -> Unit,
     onStop: (Vm) -> Unit,
 ) {
-    when (snapshot) {
-        SnapshotState.Loading -> LoadingState()
-        SnapshotState.NoServer -> NoServerState(onAdd = onAddServer)
-        is SnapshotState.Error -> ErrorState(snapshot.message)
-        is SnapshotState.Content -> {
-            val vms = snapshot.snapshot.vms
+    when (state) {
+        DomainState.Loading    -> LoadingState()
+        DomainState.NoServer   -> NoServerState(onAdd = onAddServer)
+        is DomainState.Error   -> ErrorState(state.message)
+        is DomainState.Content -> {
+            val vms = state.value
             if (vms.isEmpty()) {
                 EmptyVms()
             } else {
