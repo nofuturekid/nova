@@ -54,7 +54,6 @@ import net.unraidcontrol.app.ui.components.UnraidIconButton
 import net.unraidcontrol.app.ui.screens.ErrorState
 import net.unraidcontrol.app.ui.screens.LoadingState
 import net.unraidcontrol.app.ui.screens.NoServerState
-import net.unraidcontrol.app.ui.theme.JetBrainsMono
 import net.unraidcontrol.app.ui.theme.UnraidTheme
 
 @Composable
@@ -238,14 +237,6 @@ private fun ContainerRow(
                     if (c.updateStatus.hasUpdate()) {
                         Pill("update", tone = Tone.Info, dot = true)
                     }
-                    Text(
-                        text = c.image,
-                        color = t.muted,
-                        fontSize = 11.sp,
-                        fontFamily = JetBrainsMono,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                    )
                 }
             }
             Row {
