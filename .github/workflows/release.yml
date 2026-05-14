@@ -2,6 +2,16 @@ name: Release
 
 # 'Build once, promote' — release builds REUSE the APK produced by ci.yml
 # for the same commit instead of rebuilding from scratch.
+#
+# Resolution order for finding the build artifact (ADR-0014):
+#   1. Direct lookup: CI run whose head_sha matches the tagged commit
+#      (covers manual `gh workflow run ci.yml --ref <SHA>` rebuilds).
+#   2. PR lookup: parse `(#NN)` from the tagged commit's message,
+#      resolve that PR's head SHA via the GitHub API, find its CI run.
+#      Covers the normal case — squash-merge commit on main → PR-CI artifact.
+#
+# Falls back to a clear error message if neither path resolves; recovery
+# is a manual workflow_dispatch on the tagged commit.
 on:
   push:
     tags: ['v*']
@@ -25,21 +35,55 @@ jobs:
           echo "sha=$SHA" >> "$GITHUB_OUTPUT"
           echo "Tag ${GITHUB_REF#refs/tags/} points at $SHA"
 
-      - name: Find latest successful CI run for this commit
+      - name: Find CI artifact for this commit
         id: run
         env:
           GH_TOKEN: ${{ github.token }}
           SHA: ${{ steps.sha.outputs.sha }}
         run: |
+          set -e
+
+          # Path 1 — direct: CI run whose head_sha == tagged commit.
+          # Hits when someone manually triggered ci.yml on the main commit
+          # (workflow_dispatch with --ref). Normal squash-merge commits
+          # won't have a direct match and fall through to Path 2.
           RUN_ID=$(gh api \
             "repos/${{ github.repository }}/actions/workflows/ci.yml/runs?head_sha=$SHA&status=success&per_page=1" \
             --jq '.workflow_runs[0].id // empty')
-          if [ -z "$RUN_ID" ]; then
-            echo "::error::No successful CI run found for commit $SHA."
-            echo "::error::Push to main first, wait for ci.yml to go green, THEN push the tag."
+          if [ -n "$RUN_ID" ]; then
+            echo "Found CI run $RUN_ID for $SHA (direct match)."
+            echo "id=$RUN_ID" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          # Path 2 — via PR: parse `(#NN)` from the tagged commit's
+          # subject line (GitHub's squash-merge format), resolve PR head
+          # SHA, look up the PR's CI run.
+          SUBJECT=$(git log -1 "$SHA" --format=%s)
+          PR_NUM=$(echo "$SUBJECT" | grep -oE '\(#[0-9]+\)$' | tr -d '(#)' || true)
+          if [ -z "$PR_NUM" ]; then
+            echo "::error::No CI run for $SHA and no PR # in commit message."
+            echo "::error::Subject was: $SUBJECT"
+            echo "::error::Direct-push? Run CI manually with:  gh workflow run ci.yml --ref $SHA"
             exit 1
           fi
-          echo "Found CI run $RUN_ID"
+
+          PR_SHA=$(gh pr view "$PR_NUM" --json headRefOid --jq '.headRefOid // empty')
+          if [ -z "$PR_SHA" ]; then
+            echo "::error::Couldn't resolve PR #$PR_NUM head SHA (deleted PR?)."
+            exit 1
+          fi
+
+          RUN_ID=$(gh api \
+            "repos/${{ github.repository }}/actions/workflows/ci.yml/runs?head_sha=$PR_SHA&status=success&per_page=1" \
+            --jq '.workflow_runs[0].id // empty')
+          if [ -z "$RUN_ID" ]; then
+            echo "::error::No successful PR CI run for SHA $PR_SHA (PR #$PR_NUM)."
+            echo "::error::Re-run the PR's CI, then push the tag again."
+            exit 1
+          fi
+
+          echo "Found PR #$PR_NUM CI run $RUN_ID (head_sha=$PR_SHA)."
           echo "id=$RUN_ID" >> "$GITHUB_OUTPUT"
 
       - name: Download release APK from CI run

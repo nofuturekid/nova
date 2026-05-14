@@ -1,18 +1,20 @@
 name: CI
 
+# ci.yml runs only on PRs (the gating signal for branch protection) and on
+# manual dispatch (for backfill / rebuild of a specific commit). It does
+# NOT run on push:main — the squash-merge would otherwise rebuild the
+# exact same source the PR-CI just built minutes earlier under a different
+# SHA, wasting ~5 minutes per code PR.
+#
+# release.yml resolves the artifact via the PR# embedded in the merge
+# commit's message; see ADR-0014.
 on:
-  push:
-    branches: [main]
   pull_request:
   workflow_dispatch:
 
 concurrency:
   group: ci-${{ github.ref }}
-  # Cancel superseded runs on PR branches, but never on main: release.yml
-  # needs a successful CI run for each tagged commit, so a later docs-only
-  # push to main must not abort the still-building APK for the previous
-  # code commit.
-  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
+  cancel-in-progress: true
 
 jobs:
   build:
