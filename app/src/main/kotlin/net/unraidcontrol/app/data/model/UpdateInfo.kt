@@ -9,6 +9,8 @@ data class UpdateInfo(
     val sizeBytes: Long,
     val isPrerelease: Boolean,
     val releaseNotes: String,
+    /** Release publish time as epoch millis; null if GitHub didn't supply it. */
+    val publishedAtEpochMs: Long? = null,
 )
 
 sealed interface UpdateState {

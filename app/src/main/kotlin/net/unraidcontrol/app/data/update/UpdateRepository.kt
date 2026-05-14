@@ -9,6 +9,8 @@ import net.unraidcontrol.app.data.model.UpdateInfo
 import net.unraidcontrol.app.data.model.UpdateState
 import okhttp3.OkHttpClient
 import okhttp3.Request
+import java.time.Instant
+import java.time.format.DateTimeParseException
 import java.util.concurrent.TimeUnit
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -63,6 +65,7 @@ class UpdateRepository @Inject constructor() {
                         sizeBytes = apk.size,
                         isPrerelease = rel.prerelease,
                         releaseNotes = rel.body.orEmpty(),
+                        publishedAtEpochMs = parseIso8601(rel.publishedAt),
                     ),
                 )
             }
@@ -81,10 +84,12 @@ class UpdateRepository @Inject constructor() {
         val draft: Boolean = false,
         val prerelease: Boolean = false,
         val html_url: String,
+        val published_at: String? = null,
         val assets: List<GhAsset> = emptyList(),
     ) {
         val tagName: String get() = tag_name
         val htmlUrl: String get() = html_url
+        val publishedAt: String? get() = published_at
     }
 
     @Serializable
@@ -98,6 +103,15 @@ class UpdateRepository @Inject constructor() {
 
     companion object {
         private const val REPO = "nofuturekid/UnraidControl"
+
+        private fun parseIso8601(raw: String?): Long? {
+            if (raw.isNullOrBlank()) return null
+            return try {
+                Instant.parse(raw).toEpochMilli()
+            } catch (_: DateTimeParseException) {
+                null
+            }
+        }
 
         // Visible for tests / settings display
         internal fun parseVersion(raw: String): SemVer? {
