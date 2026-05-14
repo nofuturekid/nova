@@ -31,7 +31,7 @@ Tagging everything beta-first would catch this, but it adds friction to every re
 - New end-to-end features touching install + UI flow
 - Anything affecting how the app talks to the Unraid server
 
-**Flow for risky changes**: merge to `main` → tag `-beta1` → test on device → bug → fix-PR → tag `-beta2` → promote same commit to `-rc1` (optional) → promote same commit to `vX.Y.Z` stable.
+**Flow for risky changes**: merge feature PR → bump `versionName`/`versionCode` for beta1 → tag `-beta1` → test on device → fix-PR (or version-bump-only PR to promote) → tag next phase. **Each tag is its own commit with its own `versionName` / `versionCode`** — see ADR-0015. The old "same commit, different tag" shortcut was retired because it produced un-installable upgrades (Android refused to upgrade an APK whose `versionCode` hadn't changed).
 
 **When in doubt: beta-first.** The in-app updater (ADR-0008) means betas reach the dev's own device with no extra friction.
 
@@ -45,6 +45,7 @@ Tagging everything beta-first would catch this, but it adds friction to every re
 **Trade-offs**
 - The list is judgement-based, not algorithmic. Edge cases ("is changing a Coil dependency 'high risk'?") need human read.
 - Two-stage promotion (beta → stable) means two tags per release in the risky-change case. More tags, more cleanup discipline (ADR-0010).
+- Each phase needs its own commit (ADR-0015), so a beta1 → stable promotion costs a follow-up version-bump PR. Manageable; the alternative (same-commit re-tag) produces un-installable upgrades on Android.
 
 **Trigger to revisit**
 - If we ship a stable bug after following the policy correctly, the categorisation missed something — add it to the beta-first list.
