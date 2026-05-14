@@ -92,9 +92,13 @@ data class ServerInfo(
     val memTotalGb: Double,
 )
 
-/** Dynamic CPU/memory metrics. Polled at high frequency while Overview is visible. */
+/** Dynamic CPU/memory metrics. Polled at high frequency while Overview is visible.
+ *  [memTotalGb] reflects the OS-reported total (preferred for display because
+ *  it accounts for memory reserved by firmware/hardware); falls back to
+ *  [ServerInfo.memTotalGb] (sum of hardware DIMM slot sizes) when zero. */
 data class LiveMetrics(
     val cpuPercent: Double,
+    val memTotalGb: Double,
     val memUsedGb: Double,
     val memBuffGb: Double,
 )

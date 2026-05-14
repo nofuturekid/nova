@@ -110,7 +110,12 @@ private fun OverviewContent(
     val cpuPercent = metrics?.cpuPercent ?: 0.0
     val memUsedGb = metrics?.memUsedGb ?: 0.0
     val memBuffGb = metrics?.memBuffGb ?: 0.0
-    val memTotalGb = info?.memTotalGb ?: 0.0
+    // Prefer the OS-reported total (metrics) — falls back to the sum of
+    // hardware DIMM slots from info when metrics hasn't loaded yet or
+    // the server returns zero (some virtualised setups do).
+    val memTotalGb = (metrics?.memTotalGb?.takeIf { it > 0.0 })
+        ?: info?.memTotalGb
+        ?: 0.0
 
     // Rolling sparkline buffers — extend from the polled value each tick.
     val cpuSeries = remember { mutableStateOf(List(40) { cpuPercent.toFloat() }) }
