@@ -87,6 +87,8 @@ When in doubt: beta-first. The in-app updater means betas reach the dev's own de
 
 If the PR also changes anything else (Kotlin, Gradle, workflows, manifest, resources), treat it as a code change and bump the version normally.
 
+**Cleaning up old releases keeps the tags.** When trimming the Releases page, use `gh release delete <tag> --yes` — **never** `--cleanup-tag`. The Releases UI gets shorter, but the underlying git tag stays. This matters because each release's auto-generated `**Full Changelog**: …/compare/vPREV...vCURR` link is resolved at view time — if `vPREV` is deleted, the link breaks on every still-published release that pointed at it. Tags cost almost nothing; keep them.
+
 ## Local builds
 
 Daily debug builds (no keystore needed):
