@@ -49,3 +49,4 @@ ADRs live under `docs/` so the CI docs-only bypass applies — pure-ADR PRs comp
 | [0012](./0012-install-from-settings-duplicate-vs-singleton.md) | Install-from-Settings duplicates install pipeline (vs. singleton refactor) | Accepted |
 | [0013](./0013-versionname-includes-prerelease-suffix.md) | `versionName` includes the pre-release suffix | Accepted |
 | [0014](./0014-single-ci-run-per-pr.md) | Single CI run per PR — release workflow resolves through PR | Accepted |
+| [0015](./0015-promotion-requires-new-commit.md) | Promotion to a different version-string requires a new commit | Accepted |
