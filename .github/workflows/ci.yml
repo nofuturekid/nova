@@ -15,24 +15,79 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0   # need history so docs-only diff works on PRs and pushes
+
+      # Skip the heavy Android build when only documentation changed. The job
+      # still runs end-to-end and reports SUCCESS on the same `build` check
+      # name, so branch protection stays happy — it just finishes in ~10s
+      # instead of ~4 min. Falls back to a full build whenever we can't
+      # reliably diff (force-push, new branch, manual dispatch).
+      - name: Detect docs-only change
+        id: filter
+        run: |
+          set -e
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "Manual dispatch → full build."
+            echo "code=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            BASE="${{ github.event.pull_request.base.sha }}"
+            HEAD="${{ github.event.pull_request.head.sha }}"
+          else
+            BASE="${{ github.event.before }}"
+            HEAD="${{ github.sha }}"
+          fi
+          if [ -z "$BASE" ] || [ "$BASE" = "0000000000000000000000000000000000000000" ]; then
+            echo "No diff base (force-push / new branch) → full build."
+            echo "code=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          CHANGED=$(git diff --name-only "$BASE" "$HEAD")
+          echo "Changed files:"
+          echo "$CHANGED" | sed 's/^/  /'
+          # Whitelist: anything matching this regex is treated as non-shipping
+          # (docs + AI assistant context). Everything else (code, gradle,
+          # workflows, manifest, resources, …) forces a full build.
+          #
+          #   *.md                       — README, CLAUDE.md, AGENTS.md, GEMINI.md, …
+          #   LICENSE                    — legal text
+          #   docs/                      — long-form docs (future-proof, dir doesn't exist yet)
+          #   .gitattributes, .editorconfig — repo hygiene
+          #   .claude/, .cursor/, .continue/, .aider*, .windsurfrules, .cursorrules, …
+          #                              — AI assistant config (Claude Code, Cursor, Continue, Aider, Windsurf)
+          #   .github/instructions/      — Copilot path-specific instructions
+          NON_DOCS=$(echo "$CHANGED" | grep -vE '\.md$|^LICENSE$|^docs/|^\.gitattributes$|^\.editorconfig$|^\.(claude|cursor|continue|aider|windsurf|sourcegraph|codeium)|^\.github/instructions/' || true)
+          if [ -z "$NON_DOCS" ]; then
+            echo "::notice::Docs-only change — skipping APK build."
+            echo "code=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "Non-docs files changed → full build."
+            echo "code=true" >> "$GITHUB_OUTPUT"
+          fi
 
       - name: Set up JDK 17
+        if: steps.filter.outputs.code == 'true'
         uses: actions/setup-java@v4
         with:
           distribution: temurin
           java-version: '17'
 
       - name: Set up Gradle (build cache)
+        if: steps.filter.outputs.code == 'true'
         uses: gradle/actions/setup-gradle@v4
         with:
           cache-read-only: ${{ github.event_name == 'pull_request' }}
 
       - name: Set up Android SDK
+        if: steps.filter.outputs.code == 'true'
         uses: android-actions/setup-android@v3
         with:
           log-accepted-android-sdk-licenses: false
 
       - name: Decode release keystore (if available)
+        if: steps.filter.outputs.code == 'true'
         id: keystore
         env:
           KEYSTORE_B64: ${{ secrets.KEYSTORE_B64 }}
@@ -46,10 +101,11 @@ jobs:
           fi
 
       - name: Assemble debug + lint
+        if: steps.filter.outputs.code == 'true'
         run: ./gradlew :app:assembleDebug :app:lintDebug --stacktrace
 
       - name: Assemble release
-        if: steps.keystore.outputs.available == 'true'
+        if: steps.filter.outputs.code == 'true' && steps.keystore.outputs.available == 'true'
         env:
           KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
           KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
@@ -57,7 +113,7 @@ jobs:
         run: ./gradlew :app:assembleRelease --stacktrace
 
       - name: Verify release APK signature
-        if: steps.keystore.outputs.available == 'true'
+        if: steps.filter.outputs.code == 'true' && steps.keystore.outputs.available == 'true'
         run: |
           BT="$ANDROID_HOME/build-tools"
           LATEST=$(ls "$BT" | sort -V | tail -1)
@@ -65,6 +121,7 @@ jobs:
           "$BT/$LATEST/apksigner" verify --verbose "$APK"
 
       - name: Upload debug APK
+        if: steps.filter.outputs.code == 'true'
         uses: actions/upload-artifact@v4
         with:
           name: app-debug
@@ -73,7 +130,7 @@ jobs:
           if-no-files-found: error
 
       - name: Upload release APK
-        if: steps.keystore.outputs.available == 'true'
+        if: steps.filter.outputs.code == 'true' && steps.keystore.outputs.available == 'true'
         uses: actions/upload-artifact@v4
         with:
           name: app-release
@@ -82,7 +139,7 @@ jobs:
           if-no-files-found: error
 
       - name: Upload mapping
-        if: steps.keystore.outputs.available == 'true'
+        if: steps.filter.outputs.code == 'true' && steps.keystore.outputs.available == 'true'
         uses: actions/upload-artifact@v4
         with:
           name: mapping
@@ -91,10 +148,15 @@ jobs:
           if-no-files-found: warn
 
       - name: Upload lint report
-        if: always()
+        if: always() && steps.filter.outputs.code == 'true'
         uses: actions/upload-artifact@v4
         with:
           name: lint-report
           path: app/build/reports/lint-results-debug.html
           retention-days: 14
           if-no-files-found: warn
+
+      - name: Docs-only summary
+        if: steps.filter.outputs.code != 'true'
+        run: |
+          echo "::notice::Docs-only change — APK build skipped. No version bump required."
