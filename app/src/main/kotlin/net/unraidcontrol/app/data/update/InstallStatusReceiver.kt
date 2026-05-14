@@ -26,13 +26,13 @@ class InstallStatusReceiver : BroadcastReceiver() {
                 confirm?.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
                 if (confirm != null) {
                     context.startActivity(confirm)
-                    events.tryEmit(InstallEvent.UserConfirmShown)
+                    _events.tryEmit(InstallEvent.UserConfirmShown)
                 } else {
-                    events.tryEmit(InstallEvent.Failed("Confirm intent missing"))
+                    _events.tryEmit(InstallEvent.Failed("Confirm intent missing"))
                 }
             }
-            PackageInstaller.STATUS_SUCCESS -> events.tryEmit(InstallEvent.Success)
-            else -> events.tryEmit(InstallEvent.Failed(message.ifBlank { "Install failed (code $status)" }))
+            PackageInstaller.STATUS_SUCCESS -> _events.tryEmit(InstallEvent.Success)
+            else -> _events.tryEmit(InstallEvent.Failed(message.ifBlank { "Install failed (code $status)" }))
         }
     }
 
@@ -40,8 +40,8 @@ class InstallStatusReceiver : BroadcastReceiver() {
         const val ACTION = "net.unraidcontrol.app.action.INSTALL_STATUS"
 
         private val _events = MutableSharedFlow<InstallEvent>(extraBufferCapacity = 8)
-        val events get() = _events.asSharedFlow()
-        private val events get() = _events
+        /** Read-only stream consumers (e.g. MainViewModel) listen on. */
+        val events: kotlinx.coroutines.flow.SharedFlow<InstallEvent> = _events.asSharedFlow()
     }
 }
 
