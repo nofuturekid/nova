@@ -36,6 +36,7 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.foundation.clickable
 import net.unraidcontrol.app.data.model.Container
 import net.unraidcontrol.app.data.model.ContainerStatus
+import net.unraidcontrol.app.data.model.hasUpdate
 import net.unraidcontrol.app.ui.components.BtnVariant
 import net.unraidcontrol.app.ui.components.ContainerIcon
 import net.unraidcontrol.app.ui.components.Pill
@@ -121,7 +122,12 @@ fun ContainerDetailSheet(
                         overflow = TextOverflow.Ellipsis,
                     )
                     Spacer(Modifier.height(6.dp))
-                    Pill(label = container.status.name.lowercase(), tone = tone, dot = true)
+                    Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                        Pill(label = container.status.name.lowercase(), tone = tone, dot = true)
+                        if (container.updateStatus.hasUpdate()) {
+                            Pill(label = "update available", tone = Tone.Info, dot = true)
+                        }
+                    }
                 }
                 UnraidIconButton(icon = { UC.X(20.dp, t.text) }, onClick = onDismiss)
             }
