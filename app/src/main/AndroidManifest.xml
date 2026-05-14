@@ -3,6 +3,10 @@
 
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+    <!-- For the in-app updater: PackageInstaller sessions require this so the
+         app can install replacement APKs the user explicitly downloads.
+         User still has to grant the per-app 'install unknown apps' setting. -->
+    <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
 
     <application
         android:name=".UnraidControlApp"
@@ -29,6 +33,15 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
+
+        <!-- Catches PackageInstaller session callbacks for the in-app updater. -->
+        <receiver
+            android:name=".data.update.InstallStatusReceiver"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="net.unraidcontrol.app.action.INSTALL_STATUS" />
+            </intent-filter>
+        </receiver>
     </application>
 
 </manifest>

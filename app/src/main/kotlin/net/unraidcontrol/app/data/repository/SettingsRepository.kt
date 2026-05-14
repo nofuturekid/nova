@@ -14,9 +14,15 @@ class SettingsRepository @Inject constructor(
 ) {
     val settings: Flow<AppSettings> = store.settings
     val dockerView: Flow<DockerView> = store.dockerView
+    val includePrereleases: Flow<Boolean> = store.includePrereleases
+    val lastUpdateCheck: Flow<Long?> = store.lastUpdateCheck
+    val dismissedUpdateTag: Flow<String?> = store.dismissedUpdateTag
 
     suspend fun setAccent(hex: Long)         = store.setAccent(hex)
     suspend fun setDark(isDark: Boolean)     = store.setIsDark(isDark)
     suspend fun setDensity(density: Density) = store.setDensity(density)
     suspend fun setDockerView(view: DockerView) = store.setDockerView(view)
+    suspend fun setIncludePrereleases(value: Boolean) = store.setIncludePrereleases(value)
+    suspend fun setLastUpdateCheck(epochMs: Long) = store.setLastUpdateCheck(epochMs)
+    suspend fun setDismissedUpdateTag(tag: String?) = store.setDismissedUpdateTag(tag)
 }
