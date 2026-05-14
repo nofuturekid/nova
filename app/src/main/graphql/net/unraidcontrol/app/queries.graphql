@@ -31,7 +31,8 @@ query GetServerSnapshot {
     }
     docker {
         containers {
-            id names image state status autoStart iconUrl updateStatus
+            id names image state status autoStart iconUrl
+            isUpdateAvailable isRebuildReady
             ports { privatePort publicPort type }
             mounts
         }

@@ -176,13 +176,6 @@ enum ContainerState {
     EXITED
 }
 
-enum UpdateStatus {
-    UP_TO_DATE
-    UPDATE_AVAILABLE
-    REBUILD_READY
-    UNKNOWN
-}
-
 enum ContainerPortType {
     TCP
     UDP
@@ -204,7 +197,9 @@ type DockerContainer {
     ports: [ContainerPort!]!
     iconUrl: String
     mounts: JSON
-    updateStatus: UpdateStatus!
+    # Both null when the server hasn't determined update status yet.
+    isUpdateAvailable: Boolean
+    isRebuildReady: Boolean
 }
 
 type DockerContainerLogs {

@@ -21,7 +21,6 @@ import net.unraidcontrol.app.graphql.type.ArrayDiskStatus
 import net.unraidcontrol.app.graphql.type.ArrayDiskType
 import net.unraidcontrol.app.graphql.type.ArrayState as GArrayState
 import net.unraidcontrol.app.graphql.type.ContainerState as GContainerState
-import net.unraidcontrol.app.graphql.type.UpdateStatus as GUpdateStatus
 import net.unraidcontrol.app.graphql.type.VmState as GVmState
 
 /**
@@ -117,7 +116,7 @@ fun GetServerSnapshotQuery.Data.toSnapshot(serverBaseUrl: String = ""): ServerSn
                 if (host.isNotEmpty() && ctn.isNotEmpty()) "$host:$ctn" else (host.ifEmpty { ctn })
             },
             volumes = parseMountsArray(c.mounts),
-            updateStatus = c.updateStatus.toDomain(),
+            updateStatus = deriveUpdateStatus(c.isUpdateAvailable, c.isRebuildReady),
         )
     }
 
@@ -195,12 +194,14 @@ private fun GContainerState.toDomain(): ContainerStatus = when (this) {
     else                    -> ContainerStatus.Exited
 }
 
-private fun GUpdateStatus.toDomain(): ContainerUpdateStatus = when (this) {
-    GUpdateStatus.UP_TO_DATE       -> ContainerUpdateStatus.UpToDate
-    GUpdateStatus.UPDATE_AVAILABLE -> ContainerUpdateStatus.UpdateAvailable
-    GUpdateStatus.REBUILD_READY    -> ContainerUpdateStatus.RebuildReady
-    GUpdateStatus.UNKNOWN          -> ContainerUpdateStatus.Unknown
-    else                           -> ContainerUpdateStatus.Unknown
+private fun deriveUpdateStatus(
+    isUpdateAvailable: Boolean?,
+    isRebuildReady: Boolean?,
+): ContainerUpdateStatus = when {
+    isRebuildReady == true     -> ContainerUpdateStatus.RebuildReady
+    isUpdateAvailable == true  -> ContainerUpdateStatus.UpdateAvailable
+    isUpdateAvailable == false -> ContainerUpdateStatus.UpToDate
+    else                       -> ContainerUpdateStatus.Unknown
 }
 
 private fun GVmState.toDomain(): VmState = when (this) {
