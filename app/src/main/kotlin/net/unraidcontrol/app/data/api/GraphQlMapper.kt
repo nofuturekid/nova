@@ -59,6 +59,7 @@ fun GetMetricsQuery.Data.toLiveMetrics(): LiveMetrics {
     val m = metrics
     return LiveMetrics(
         cpuPercent = m?.cpu?.percentTotal ?: 0.0,
+        memTotalGb = (m?.memory?.total ?: 0L).bytesToGb(),
         memUsedGb = (m?.memory?.used ?: 0L).bytesToGb(),
         memBuffGb = (m?.memory?.buffcache ?: 0L).bytesToGb(),
     )
