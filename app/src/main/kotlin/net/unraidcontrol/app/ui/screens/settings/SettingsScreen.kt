@@ -39,13 +39,22 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+import net.unraidcontrol.app.BuildConfig
 import net.unraidcontrol.app.data.local.DockerView
 import net.unraidcontrol.app.data.model.AppSettings
+import net.unraidcontrol.app.data.model.UpdateState
 import net.unraidcontrol.app.data.repository.SettingsRepository
+import net.unraidcontrol.app.data.update.UpdateRepository
+import net.unraidcontrol.app.ui.components.BtnVariant
+import net.unraidcontrol.app.ui.components.Pill
 import net.unraidcontrol.app.ui.components.SectionLabel
+import net.unraidcontrol.app.ui.components.Tone
 import net.unraidcontrol.app.ui.components.UC
+import net.unraidcontrol.app.ui.components.UnraidButton
 import net.unraidcontrol.app.ui.components.UnraidCard
 import net.unraidcontrol.app.ui.components.UnraidIconButton
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import net.unraidcontrol.app.ui.theme.AccentSwatches
 import net.unraidcontrol.app.ui.theme.Density
 import net.unraidcontrol.app.ui.theme.UnraidTheme
@@ -54,19 +63,45 @@ import javax.inject.Inject
 data class SettingsUi(
     val settings: AppSettings,
     val dockerView: DockerView,
+    val includePrereleases: Boolean,
+    val lastUpdateCheck: Long?,
 )
 
 @HiltViewModel
 class SettingsViewModel @Inject constructor(
     private val repo: SettingsRepository,
+    private val updates: UpdateRepository,
 ) : ViewModel() {
-    val state: StateFlow<SettingsUi> = combine(repo.settings, repo.dockerView) { s, v -> SettingsUi(s, v) }
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), SettingsUi(AppSettings(), DockerView.List))
+    val state: StateFlow<SettingsUi> = combine(
+        repo.settings,
+        repo.dockerView,
+        repo.includePrereleases,
+        repo.lastUpdateCheck,
+    ) { s, v, pre, last -> SettingsUi(s, v, pre, last) }
+        .stateIn(
+            viewModelScope,
+            SharingStarted.WhileSubscribed(5_000),
+            SettingsUi(AppSettings(), DockerView.List, includePrereleases = false, lastUpdateCheck = null),
+        )
+
+    private val _checkState = MutableStateFlow<UpdateState>(UpdateState.UpToDate)
+    val checkState: StateFlow<UpdateState> = _checkState.asStateFlow()
 
     fun setAccent(hex: Long)            = viewModelScope.launch { repo.setAccent(hex) }
     fun setDark(isDark: Boolean)        = viewModelScope.launch { repo.setDark(isDark) }
     fun setDensity(d: Density)          = viewModelScope.launch { repo.setDensity(d) }
     fun setDockerView(v: DockerView)    = viewModelScope.launch { repo.setDockerView(v) }
+    fun setIncludePrereleases(value: Boolean) = viewModelScope.launch {
+        repo.setIncludePrereleases(value)
+        // Reset dismissal so a previously-hidden update becomes visible again.
+        repo.setDismissedUpdateTag(null)
+    }
+
+    fun checkNow() = viewModelScope.launch {
+        _checkState.value = UpdateState.Checking
+        _checkState.value = updates.check(state.value.includePrereleases)
+        repo.setLastUpdateCheck(System.currentTimeMillis())
+    }
 }
 
 @Composable
@@ -76,6 +111,7 @@ fun SettingsScreen(
 ) {
     val t = UnraidTheme.colors
     val ui by vm.state.collectAsState()
+    val checkState by vm.checkState.collectAsState()
 
     Column(
         modifier = Modifier
@@ -152,7 +188,69 @@ fun SettingsScreen(
                     )
                 }
             }
+
+            SectionLabel("Updates")
+            UnraidCard(padding = 14.dp) {
+                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    SettingRow(label = "Installed version") {
+                        Text(
+                            text = "v${BuildConfig.VERSION_NAME}",
+                            color = t.text,
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.SemiBold,
+                        )
+                    }
+                    val cs = checkState
+                    SettingRow(label = "Latest available") {
+                        when (cs) {
+                            is UpdateState.Checking ->
+                                Text("Checking…", color = t.muted, fontSize = 13.sp)
+                            is UpdateState.UpToDate ->
+                                Text("Up to date", color = t.accent, fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
+                            is UpdateState.Available ->
+                                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                                    Text("v${cs.info.version}", color = t.text, fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
+                                    if (cs.info.isPrerelease) Pill("BETA", tone = Tone.Warn)
+                                }
+                            is UpdateState.Error ->
+                                Text("Couldn't check", color = t.danger, fontSize = 13.sp)
+                        }
+                    }
+                    SettingRow(label = "Last check") {
+                        Text(
+                            text = formatLastCheck(ui.lastUpdateCheck),
+                            color = t.muted,
+                            fontSize = 13.sp,
+                        )
+                    }
+                    SettingRow(label = "Include pre-releases") {
+                        Toggle(value = ui.includePrereleases, onChange = vm::setIncludePrereleases)
+                    }
+                    Row {
+                        Spacer(Modifier.weight(1f))
+                        UnraidButton(
+                            onClick = { vm.checkNow() },
+                            label = "Check now",
+                            variant = BtnVariant.Tonal,
+                            leadingIcon = { UC.Refresh(14.dp, t.accent) },
+                        )
+                    }
+                }
+            }
         }
+    }
+}
+
+private fun formatLastCheck(epochMs: Long?): String {
+    if (epochMs == null) return "Never"
+    val diff = System.currentTimeMillis() - epochMs
+    if (diff < 0) return "Just now"
+    val minutes = diff / 60_000
+    return when {
+        minutes < 1   -> "Just now"
+        minutes < 60  -> "${minutes}m ago"
+        minutes < 1440 -> "${minutes / 60}h ago"
+        else          -> "${minutes / 1440}d ago"
     }
 }
 

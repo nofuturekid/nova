@@ -23,13 +23,16 @@ import javax.inject.Singleton
 private val Context.dataStore: DataStore<Preferences> by preferencesDataStore("unraid_prefs")
 
 private object Keys {
-    val Servers       = stringPreferencesKey("servers_json")
-    val ActiveServer  = stringPreferencesKey("active_server_id")
-    val ConnMode      = stringPreferencesKey("connection_mode")
-    val AccentHex     = longPreferencesKey("accent_hex")
-    val IsDark        = booleanPreferencesKey("is_dark")
-    val Density       = stringPreferencesKey("density")
-    val DockerView    = stringPreferencesKey("docker_view")
+    val Servers             = stringPreferencesKey("servers_json")
+    val ActiveServer        = stringPreferencesKey("active_server_id")
+    val ConnMode            = stringPreferencesKey("connection_mode")
+    val AccentHex           = longPreferencesKey("accent_hex")
+    val IsDark              = booleanPreferencesKey("is_dark")
+    val Density             = stringPreferencesKey("density")
+    val DockerView          = stringPreferencesKey("docker_view")
+    val IncludePrereleases  = booleanPreferencesKey("include_prereleases")
+    val LastUpdateCheck     = longPreferencesKey("last_update_check")
+    val DismissedUpdateTag  = stringPreferencesKey("dismissed_update_tag")
 }
 
 enum class DockerView { List, Grid, Grouped }
@@ -104,5 +107,26 @@ class SettingsStore @Inject constructor(
 
     suspend fun setDensity(density: Density) {
         ds.edit { it[Keys.Density] = density.name }
+    }
+
+    // ── Updater state ─────────────────────────────────────────────
+
+    val includePrereleases: Flow<Boolean> = ds.data.map { it[Keys.IncludePrereleases] ?: false }
+    val lastUpdateCheck: Flow<Long?> = ds.data.map { it[Keys.LastUpdateCheck] }
+    val dismissedUpdateTag: Flow<String?> = ds.data.map { it[Keys.DismissedUpdateTag] }
+
+    suspend fun setIncludePrereleases(value: Boolean) {
+        ds.edit { it[Keys.IncludePrereleases] = value }
+    }
+
+    suspend fun setLastUpdateCheck(epochMs: Long) {
+        ds.edit { it[Keys.LastUpdateCheck] = epochMs }
+    }
+
+    suspend fun setDismissedUpdateTag(tag: String?) {
+        ds.edit { prefs ->
+            if (tag == null) prefs.remove(Keys.DismissedUpdateTag)
+            else prefs[Keys.DismissedUpdateTag] = tag
+        }
     }
 }

@@ -39,12 +39,16 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.hilt.navigation.compose.hiltViewModel
 import kotlinx.coroutines.launch
 import net.unraidcontrol.app.data.model.ArrayState
 import net.unraidcontrol.app.data.model.Container
 import net.unraidcontrol.app.data.model.ConnectionMode
+import net.unraidcontrol.app.data.model.InstallState
 import net.unraidcontrol.app.data.model.Server
+import net.unraidcontrol.app.data.model.UpdateState
 import net.unraidcontrol.app.data.model.Vm
 import net.unraidcontrol.app.data.repository.SnapshotState
 import net.unraidcontrol.app.ui.components.ConfirmDialog
@@ -57,6 +61,8 @@ import net.unraidcontrol.app.ui.screens.array.ArrayTab
 import net.unraidcontrol.app.ui.screens.container.ContainerDetailSheet
 import net.unraidcontrol.app.ui.screens.docker.DockerTab
 import net.unraidcontrol.app.ui.screens.overview.OverviewTab
+import net.unraidcontrol.app.ui.screens.update.UpdateBanner
+import net.unraidcontrol.app.ui.screens.update.UpdateDialog
 import net.unraidcontrol.app.ui.screens.vms.VmsTab
 import net.unraidcontrol.app.ui.theme.JetBrainsMono
 import net.unraidcontrol.app.ui.theme.UnraidTheme
@@ -87,6 +93,14 @@ fun MainScreen(
     val pullState = rememberPullToRefreshState()
     var refreshing by remember { mutableStateOf(false) }
 
+    val updateState by vm.updateState.collectAsState()
+    val installState by vm.installState.collectAsState()
+    val dismissedTag by vm.dismissedUpdateTag.collectAsState()
+    var showUpdateDialog by remember { mutableStateOf(false) }
+    val permissionLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.StartActivityForResult(),
+    ) { /* nothing — user returns; if granted, they tap Install again */ }
+
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -103,6 +117,15 @@ fun MainScreen(
             },
             onToggleConnection = { vm.toggleConnection() },
         )
+
+        val update = updateState
+        if (update is UpdateState.Available && update.info.tag != dismissedTag) {
+            UpdateBanner(
+                info = update.info,
+                onTap = { showUpdateDialog = true },
+                onDismiss = { vm.dismissUpdate(update.info.tag) },
+            )
+        }
 
         PullToRefreshBox(
             isRefreshing = refreshing,
@@ -213,6 +236,22 @@ fun MainScreen(
     }
 
     ConfirmDialog(request = confirm, onDismiss = { confirm = null })
+
+    val u = updateState
+    if (showUpdateDialog && u is UpdateState.Available) {
+        UpdateDialog(
+            info = u.info,
+            install = installState,
+            onInstall = { vm.installUpdate(u.info) },
+            onDismiss = {
+                showUpdateDialog = false
+                if (installState is InstallState.Failed) vm.resetInstall()
+            },
+            onGrantPermission = { state ->
+                vm.launchPermissionIntent(state) { permissionLauncher.launch(it) }
+            },
+        )
+    }
 }
 
 @Composable
