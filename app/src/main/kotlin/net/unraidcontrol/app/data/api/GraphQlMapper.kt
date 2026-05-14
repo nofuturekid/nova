@@ -16,6 +16,7 @@ import net.unraidcontrol.app.data.model.SystemInfo
 import net.unraidcontrol.app.data.model.Vm
 import net.unraidcontrol.app.data.model.VmState
 import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.contentOrNull
 import kotlinx.serialization.json.jsonPrimitive
@@ -44,6 +45,7 @@ fun GetServerSnapshotQuery.Data.toSnapshot(serverBaseUrl: String = ""): ServerSn
     val totalMemBytes = metricsBlock?.memory?.total
         ?: infoBlock.memory.layout.sumOf { it.size }
     val usedMemBytes = metricsBlock?.memory?.used ?: 0L
+    val buffCacheBytes = metricsBlock?.memory?.buffcache ?: 0L
     val sys = SystemInfo(
         hostname = infoBlock.os.hostname.orEmpty(),
         uptime = infoBlock.os.uptime.orEmpty(),
@@ -57,7 +59,7 @@ fun GetServerSnapshotQuery.Data.toSnapshot(serverBaseUrl: String = ""): ServerSn
         memory = MemoryStats(
             totalGb = totalMemBytes.bytesToGb(),
             usedGb = usedMemBytes.bytesToGb(),
-            buffersGb = 0.0, // Unraid GraphQL doesn't expose buff/cache directly
+            buffersGb = buffCacheBytes.bytesToGb(),
         ),
         // Network throughput isn't part of the Unraid GraphQL schema; leave 0.
         network = NetworkStats(rxMbps = 0.0, txMbps = 0.0),
@@ -117,9 +119,7 @@ fun GetServerSnapshotQuery.Data.toSnapshot(serverBaseUrl: String = ""): ServerSn
                 val ctn  = p.privatePort?.toString().orEmpty()
                 if (host.isNotEmpty() && ctn.isNotEmpty()) "$host:$ctn" else (host.ifEmpty { ctn })
             },
-            // mounts are fetched lazily per-container via FetchContainerMounts
-            // to keep the polled snapshot independent of optional schema fields.
-            volumes = emptyList(),
+            volumes = parseMountsArray(c.mounts),
         )
     }
 
@@ -212,14 +212,28 @@ private fun Long.bytesToGb(): Double = this / 1_000_000_000.0
 private val mountJson = Json { ignoreUnknownKeys = true; isLenient = true }
 
 /**
- * Docker mount entries are returned as opaque JSON blobs (`mounts: [JSON!]`).
- * Real shape from the Docker engine:
+ * Unraid's `DockerContainer.mounts` is a single `JSON` scalar that contains
+ * a JSON-encoded array of mount objects (NOT a GraphQL list — we learned
+ * that the hard way in v0.1.11). Parse the outer array, then map each
+ * element through [parseMountString] into "source → destination" form.
+ */
+fun parseMountsArray(raw: String?): List<String> {
+    if (raw.isNullOrBlank()) return emptyList()
+    return try {
+        val arr = mountJson.parseToJsonElement(raw) as? JsonArray ?: return emptyList()
+        arr.mapNotNull { parseMountString(it.toString()) }
+    } catch (e: Exception) {
+        emptyList()
+    }
+}
+
+/**
+ * Docker mount entries are objects with at least Source/Destination/Type.
+ * Real shape:
  *   { "Type": "bind", "Source": "/mnt/user/appdata/x", "Destination": "/config",
  *     "Mode": "rw", "RW": true, "Propagation": "rprivate" }
- * Return a human-readable "source → destination" string, or null if the JSON
- * can't be parsed.
- *
- * Exposed at package level so the repository's lazy mount fetch can reuse it.
+ * Return a human-readable "source → destination" string, or null if the
+ * single-element JSON can't be parsed.
  */
 fun parseMountString(raw: String): String? = try {
     val obj = mountJson.parseToJsonElement(raw) as? JsonObject ?: return null

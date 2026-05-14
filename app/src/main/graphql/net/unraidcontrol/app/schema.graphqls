@@ -45,6 +45,8 @@ type MemoryUtilization {
     used: BigInt!
     free: BigInt!
     available: BigInt!
+    buffcache: BigInt!
+    percentTotal: Float!
 }
 
 type Mutation {
@@ -193,7 +195,7 @@ type DockerContainer {
     autoStart: Boolean!
     ports: [ContainerPort!]!
     iconUrl: String
-    mounts: [JSON!]
+    mounts: JSON
 }
 
 type DockerContainerLogs {
