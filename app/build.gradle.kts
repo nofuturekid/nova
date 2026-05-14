@@ -97,7 +97,7 @@ apollo {
         mapScalar("PrefixedID", "kotlin.String")
         mapScalar("DateTime",   "kotlin.String")
         mapScalar("BigInt",     "kotlin.Long")
-        mapScalar("JSON",       "kotlin.Any?", "net.unraidcontrol.app.graphql.JsonAnyAdapter")
+        mapScalar("JSON",       "kotlin.Any",  "com.apollographql.apollo.api.AnyAdapter")
         mapScalar("URL",        "kotlin.String")
         mapScalar("Port",       "kotlin.Int")
     }
