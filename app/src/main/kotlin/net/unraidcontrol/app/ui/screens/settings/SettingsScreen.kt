@@ -270,7 +270,9 @@ private fun Toggle(value: Boolean, onChange: (Boolean) -> Unit) {
         modifier = Modifier
             .size(width = 44.dp, height = 26.dp)
             .clip(RoundedCornerShape(13.dp))
-            .background(if (value) t.accent else Color.White.copy(alpha = 0.15f))
+            // Off-track uses t.text alpha so the contrast inverts with the theme:
+            // light-grey dot on dark surface, dark-grey dot on light surface.
+            .background(if (value) t.accent else t.text.copy(alpha = 0.2f))
             .clickable { onChange(!value) },
         contentAlignment = if (value) Alignment.CenterEnd else Alignment.CenterStart,
     ) {
