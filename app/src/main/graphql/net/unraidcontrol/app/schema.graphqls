@@ -45,8 +45,9 @@ type MemoryUtilization {
     used: BigInt!
     free: BigInt!
     available: BigInt!
-    buffcache: BigInt!
-    percentTotal: Float!
+    # Older Unraid releases / non-Linux setups may not report this; tolerate null.
+    buffcache: BigInt
+    percentTotal: Float
 }
 
 type Mutation {

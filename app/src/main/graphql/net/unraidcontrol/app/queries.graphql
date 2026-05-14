@@ -33,6 +33,7 @@ query GetServerSnapshot {
         containers {
             id names image state status autoStart iconUrl
             ports { privatePort publicPort type }
+            mounts
         }
     }
     vms {
@@ -40,6 +41,6 @@ query GetServerSnapshot {
     }
     metrics {
         cpu { percentTotal }
-        memory { total used }
+        memory { total used buffcache }
     }
 }

@@ -15,11 +15,6 @@ import net.unraidcontrol.app.data.model.ServerSnapshot
 import net.unraidcontrol.app.data.model.SystemInfo
 import net.unraidcontrol.app.data.model.Vm
 import net.unraidcontrol.app.data.model.VmState
-import kotlinx.serialization.json.Json
-import kotlinx.serialization.json.JsonArray
-import kotlinx.serialization.json.JsonObject
-import kotlinx.serialization.json.contentOrNull
-import kotlinx.serialization.json.jsonPrimitive
 import net.unraidcontrol.app.graphql.GetServerSnapshotQuery
 import net.unraidcontrol.app.graphql.type.ArrayDiskStatus
 import net.unraidcontrol.app.graphql.type.ArrayDiskType
@@ -45,6 +40,7 @@ fun GetServerSnapshotQuery.Data.toSnapshot(serverBaseUrl: String = ""): ServerSn
     val totalMemBytes = metricsBlock?.memory?.total
         ?: infoBlock.memory.layout.sumOf { it.size }
     val usedMemBytes = metricsBlock?.memory?.used ?: 0L
+    val buffCacheBytes = metricsBlock?.memory?.buffcache ?: 0L
     val sys = SystemInfo(
         hostname = infoBlock.os.hostname.orEmpty(),
         uptime = infoBlock.os.uptime.orEmpty(),
@@ -58,7 +54,7 @@ fun GetServerSnapshotQuery.Data.toSnapshot(serverBaseUrl: String = ""): ServerSn
         memory = MemoryStats(
             totalGb = totalMemBytes.bytesToGb(),
             usedGb = usedMemBytes.bytesToGb(),
-            buffersGb = 0.0, // see DockerContainer.mounts comment — pending JSON Any adapter
+            buffersGb = buffCacheBytes.bytesToGb(),
         ),
         // Network throughput isn't part of the Unraid GraphQL schema; leave 0.
         network = NetworkStats(rxMbps = 0.0, txMbps = 0.0),
@@ -118,11 +114,7 @@ fun GetServerSnapshotQuery.Data.toSnapshot(serverBaseUrl: String = ""): ServerSn
                 val ctn  = p.privatePort?.toString().orEmpty()
                 if (host.isNotEmpty() && ctn.isNotEmpty()) "$host:$ctn" else (host.ifEmpty { ctn })
             },
-            // Volumes are not currently fetched. The Unraid API exposes
-            // `mounts: JSON` as inline JSON arrays which Apollo's String
-            // adapter can't parse — needs a custom Any-adapter. Tracked for
-            // a follow-up release.
-            volumes = emptyList(),
+            volumes = parseMountsArray(c.mounts),
         )
     }
 
@@ -212,44 +204,32 @@ private fun Long.bytesToTb(): Double = this / 1_000_000_000_000.0
 private fun Long.kbToTb():    Double = this / 1_000_000_000.0
 private fun Long.bytesToGb(): Double = this / 1_000_000_000.0
 
-private val mountJson = Json { ignoreUnknownKeys = true; isLenient = true }
-
 /**
- * Unraid's `DockerContainer.mounts` is a single `JSON` scalar that contains
- * a JSON-encoded array of mount objects (NOT a GraphQL list — we learned
- * that the hard way in v0.1.11). Parse the outer array, then map each
- * element through [parseMountString] into "source → destination" form.
+ * Parse Docker container mount entries.
+ *
+ * Apollo's [JsonAnyAdapter] delivers `mounts: JSON` as a Kotlin `Any?` —
+ * typically a `List<Map<String, Any?>>` where each element looks like:
+ *   { "Type"="bind", "Source"="/mnt/user/appdata/x",
+ *     "Destination"="/config", "Mode"="rw", "RW"=true, … }
+ *
+ * Return one "source → destination" string per mount, dropping entries
+ * that are missing both fields.
  */
-fun parseMountsArray(raw: String?): List<String> {
-    if (raw.isNullOrBlank()) return emptyList()
-    return try {
-        val arr = mountJson.parseToJsonElement(raw) as? JsonArray ?: return emptyList()
-        arr.mapNotNull { parseMountString(it.toString()) }
-    } catch (e: Exception) {
-        emptyList()
-    }
+fun parseMountsArray(raw: Any?): List<String> {
+    val list = raw as? List<*> ?: return emptyList()
+    return list.mapNotNull { mountToString(it) }
 }
 
-/**
- * Docker mount entries are objects with at least Source/Destination/Type.
- * Real shape:
- *   { "Type": "bind", "Source": "/mnt/user/appdata/x", "Destination": "/config",
- *     "Mode": "rw", "RW": true, "Propagation": "rprivate" }
- * Return a human-readable "source → destination" string, or null if the
- * single-element JSON can't be parsed.
- */
-fun parseMountString(raw: String): String? = try {
-    val obj = mountJson.parseToJsonElement(raw) as? JsonObject ?: return null
-    val src = obj["Source"]?.jsonPrimitive?.contentOrNull
-    val dst = obj["Destination"]?.jsonPrimitive?.contentOrNull
-    when {
-        !src.isNullOrBlank() && !dst.isNullOrBlank() -> "$src → $dst"
-        !dst.isNullOrBlank() -> dst
-        !src.isNullOrBlank() -> src
-        else -> null
+private fun mountToString(entry: Any?): String? {
+    val map = entry as? Map<*, *> ?: return null
+    val src = (map["Source"] as? String)?.takeIf { it.isNotBlank() }
+    val dst = (map["Destination"] as? String)?.takeIf { it.isNotBlank() }
+    return when {
+        src != null && dst != null -> "$src → $dst"
+        dst != null                -> dst
+        src != null                -> src
+        else                       -> null
     }
-} catch (e: Exception) {
-    null
 }
 
 private fun parseSpeedMbps(speedString: String?): Double {
