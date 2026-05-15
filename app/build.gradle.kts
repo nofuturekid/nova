@@ -1,6 +1,5 @@
 plugins {
     alias(libs.plugins.android.application)
-    alias(libs.plugins.kotlin.android)
     alias(libs.plugins.kotlin.compose)
     alias(libs.plugins.kotlin.serialization)
     alias(libs.plugins.ksp)
@@ -16,8 +15,8 @@ android {
         applicationId = "net.unraidcontrol.app"
         minSdk = 26
         targetSdk = 36
-        versionCode = 36
-        versionName = "0.1.27-beta1"
+        versionCode = 37
+        versionName = "0.1.28-beta1"
 
         vectorDrawables { useSupportLibrary = true }
     }
@@ -56,13 +55,12 @@ android {
         }
     }
 
+    // App bytecode stays Java 17 (Android-appropriate; D8/R8 desugars).
+    // JDK 21 is the *build/toolchain* JVM, not the emitted class level —
+    // see ADR-0023. javac 21 emits 17 bytecode fine.
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
-    }
-
-    kotlin {
-        jvmToolchain(17)
     }
 
     sourceSets["main"].kotlin.srcDir("src/main/kotlin")
@@ -82,6 +80,14 @@ android {
             )
         }
     }
+}
+
+// AGP 9 built-in Kotlin: the kotlin {} extension is top-level (no longer
+// nested in android {}). Toolchain 21 = the JDK that runs the compiler
+// (CI provisions JDK 21); Kotlin jvmTarget defaults to compileOptions
+// targetCompatibility (Java 17). See ADR-0023.
+kotlin {
+    jvmToolchain(21)
 }
 
 apollo {
