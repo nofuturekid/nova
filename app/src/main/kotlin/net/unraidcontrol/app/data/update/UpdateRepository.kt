@@ -136,13 +136,28 @@ data class SemVer(
         major.compareTo(other.major).also { if (it != 0) return it }
         minor.compareTo(other.minor).also { if (it != 0) return it }
         patch.compareTo(other.patch).also { if (it != 0) return it }
-        // Same numeric tuple: stable (null pre) beats pre-release;
-        // two pre-releases compare lexicographically (beta1 < beta2 < rc1).
+        // Same numeric tuple: stable (null pre) beats pre-release.
         return when {
             pre == null && other.pre == null -> 0
             pre == null                      -> 1   // we're stable, other is pre
             other.pre == null                -> -1  // they're stable, we're pre
-            else                             -> pre.compareTo(other.pre)
+            else                             -> comparePre(pre, other.pre)
         }
+    }
+
+    // Compare two pre-release suffixes by (label, number) so the number
+    // sorts numerically: "beta9" < "beta10". A plain string compare made
+    // "beta10" < "beta9" ('1' < '9'), so the updater never offered
+    // beta10+ over beta9.
+    private fun comparePre(a: String, b: String): Int {
+        val (al, an) = splitPre(a)
+        val (bl, bn) = splitPre(b)
+        al.compareTo(bl).also { if (it != 0) return it }
+        return an.compareTo(bn)
+    }
+
+    private fun splitPre(s: String): Pair<String, Int> {
+        val m = Regex("""^([A-Za-z]+)(\d+)$""").matchEntire(s)
+        return if (m != null) m.groupValues[1] to m.groupValues[2].toInt() else s to 0
     }
 }
