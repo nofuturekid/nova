@@ -91,10 +91,15 @@ The "why" for everything in this section lives in ADRs under [`docs/adr/`](docs/
 ### Release procedure (operational)
 
 1. Feature branch → PR → CI green → squash-merge → branch auto-deleted.
-2. `ci.yml` runs on main automatically. Wait for green.
-3. Tag: `git tag -a v0.X.Y[-beta1] -m "..." && git push origin v0.X.Y[-beta1]`.
-4. `release.yml` promotes the existing artifact (~16s).
-5. If beta: test on device → re-tag the same commit as stable (or `-rc1` first) once happy.
+2. Version-bump PR (its own commit per [ADR-0015](docs/adr/0015-promotion-requires-new-commit.md)).
+   **Title it `Release vX.Y.Z[-betaN] — <summary>`** — not "Version bump" /
+   "Promote". See CONTRIBUTING "Naming the release commit / PR".
+3. CI green on the bump → squash-merge.
+4. Tag the bump commit: `git tag -a vX.Y.Z[-betaN] -m "..." && git push origin vX.Y.Z[-betaN]`.
+5. `release.yml` promotes the existing artifact.
+6. If beta: test on device → new bump PR (`Release vX.Y.Z (stable) — …`,
+   versionCode bumped again) once happy. No re-tagging the same commit
+   (ADR-0015 superseded the old "same commit, new tag" flow).
 
 If a tag is pushed before CI on its commit is green, `release.yml` fails with "no successful CI run found for commit". Wait, then tag.
 

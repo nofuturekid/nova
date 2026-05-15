@@ -35,6 +35,22 @@ git push origin v0.2.0
 
 If you tag too early (before CI is green), the release workflow fails with a clear message; just wait for CI and push the tag again.
 
+### Naming the release commit / PR
+
+Per [ADR-0015](docs/adr/0015-promotion-requires-new-commit.md) every tag
+has its own version-bump commit (and PR). **Name that commit and PR
+`Release …`, not `Version bump …` / `Promote …`.** The word "Release"
+makes the project history scannable at a glance — `git log --oneline`
+and the PR list immediately show where each shipped artifact came from.
+
+| Cut | Commit / PR title |
+|---|---|
+| Beta / rc | `Release v0.2.0-beta1 — <one-line summary>` |
+| Stable promotion | `Release v0.2.0 (stable) — <one-line summary>` |
+
+The `<summary>` is what the cut delivers (the bundled feature/fix), not
+"bumped versionCode" — the diff already shows the bump.
+
 ### Pre-releases (beta → rc → stable)
 
 ```bash
