@@ -35,6 +35,9 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.foundation.clickable
+import androidx.compose.ui.platform.LocalContext
+import android.content.Intent
+import androidx.core.net.toUri
 import net.unraidcontrol.app.data.model.Container
 import net.unraidcontrol.app.data.model.ContainerStatus
 import net.unraidcontrol.app.data.model.hasUpdate
@@ -206,6 +209,25 @@ fun ContainerDetailSheet(
                         )
                     }
                 }
+            }
+            container.webUiUrl?.let { url ->
+                Spacer(Modifier.height(8.dp))
+                val context = LocalContext.current
+                UnraidButton(
+                    onClick = {
+                        runCatching {
+                            context.startActivity(
+                                Intent(Intent.ACTION_VIEW, url.toUri())
+                                    .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK),
+                            )
+                        }
+                    },
+                    label = "Open Web UI",
+                    modifier = Modifier.fillMaxWidth(),
+                    variant = BtnVariant.Tonal,
+                    fullWidth = true,
+                    leadingIcon = { UC.Link(14.dp, t.accent) },
+                )
             }
             Spacer(Modifier.height(16.dp))
 

@@ -66,6 +66,10 @@ data class Container(
     val ports: List<String>,
     val volumes: List<String>,
     val updateStatus: ContainerUpdateStatus,
+    /** Resolved WebUI URL from the container's Unraid template
+     *  (e.g. `http://192.168.1.2:8989` for Sonarr). Null when the
+     *  template has no WebUI declaration. */
+    val webUiUrl: String?,
 )
 
 enum class VmState { Running, Paused, Stopped }

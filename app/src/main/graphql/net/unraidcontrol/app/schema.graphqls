@@ -200,6 +200,10 @@ type DockerContainer {
     # Both null when the server hasn't determined update status yet.
     isUpdateAvailable: Boolean
     isRebuildReady: Boolean
+    # Resolved Web-UI URL from the container's Unraid template (e.g.
+    # `http://192.168.1.2:8989` for Sonarr). Null when the template has
+    # no WebUI declaration.
+    webUiUrl: String
 }
 
 type DockerContainerLogs {

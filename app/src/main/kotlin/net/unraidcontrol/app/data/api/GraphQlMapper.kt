@@ -121,6 +121,7 @@ fun GetDockerContainersQuery.Data.toContainers(): List<Container> =
             },
             volumes = parseMountsArray(c.mounts),
             updateStatus = deriveUpdateStatus(c.isUpdateAvailable, c.isRebuildReady),
+            webUiUrl = c.webUiUrl?.takeIf { it.isNotBlank() },
         )
     }
 
