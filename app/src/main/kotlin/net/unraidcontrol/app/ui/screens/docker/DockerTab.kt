@@ -2,6 +2,7 @@ package net.unraidcontrol.app.ui.screens.docker
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -65,6 +66,7 @@ fun DockerTab(
     onStart: (Container) -> Unit,
     onRestart: (Container) -> Unit,
     onStop: (Container) -> Unit,
+    onUpdateAll: () -> Unit,
 ) {
     when (state) {
         DomainState.Loading    -> LoadingState()
@@ -78,6 +80,7 @@ fun DockerTab(
             onStart = onStart,
             onRestart = onRestart,
             onStop = onStop,
+            onUpdateAll = onUpdateAll,
         )
     }
 }
@@ -91,6 +94,7 @@ private fun DockerContent(
     onStart: (Container) -> Unit,
     onRestart: (Container) -> Unit,
     onStop: (Container) -> Unit,
+    onUpdateAll: () -> Unit,
 ) {
     var query by remember { mutableStateOf("") }
     val filtered = containers.filter { c ->
@@ -98,6 +102,7 @@ private fun DockerContent(
             c.name.contains(query, ignoreCase = true) ||
             c.image.contains(query, ignoreCase = true)
     }
+    val updateCount = containers.count { it.updateStatus.hasUpdate() }
     when (view) {
         DockerView.List -> LazyColumn(
             modifier = Modifier.fillMaxWidth(),
@@ -106,6 +111,7 @@ private fun DockerContent(
             ),
             verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
+            if (updateCount > 0) item { UpdateAllBanner(updateCount, onUpdateAll) }
             item { SearchBox(query, { query = it }) }
             items(filtered, key = { it.id }) { c ->
                 ContainerRow(c, serverBaseUrl, onOpenContainer, onStart, onRestart, onStop)
@@ -120,6 +126,9 @@ private fun DockerContent(
             horizontalArrangement = Arrangement.spacedBy(10.dp),
             verticalArrangement = Arrangement.spacedBy(10.dp),
         ) {
+            if (updateCount > 0) item(span = { GridItemSpan(maxLineSpan) }) {
+                UpdateAllBanner(updateCount, onUpdateAll)
+            }
             item(span = { GridItemSpan(maxLineSpan) }) { SearchBox(query, { query = it }) }
             gridItems(filtered, key = { it.id }) { c ->
                 ContainerGridTile(c, serverBaseUrl, onOpenContainer)
@@ -136,6 +145,7 @@ private fun DockerContent(
                 ),
                 verticalArrangement = Arrangement.spacedBy(8.dp),
             ) {
+                if (updateCount > 0) item { UpdateAllBanner(updateCount, onUpdateAll) }
                 item { SearchBox(query, { query = it }) }
                 if (running.isNotEmpty()) {
                     item { SectionLabel("Running · ${running.size}") }
@@ -157,6 +167,38 @@ private fun DockerContent(
                 }
             }
         }
+    }
+}
+
+@Composable
+private fun UpdateAllBanner(count: Int, onTap: () -> Unit) {
+    val t = UnraidTheme.colors
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(12.dp))
+            .background(t.info.copy(alpha = 0.10f))
+            .border(1.dp, t.info.copy(alpha = 0.20f), RoundedCornerShape(12.dp))
+            .clickable(onClick = onTap)
+            .padding(horizontal = 14.dp, vertical = 12.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(10.dp),
+    ) {
+        UC.Refresh(18.dp, t.info)
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                text = if (count == 1) "1 container has an update" else "$count containers have updates",
+                color = t.info,
+                fontSize = 13.sp,
+                fontWeight = FontWeight.SemiBold,
+            )
+            Text(
+                text = "Tap to update all",
+                color = t.info.copy(alpha = 0.75f),
+                fontSize = 11.sp,
+            )
+        }
+        UC.ChevR(16.dp, t.info)
     }
 }
 

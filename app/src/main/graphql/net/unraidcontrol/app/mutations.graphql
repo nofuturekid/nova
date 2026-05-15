@@ -7,7 +7,8 @@ mutation PauseContainer(  $id: PrefixedID!) { docker { pause(  id: $id) { id sta
 mutation UnpauseContainer($id: PrefixedID!) { docker { unpause(id: $id) { id state } } }
 # Long-running: image pull + recreate can take minutes. Routed via the
 # repository's long-running Apollo client (10-min read timeout, ADR-0016).
-mutation UpdateContainer( $id: PrefixedID!) { docker { updateContainer(id: $id) { id state } } }
+mutation UpdateContainer(    $id: PrefixedID!) { docker { updateContainer(id: $id) { id state } } }
+mutation UpdateAllContainers                   { docker { updateAllContainers   { id state } } }
 
 mutation StartVm(    $id: PrefixedID!) { vm { start(    id: $id) } }
 mutation StopVm(     $id: PrefixedID!) { vm { stop(     id: $id) } }

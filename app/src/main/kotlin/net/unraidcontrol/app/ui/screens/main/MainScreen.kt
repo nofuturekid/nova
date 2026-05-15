@@ -50,6 +50,7 @@ import net.unraidcontrol.app.data.model.InstallState
 import net.unraidcontrol.app.data.model.Server
 import net.unraidcontrol.app.data.model.UpdateState
 import net.unraidcontrol.app.data.model.Vm
+import net.unraidcontrol.app.data.model.hasUpdate
 import net.unraidcontrol.app.data.repository.DomainState
 import net.unraidcontrol.app.ui.components.ConfirmDialog
 import net.unraidcontrol.app.ui.components.ConfirmRequest
@@ -223,6 +224,20 @@ fun MainScreen(
                                 tone = Tone.Danger,
                                 icon = { UC.Stop(22.dp, t.danger) },
                                 onConfirm = { vm.stopContainer(c.id); confirm = null },
+                            )
+                        },
+                        onUpdateAll = {
+                            val n = (dockerState as? DomainState.Content<List<Container>>)
+                                ?.value
+                                ?.count { it.updateStatus.hasUpdate() }
+                                ?: 0
+                            confirm = ConfirmRequest(
+                                title = if (n == 1) "Update 1 container?" else "Update $n containers?",
+                                body = "Each will pull its latest image and recreate the container — they'll be unavailable during the update. The whole batch can take several minutes.",
+                                confirmLabel = "Update all",
+                                tone = Tone.Info,
+                                icon = { UC.Refresh(22.dp, t.info) },
+                                onConfirm = { vm.updateAllContainers(); confirm = null },
                             )
                         },
                     )
