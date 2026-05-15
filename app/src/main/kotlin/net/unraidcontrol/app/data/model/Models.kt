@@ -70,6 +70,13 @@ data class Container(
      *  (e.g. `http://192.168.1.2:8989` for Sonarr). Null when the
      *  template has no WebUI declaration. */
     val webUiUrl: String?,
+    /** LAN-routable IP the container has on a non-default Docker
+     *  network (e.g. a macvlan/ipvlan `br0`). Null for bridge-mode
+     *  containers — those are reachable via the host's IP and the
+     *  mapped host port, so [webUiUrl] from the template is already
+     *  correct. When non-null, the UI substitutes this for the host
+     *  portion of [webUiUrl] before opening the browser. */
+    val networkIp: String?,
 )
 
 enum class VmState { Running, Paused, Stopped }

@@ -122,6 +122,7 @@ fun GetDockerContainersQuery.Data.toContainers(): List<Container> =
             volumes = parseMountsArray(c.mounts),
             updateStatus = deriveUpdateStatus(c.isUpdateAvailable, c.isRebuildReady),
             webUiUrl = c.webUiUrl?.takeIf { it.isNotBlank() },
+            networkIp = parseContainerNetworkIp(c.networkSettings),
         )
     }
 
@@ -228,6 +229,35 @@ private fun Long.kbToTb():     Double = this / 1_000_000_000.0
 /** RAM uses *binary* GiB (matches `/proc/meminfo`, `free -h`, `htop`).
  *  We display it as "GB" because that's what users mentally call it. */
 private fun Long.bytesToGib(): Double = this / 1_073_741_824.0
+
+/**
+ * Pick a LAN-routable IP from the container's `NetworkSettings.Networks`
+ * block. Returns null for bridge-mode containers (where the URL should
+ * keep using the host's IP + mapped port) and for any container whose
+ * networks all share the default-bridge name.
+ *
+ * The Docker `NetworkSettings` JSON looks roughly like:
+ * ```
+ * { "Networks": {
+ *     "br0":    { "IPAddress": "192.168.11.230", … },
+ *     "bridge": { "IPAddress": "172.17.0.3", … }
+ * } }
+ * ```
+ * We prefer the first entry whose key is not `bridge` and whose IPAddress
+ * is non-empty — that's where macvlan / ipvlan / custom-bridge containers
+ * surface their LAN-routable IP.
+ */
+fun parseContainerNetworkIp(raw: Any?): String? {
+    val ns = raw as? Map<*, *> ?: return null
+    val networks = ns["Networks"] as? Map<*, *> ?: return null
+    for ((name, cfg) in networks) {
+        if (name == "bridge") continue
+        val map = cfg as? Map<*, *> ?: continue
+        val ip = (map["IPAddress"] as? String)?.takeIf { it.isNotBlank() } ?: continue
+        return ip
+    }
+    return null
+}
 
 /**
  * Parse Docker container mount entries.

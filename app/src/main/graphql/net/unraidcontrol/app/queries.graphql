@@ -54,7 +54,7 @@ query GetDockerContainers {
             id names image state status autoStart iconUrl
             isUpdateAvailable isRebuildReady webUiUrl
             ports { privatePort publicPort type }
-            mounts
+            mounts networkSettings
         }
     }
 }
