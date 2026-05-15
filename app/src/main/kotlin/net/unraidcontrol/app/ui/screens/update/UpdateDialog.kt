@@ -119,15 +119,15 @@ fun UpdateDialog(
                     // Default Markdown typography maps headers to MaterialTheme
                     // display/headline sizes (28-57 sp) which are sized for
                     // full-screen layouts and overwhelm a bottom-sheet. Override
-                    // with dialog-appropriate sizes; colours come from our
-                    // UnraidTheme so links + body match the surrounding UI.
+                    // with dialog-appropriate sizes; body colour comes from our
+                    // UnraidTheme. (markdown-renderer 0.40 dropped the linkText/
+                    // link style slots; links inherit the body style.)
                     val bodyStyle = androidx.compose.ui.text.TextStyle(color = t.text, fontSize = 12.sp)
                     Markdown(
                         content = info.releaseNotes.trim(),
                         modifier = Modifier.verticalScroll(rememberScrollState()),
                         colors = markdownColor(
                             text = t.text,
-                            linkText = t.accent,
                         ),
                         typography = markdownTypography(
                             h1 = bodyStyle.copy(fontSize = 17.sp, fontWeight = FontWeight.SemiBold),
@@ -144,7 +144,6 @@ fun UpdateDialog(
                             code = bodyStyle.copy(fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace),
                             inlineCode = bodyStyle.copy(fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace),
                             quote = bodyStyle.copy(fontStyle = androidx.compose.ui.text.font.FontStyle.Italic),
-                            link = bodyStyle.copy(color = t.accent, textDecoration = androidx.compose.ui.text.style.TextDecoration.Underline),
                         ),
                     )
                 }
