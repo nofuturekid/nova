@@ -52,6 +52,6 @@ ADRs live under `docs/` so the CI docs-only bypass applies — pure-ADR PRs comp
 | [0015](./0015-promotion-requires-new-commit.md) | Promotion to a different version-string requires a new commit | Accepted |
 | [0016](./0016-long-running-apollo-client.md) | Separate Apollo client for long-running mutations | Proposed |
 | [0017](./0017-domain-split-queries-with-lifecycle-polling.md) | Domain-split queries with lifecycle-aware polling | Accepted |
-| [0018](./0018-gradle-cache-warm-on-main.md) | Populate the Gradle build cache on push to main | Proposed |
-| [0019](./0019-parallel-debug-release-jobs.md) | Split CI into parallel debug + release jobs | Proposed |
+| [0018](./0018-gradle-cache-warm-on-main.md) | Populate the Gradle build cache on push to main | Accepted |
+| [0019](./0019-parallel-debug-release-jobs.md) | Split CI into parallel debug + release jobs | Accepted |
 | [0020](./0020-migrate-to-ksp2.md) | Migrate from KSP1 to KSP2 | Proposed |
