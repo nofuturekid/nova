@@ -52,7 +52,7 @@ query GetDockerContainers {
     docker {
         containers {
             id names image state status autoStart iconUrl
-            isUpdateAvailable isRebuildReady
+            isUpdateAvailable isRebuildReady webUiUrl
             ports { privatePort publicPort type }
             mounts
         }
