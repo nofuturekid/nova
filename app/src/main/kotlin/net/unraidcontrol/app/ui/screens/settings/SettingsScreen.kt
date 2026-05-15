@@ -46,7 +46,7 @@ import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import net.unraidcontrol.app.BuildConfig
-import net.unraidcontrol.app.data.local.DockerView
+import net.unraidcontrol.app.data.local.LayoutMode
 import net.unraidcontrol.app.data.model.AppSettings
 import net.unraidcontrol.app.data.model.InstallState
 import net.unraidcontrol.app.data.model.UpdateInfo
@@ -74,7 +74,9 @@ import javax.inject.Inject
 
 data class SettingsUi(
     val settings: AppSettings,
-    val dockerView: DockerView,
+    val dockerView: LayoutMode,
+    val vmsView: LayoutMode,
+    val arrayView: LayoutMode,
     val includePrereleases: Boolean,
     val lastUpdateCheck: Long?,
 )
@@ -85,16 +87,23 @@ class SettingsViewModel @Inject constructor(
     private val updates: UpdateRepository,
     private val installer: UpdateInstaller,
 ) : ViewModel() {
+    private val layouts = combine(
+        repo.dockerView, repo.vmsView, repo.arrayView,
+    ) { d, v, a -> Triple(d, v, a) }
+
     val state: StateFlow<SettingsUi> = combine(
         repo.settings,
-        repo.dockerView,
+        layouts,
         repo.includePrereleases,
         repo.lastUpdateCheck,
-    ) { s, v, pre, last -> SettingsUi(s, v, pre, last) }
+    ) { s, l, pre, last -> SettingsUi(s, l.first, l.second, l.third, pre, last) }
         .stateIn(
             viewModelScope,
             SharingStarted.WhileSubscribed(5_000),
-            SettingsUi(AppSettings(), DockerView.List, includePrereleases = false, lastUpdateCheck = null),
+            SettingsUi(
+                AppSettings(), LayoutMode.List, LayoutMode.List, LayoutMode.List,
+                includePrereleases = false, lastUpdateCheck = null,
+            ),
         )
 
     private val _checkState = MutableStateFlow<UpdateState>(UpdateState.Checking)
@@ -124,7 +133,9 @@ class SettingsViewModel @Inject constructor(
     fun setAccent(hex: Long)            = viewModelScope.launch { repo.setAccent(hex) }
     fun setDark(isDark: Boolean)        = viewModelScope.launch { repo.setDark(isDark) }
     fun setDensity(d: Density)          = viewModelScope.launch { repo.setDensity(d) }
-    fun setDockerView(v: DockerView)    = viewModelScope.launch { repo.setDockerView(v) }
+    fun setDockerView(v: LayoutMode)    = viewModelScope.launch { repo.setDockerView(v) }
+    fun setVmsView(v: LayoutMode)       = viewModelScope.launch { repo.setVmsView(v) }
+    fun setArrayView(v: LayoutMode)     = viewModelScope.launch { repo.setArrayView(v) }
     fun setIncludePrereleases(value: Boolean) = viewModelScope.launch {
         repo.setIncludePrereleases(value)
         // Reset dismissal so a previously-hidden update becomes visible again.
@@ -247,13 +258,31 @@ fun SettingsScreen(
 
             SectionLabel("Layout")
             UnraidCard(padding = UnraidTheme.tokens.pad) {
-                SettingRow(label = "Docker view") {
-                    Segmented(
-                        value = ui.dockerView,
-                        options = listOf(DockerView.List, DockerView.Grid, DockerView.Grouped),
-                        label = { it.name },
-                        onChange = vm::setDockerView,
-                    )
+                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    SettingRow(label = "Docker view") {
+                        Segmented(
+                            value = ui.dockerView,
+                            options = listOf(LayoutMode.List, LayoutMode.Grid, LayoutMode.Grouped),
+                            label = { it.name },
+                            onChange = vm::setDockerView,
+                        )
+                    }
+                    SettingRow(label = "VMs view") {
+                        Segmented(
+                            value = ui.vmsView,
+                            options = listOf(LayoutMode.List, LayoutMode.Grid, LayoutMode.Grouped),
+                            label = { it.name },
+                            onChange = vm::setVmsView,
+                        )
+                    }
+                    SettingRow(label = "Array view") {
+                        Segmented(
+                            value = ui.arrayView,
+                            options = listOf(LayoutMode.List, LayoutMode.Grid, LayoutMode.Grouped),
+                            label = { it.name },
+                            onChange = vm::setArrayView,
+                        )
+                    }
                 }
             }
 

@@ -17,7 +17,7 @@ import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
-import net.unraidcontrol.app.data.local.DockerView
+import net.unraidcontrol.app.data.local.LayoutMode
 import net.unraidcontrol.app.data.model.AppSettings
 import net.unraidcontrol.app.data.model.ArrayInfo
 import net.unraidcontrol.app.data.model.ConnectionMode
@@ -43,7 +43,9 @@ data class MainUi(
     val activeServer: Server?,
     val connectionMode: ConnectionMode,
     val settings: AppSettings,
-    val dockerView: DockerView,
+    val dockerView: LayoutMode,
+    val vmsView: LayoutMode,
+    val arrayView: LayoutMode,
 )
 
 @HiltViewModel
@@ -58,16 +60,27 @@ class MainViewModel @Inject constructor(
 
     // ── Server identity + settings (cheap, always on) ─────────────────
 
+    // kotlinx combine has typed overloads only up to 5 flows; fold the
+    // three per-view layout flows into one Triple so the outer combine
+    // stays at 4 args.
+    private val layoutModes: kotlinx.coroutines.flow.Flow<Triple<LayoutMode, LayoutMode, LayoutMode>> =
+        combine(settings.dockerView, settings.vmsView, settings.arrayView) { d, v, a -> Triple(d, v, a) }
+
     val ui: StateFlow<MainUi> = combine(
         servers.activeServer,
         servers.connectionMode,
         settings.settings,
-        settings.dockerView,
-    ) { active, mode, s, view -> MainUi(active, mode, s, view) }
+        layoutModes,
+    ) { active, mode, s, layouts ->
+        MainUi(active, mode, s, layouts.first, layouts.second, layouts.third)
+    }
         .stateIn(
             scope = viewModelScope,
             started = SharingStarted.WhileSubscribed(5_000),
-            initialValue = MainUi(null, ConnectionMode.Local, AppSettings(), DockerView.List),
+            initialValue = MainUi(
+                null, ConnectionMode.Local, AppSettings(),
+                LayoutMode.List, LayoutMode.List, LayoutMode.List,
+            ),
         )
 
     // ── UI-driven gates ───────────────────────────────────────────────
@@ -283,7 +296,9 @@ class MainViewModel @Inject constructor(
     fun pauseVm(id: String)            = viewModelScope.launch { unraid.pauseVm(id) }
     fun resumeVm(id: String)           = viewModelScope.launch { unraid.resumeVm(id) }
 
-    fun setDockerView(view: DockerView) = viewModelScope.launch { settings.setDockerView(view) }
+    fun setDockerView(view: LayoutMode) = viewModelScope.launch { settings.setDockerView(view) }
+    fun setVmsView(view: LayoutMode)    = viewModelScope.launch { settings.setVmsView(view) }
+    fun setArrayView(view: LayoutMode)  = viewModelScope.launch { settings.setArrayView(view) }
 
     suspend fun containerLogs(id: String): List<net.unraidcontrol.app.data.model.LogLine> =
         unraid.containerLogs(id)

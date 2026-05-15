@@ -40,7 +40,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import net.unraidcontrol.app.data.local.DockerView
+import net.unraidcontrol.app.data.local.LayoutMode
 import net.unraidcontrol.app.data.model.Container
 import net.unraidcontrol.app.data.model.ContainerStatus
 import net.unraidcontrol.app.data.model.hasUpdate
@@ -60,7 +60,7 @@ import net.unraidcontrol.app.ui.theme.UnraidTheme
 @Composable
 fun DockerTab(
     state: DomainState<List<Container>>,
-    view: DockerView,
+    view: LayoutMode,
     onAddServer: () -> Unit,
     onOpenContainer: (Container) -> Unit,
     onStart: (Container) -> Unit,
@@ -89,7 +89,7 @@ fun DockerTab(
 private fun DockerContent(
     containers: List<Container>,
     serverBaseUrl: String,
-    view: DockerView,
+    view: LayoutMode,
     onOpenContainer: (Container) -> Unit,
     onStart: (Container) -> Unit,
     onRestart: (Container) -> Unit,
@@ -105,7 +105,7 @@ private fun DockerContent(
     val updateCount = containers.count { it.updateStatus.hasUpdate() }
     val d = UnraidTheme.tokens
     when (view) {
-        DockerView.List -> LazyColumn(
+        LayoutMode.List -> LazyColumn(
             modifier = Modifier.fillMaxWidth(),
             contentPadding = androidx.compose.foundation.layout.PaddingValues(
                 start = d.screenPad, end = d.screenPad, top = 4.dp, bottom = 24.dp,
@@ -118,7 +118,7 @@ private fun DockerContent(
                 ContainerRow(c, serverBaseUrl, onOpenContainer, onStart, onRestart, onStop)
             }
         }
-        DockerView.Grid -> LazyVerticalGrid(
+        LayoutMode.Grid -> LazyVerticalGrid(
             columns = GridCells.Fixed(3),
             modifier = Modifier.fillMaxWidth(),
             contentPadding = androidx.compose.foundation.layout.PaddingValues(
@@ -135,7 +135,7 @@ private fun DockerContent(
                 ContainerGridTile(c, serverBaseUrl, onOpenContainer)
             }
         }
-        DockerView.Grouped -> {
+        LayoutMode.Grouped -> {
             val running = filtered.filter { it.status == ContainerStatus.Running }
             val paused  = filtered.filter { it.status == ContainerStatus.Paused }
             val exited  = filtered.filter { it.status == ContainerStatus.Exited }

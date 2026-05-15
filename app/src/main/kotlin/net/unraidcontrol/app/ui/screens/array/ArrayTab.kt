@@ -26,6 +26,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import net.unraidcontrol.app.data.local.LayoutMode
 import net.unraidcontrol.app.data.model.ArrayInfo
 import net.unraidcontrol.app.data.model.ArrayState
 import net.unraidcontrol.app.data.model.Disk
@@ -48,6 +49,7 @@ import net.unraidcontrol.app.ui.theme.UnraidTheme
 @Composable
 fun ArrayTab(
     state: DomainState<ArrayInfo>,
+    view: LayoutMode,
     onAddServer: () -> Unit,
     onStartArray: () -> Unit,
     onStopArray: () -> Unit,
@@ -56,13 +58,14 @@ fun ArrayTab(
         DomainState.Loading    -> LoadingState()
         DomainState.NoServer   -> NoServerState(onAdd = onAddServer)
         is DomainState.Error   -> ErrorState(state.message)
-        is DomainState.Content -> ArrayContent(state.value, onStartArray, onStopArray)
+        is DomainState.Content -> ArrayContent(state.value, view, onStartArray, onStopArray)
     }
 }
 
 @Composable
 private fun ArrayContent(
     arr: ArrayInfo,
+    view: LayoutMode,
     onStart: () -> Unit,
     onStop: () -> Unit,
 ) {
@@ -194,10 +197,104 @@ private fun ArrayContent(
             }
         }
 
-        item { SectionLabel("Disks") }
+        fun isErr(disk: Disk) =
+            errored && disk.status == net.unraidcontrol.app.data.model.DiskStatus.Error
 
-        items(arr.disks, key = { it.name }) { disk ->
-            DiskCard(disk, errored = errored && disk.status == net.unraidcontrol.app.data.model.DiskStatus.Error)
+        when (view) {
+            LayoutMode.List -> {
+                item { SectionLabel("Disks") }
+                items(arr.disks, key = { it.name }) { disk ->
+                    DiskCard(disk, errored = isErr(disk))
+                }
+            }
+            LayoutMode.Grid -> {
+                item { SectionLabel("Disks") }
+                items(arr.disks.chunked(2), key = { it.first().name }) { row ->
+                    Row(horizontalArrangement = Arrangement.spacedBy(d.gap)) {
+                        row.forEach { disk ->
+                            Box(modifier = Modifier.weight(1f)) {
+                                DiskTile(disk, errored = isErr(disk))
+                            }
+                        }
+                        if (row.size == 1) Spacer(Modifier.weight(1f))
+                    }
+                }
+            }
+            LayoutMode.Grouped -> {
+                val byType = listOf(
+                    "Parity" to arr.disks.filter { it.type == DiskType.Parity },
+                    "Data"   to arr.disks.filter { it.type == DiskType.Data },
+                    "Cache"  to arr.disks.filter { it.type == DiskType.Cache },
+                )
+                byType.forEach { (label, disks) ->
+                    if (disks.isNotEmpty()) {
+                        item(key = "h-$label") { SectionLabel("$label · ${disks.size}") }
+                        items(disks, key = { "$label-${it.name}" }) { disk ->
+                            DiskCard(disk, errored = isErr(disk))
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+/** Compact disk tile for the Grid layout — type icon, name, temp,
+ *  usage bar (data/cache only). */
+@Composable
+private fun DiskTile(disk: Disk, errored: Boolean) {
+    val t = UnraidTheme.colors
+    val typeColor = when (disk.type) {
+        DiskType.Parity -> Color(0xFFF59E0B)
+        DiskType.Cache  -> Color(0xFFA78BFA)
+        DiskType.Data   -> t.accent
+    }
+    val tempColor = when {
+        disk.tempC >= 50 -> t.danger
+        disk.tempC >= 42 -> t.warn
+        else             -> t.muted
+    }
+    val pct = if (disk.sizeTb > 0) (disk.usedTb / disk.sizeTb).toFloat() else 0f
+    UnraidCard(padding = UnraidTheme.tokens.padTight) {
+        Column {
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                Box(
+                    modifier = Modifier
+                        .size(28.dp)
+                        .clip(RoundedCornerShape(8.dp))
+                        .background(typeColor.copy(alpha = 0.13f)),
+                    contentAlignment = Alignment.Center,
+                ) { UC.Disk(15.dp, typeColor) }
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        disk.name,
+                        color = t.text,
+                        fontSize = 13.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                    Text(
+                        "${disk.tempC}°",
+                        color = tempColor,
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        fontFamily = JetBrainsMono,
+                    )
+                }
+                if (errored) Pill("ERR", tone = Tone.Danger, dot = true)
+            }
+            if (disk.type != DiskType.Parity) {
+                Spacer(Modifier.height(8.dp))
+                UnraidProgress(pct, color = if (errored) t.danger else typeColor, height = 4.dp)
+                Spacer(Modifier.height(4.dp))
+                Text(
+                    "${(pct * 100).toInt()}% · ${formatTb(disk.sizeTb)}",
+                    color = t.muted,
+                    fontSize = 10.sp,
+                    fontFamily = JetBrainsMono,
+                )
+            }
         }
     }
 }
