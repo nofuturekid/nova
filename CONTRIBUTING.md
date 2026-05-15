@@ -43,10 +43,13 @@ has its own version-bump commit (and PR). **Name that commit and PR
 makes the project history scannable at a glance — `git log --oneline`
 and the PR list immediately show where each shipped artifact came from.
 
+These use the `release:` Conventional-Commits type (see **Commit
+messages** below) so they're both CC-compliant *and* greppable:
+
 | Cut | Commit / PR title |
 |---|---|
-| Beta / rc | `Release v0.2.0-beta1 — <one-line summary>` |
-| Stable promotion | `Release v0.2.0 (stable) — <one-line summary>` |
+| Beta / rc | `release: v0.2.0-beta1 — <one-line summary>` |
+| Stable promotion | `release: v0.2.0 (stable) — <one-line summary>` |
 
 The `<summary>` is what the cut delivers (the bundled feature/fix), not
 "bumped versionCode" — the diff already shows the bump.
@@ -106,6 +109,59 @@ export KEY_ALIAS='unraidcontrol'
 ```
 
 Otherwise the release build falls back to debug-signing locally.
+
+## Commit messages
+
+Follow **[Conventional Commits 1.0.0](https://www.conventionalcommits.org/en/v1.0.0/)**.
+
+```
+<type>(<optional scope>): <imperative summary, ≤72 chars, no trailing period>
+
+<body — wrap ~72 cols; explain WHY, not how; bullets fine>
+
+<optional footer / trailers>
+```
+
+**Types used in this repo:**
+
+| Type | For |
+|---|---|
+| `feat` | user-facing feature |
+| `fix` | bug fix |
+| `refactor` | behaviour-preserving restructure |
+| `perf` | performance |
+| `docs` | docs only (README, ADRs, this file) |
+| `ci` | `.github/workflows/*`, build pipeline |
+| `build` | Gradle, dependencies, plugin/AGP/Kotlin bumps |
+| `chore` | misc housekeeping, no src/behaviour change |
+| `revert` | reverts a prior commit |
+| `release` | the ADR-0015 version-bump commit (see *Naming the release commit / PR*) |
+
+**Scopes** (optional, lowercase, pick the touched area): `docker`,
+`vms`, `array`, `overview`, `settings`, `container`, `update`, `data`,
+`theme`, `adr`, `deps`. Omit if it spans many.
+
+**Rules** (the classic seven + CC specifics):
+- Imperative mood: `add`, not `added`/`adds`.
+- Summary capitalised after the `:`, no full stop, ≤72 chars.
+- Blank line before the body.
+- Breaking change: `!` before the colon (`feat(data)!: …`) **and**
+  a `BREAKING CHANGE:` footer explaining the migration.
+- The `https://claude.ai/code/session_…` line stays as an
+  informational trailer at the very end.
+
+**Examples**
+
+```
+feat(array): add parity-check start/pause/resume/cancel
+fix(docker): clear updating pill when snapshot reports UpToDate
+refactor(data): split snapshot poll into per-domain streams
+ci: parallel debug + release jobs with cache warming
+docs: relicense CC BY-NC-SA → GPL v3 (ADR-0021)
+release: v0.1.27-beta1 — VM reboot/reset + parity control
+```
+
+Bad: `Fixed bug`, `updates`, `WIP`, `misc changes`, `Docker stuff.`
 
 ## Code style
 

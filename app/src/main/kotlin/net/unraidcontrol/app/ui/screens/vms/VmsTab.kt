@@ -54,6 +54,8 @@ fun VmsTab(
     onResume: (Vm) -> Unit,
     onPause: (Vm) -> Unit,
     onStop: (Vm) -> Unit,
+    onReboot: (Vm) -> Unit,
+    onReset: (Vm) -> Unit,
 ) {
     when (state) {
         DomainState.Loading    -> LoadingState()
@@ -75,7 +77,7 @@ fun VmsTab(
                         verticalArrangement = Arrangement.spacedBy(d.gap),
                     ) {
                         items(vms, key = { it.id }) { vm ->
-                            VmCard(vm, onStart, onResume, onPause, onStop)
+                            VmCard(vm, onStart, onResume, onPause, onStop, onReboot, onReset)
                         }
                     }
                     LayoutMode.Grid -> LazyVerticalGrid(
@@ -101,19 +103,19 @@ fun VmsTab(
                             if (running.isNotEmpty()) {
                                 item { SectionLabel("Running · ${running.size}") }
                                 items(running, key = { "r-${it.id}" }) { vm ->
-                                    VmCard(vm, onStart, onResume, onPause, onStop)
+                                    VmCard(vm, onStart, onResume, onPause, onStop, onReboot, onReset)
                                 }
                             }
                             if (paused.isNotEmpty()) {
                                 item { SectionLabel("Paused · ${paused.size}") }
                                 items(paused, key = { "p-${it.id}" }) { vm ->
-                                    VmCard(vm, onStart, onResume, onPause, onStop)
+                                    VmCard(vm, onStart, onResume, onPause, onStop, onReboot, onReset)
                                 }
                             }
                             if (stopped.isNotEmpty()) {
                                 item { SectionLabel("Stopped · ${stopped.size}") }
                                 items(stopped, key = { "s-${it.id}" }) { vm ->
-                                    VmCard(vm, onStart, onResume, onPause, onStop)
+                                    VmCard(vm, onStart, onResume, onPause, onStop, onReboot, onReset)
                                 }
                             }
                         }
@@ -204,6 +206,8 @@ private fun VmCard(
     onResume: (Vm) -> Unit,
     onPause: (Vm) -> Unit,
     onStop: (Vm) -> Unit,
+    onReboot: (Vm) -> Unit,
+    onReset: (Vm) -> Unit,
 ) {
     val t = UnraidTheme.colors
     val tone = when (vm.state) {
@@ -297,6 +301,28 @@ private fun VmCard(
                             leadingIcon = { UC.Play(14.dp, Color(0xFF06120E)) },
                         )
                     }
+                }
+            }
+            if (vm.state == VmState.Running) {
+                Spacer(Modifier.height(6.dp))
+                Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                    UnraidButton(
+                        onClick = { onReboot(vm) },
+                        label = "Reboot",
+                        modifier = Modifier.weight(1f),
+                        variant = BtnVariant.Tonal,
+                        fullWidth = true,
+                        leadingIcon = { UC.Restart(14.dp, t.accent) },
+                    )
+                    UnraidButton(
+                        onClick = { onReset(vm) },
+                        label = "Reset",
+                        modifier = Modifier.weight(1f),
+                        variant = BtnVariant.Tonal,
+                        tone = Tone.Danger,
+                        fullWidth = true,
+                        leadingIcon = { UC.Power(14.dp, t.danger) },
+                    )
                 }
             }
         }

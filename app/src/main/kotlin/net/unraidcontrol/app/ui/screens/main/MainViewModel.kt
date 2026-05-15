@@ -295,6 +295,13 @@ class MainViewModel @Inject constructor(
     fun stopVm(id: String, force: Boolean) = viewModelScope.launch { unraid.stopVm(id, force) }
     fun pauseVm(id: String)            = viewModelScope.launch { unraid.pauseVm(id) }
     fun resumeVm(id: String)           = viewModelScope.launch { unraid.resumeVm(id) }
+    fun rebootVm(id: String)           = viewModelScope.launch { unraid.rebootVm(id) }
+    fun resetVm(id: String)            = viewModelScope.launch { unraid.resetVm(id) }
+
+    fun startParityCheck(correct: Boolean) = viewModelScope.launch { unraid.startParityCheck(correct) }
+    fun pauseParityCheck()  = viewModelScope.launch { unraid.pauseParityCheck() }
+    fun resumeParityCheck() = viewModelScope.launch { unraid.resumeParityCheck() }
+    fun cancelParityCheck() = viewModelScope.launch { unraid.cancelParityCheck() }
 
     fun setDockerView(view: LayoutMode) = viewModelScope.launch { settings.setDockerView(view) }
     fun setVmsView(view: LayoutMode)    = viewModelScope.launch { settings.setVmsView(view) }

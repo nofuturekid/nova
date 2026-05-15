@@ -15,3 +15,10 @@ mutation StopVm(     $id: PrefixedID!) { vm { stop(     id: $id) } }
 mutation PauseVm(    $id: PrefixedID!) { vm { pause(    id: $id) } }
 mutation ResumeVm(   $id: PrefixedID!) { vm { resume(   id: $id) } }
 mutation ForceStopVm($id: PrefixedID!) { vm { forceStop(id: $id) } }
+mutation RebootVm(   $id: PrefixedID!) { vm { reboot(   id: $id) } }
+mutation ResetVm(    $id: PrefixedID!) { vm { reset(    id: $id) } }
+
+mutation StartParityCheck($correct: Boolean!) { parityCheck { start(correct: $correct) } }
+mutation PauseParityCheck                      { parityCheck { pause }  }
+mutation ResumeParityCheck                     { parityCheck { resume } }
+mutation CancelParityCheck                     { parityCheck { cancel } }

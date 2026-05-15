@@ -28,13 +28,19 @@ import net.unraidcontrol.app.graphql.GetArrayQuery
 import net.unraidcontrol.app.graphql.GetDockerContainersQuery
 import net.unraidcontrol.app.graphql.GetMetricsQuery
 import net.unraidcontrol.app.graphql.GetServerInfoQuery
+import net.unraidcontrol.app.graphql.CancelParityCheckMutation
 import net.unraidcontrol.app.graphql.GetVmsQuery
 import net.unraidcontrol.app.graphql.PauseContainerMutation
+import net.unraidcontrol.app.graphql.PauseParityCheckMutation
 import net.unraidcontrol.app.graphql.PauseVmMutation
 import net.unraidcontrol.app.graphql.PingQuery
+import net.unraidcontrol.app.graphql.RebootVmMutation
+import net.unraidcontrol.app.graphql.ResetVmMutation
+import net.unraidcontrol.app.graphql.ResumeParityCheckMutation
 import net.unraidcontrol.app.graphql.ResumeVmMutation
 import net.unraidcontrol.app.graphql.StartArrayMutation
 import net.unraidcontrol.app.graphql.StartContainerMutation
+import net.unraidcontrol.app.graphql.StartParityCheckMutation
 import net.unraidcontrol.app.graphql.StartVmMutation
 import net.unraidcontrol.app.graphql.StopArrayMutation
 import net.unraidcontrol.app.graphql.StopContainerMutation
@@ -252,6 +258,15 @@ class UnraidRepository @Inject constructor(
     }
     suspend fun pauseVm(id: String)  { activeClient()?.mutation(PauseVmMutation(id))?.execute() }
     suspend fun resumeVm(id: String) { activeClient()?.mutation(ResumeVmMutation(id))?.execute() }
+    suspend fun rebootVm(id: String) { activeClient()?.mutation(RebootVmMutation(id))?.execute() }
+    suspend fun resetVm(id: String)  { activeClient()?.mutation(ResetVmMutation(id))?.execute() }
+
+    suspend fun startParityCheck(correct: Boolean) {
+        activeClient()?.mutation(StartParityCheckMutation(correct))?.execute()
+    }
+    suspend fun pauseParityCheck()  { activeClient()?.mutation(PauseParityCheckMutation())?.execute() }
+    suspend fun resumeParityCheck() { activeClient()?.mutation(ResumeParityCheckMutation())?.execute() }
+    suspend fun cancelParityCheck() { activeClient()?.mutation(CancelParityCheckMutation())?.execute() }
 
     /**
      * Fetches the last [tail] log lines for the given container. Returns an

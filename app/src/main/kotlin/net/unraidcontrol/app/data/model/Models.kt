@@ -36,6 +36,7 @@ data class ParityCheck(
     val speedMbps: Double,
     val errors: Int,
     val etaSeconds: Int,
+    val paused: Boolean,
 )
 
 data class ArrayInfo(
