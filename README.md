@@ -152,16 +152,17 @@ The original design prototype is in the handoff bundle (`/tmp/design_extracted/u
 
 ## License
 
-[![License: CC BY-NC-SA 4.0](https://img.shields.io/badge/License-CC%20BY--NC--SA%204.0-lightgrey.svg)](https://creativecommons.org/licenses/by-nc-sa/4.0/)
+[![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](https://www.gnu.org/licenses/gpl-3.0)
 
-This project is licensed under the **Creative Commons Attribution-NonCommercial-ShareAlike 4.0 International** license. In plain English:
+This project is licensed under the **GNU General Public License v3.0** (GPL-3.0). In plain English:
 
-- ✅ Use it privately, on your own server, for any non-commercial purpose
+- ✅ Use it privately, on your own server, for any purpose — including commercial
 - ✅ Modify it and run modifications privately
-- 📤 If you distribute modifications, you must publish the modified source under the same CC BY-NC-SA 4.0 license
-- ❌ No commercial sale or paid hosting of this app or its derivatives
-- 🏷️ Credit the original author when redistributing
+- 📤 If you distribute the app or a modification, you must publish the corresponding source under the same GPL v3 license
+- 🏷️ Keep the copyright notice and license intact in redistributions
 
-Full legal text: [LICENSE](./LICENSE) · summary: [creativecommons.org](https://creativecommons.org/licenses/by-nc-sa/4.0/)
+Full legal text: [LICENSE](./LICENSE) · canonical: [gnu.org/licenses/gpl-3.0.html](https://www.gnu.org/licenses/gpl-3.0.html)
+
+Relicensed from CC BY-NC-SA 4.0 in [ADR-0021](./docs/adr/0021-relicense-to-gpl-3.md).
 
 © 2026 nofuturekid

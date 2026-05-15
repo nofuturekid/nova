@@ -36,7 +36,7 @@ ADRs live under `docs/` so the CI docs-only bypass applies — pure-ADR PRs comp
 | # | Title | Status |
 |---|---|---|
 | [0001](./0001-adopt-architecture-decision-records.md) | Adopt Architecture Decision Records | Accepted |
-| [0002](./0002-license-cc-by-nc-sa-4-0.md) | License under CC BY-NC-SA 4.0 | Accepted |
+| [0002](./0002-license-cc-by-nc-sa-4-0.md) | License under CC BY-NC-SA 4.0 | Superseded by ADR-0021 |
 | [0003](./0003-pr-gate-required-status-check.md) | PR-gate workflow with required CI status check on main | Accepted |
 | [0004](./0004-build-once-promote-pipeline.md) | Build-once-promote pipeline (CI builds APK, Release tag downloads it) | Accepted |
 | [0005](./0005-prerelease-tag-convention.md) | Pre-release tag convention `-beta1` / `-rc1` (trailing digit required) | Accepted |
@@ -55,3 +55,4 @@ ADRs live under `docs/` so the CI docs-only bypass applies — pure-ADR PRs comp
 | [0018](./0018-gradle-cache-warm-on-main.md) | Populate the Gradle build cache on push to main | Accepted |
 | [0019](./0019-parallel-debug-release-jobs.md) | Split CI into parallel debug + release jobs | Accepted |
 | [0020](./0020-migrate-to-ksp2.md) | Migrate from KSP1 to KSP2 | Accepted |
+| [0021](./0021-relicense-to-gpl-3.md) | Relicense from CC BY-NC-SA 4.0 to GPL v3 | Accepted |

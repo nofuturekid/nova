@@ -1,6 +1,6 @@
 # ADR-0002: License under CC BY-NC-SA 4.0
 
-- **Status**: Accepted
+- **Status**: Superseded by [ADR-0021](./0021-relicense-to-gpl-3.md)
 - **Date**: 2026-05-13
 - **Tags**: legal
 
