@@ -74,15 +74,16 @@ private fun ArrayContent(
     val totalUsedTb = dataDisks.sumOf { it.usedTb }
     val totalSizeTb = dataDisks.sumOf { it.sizeTb }
 
+    val d = UnraidTheme.tokens
     LazyColumn(
         modifier = Modifier.fillMaxWidth(),
         contentPadding = androidx.compose.foundation.layout.PaddingValues(
-            start = 16.dp, end = 16.dp, top = 4.dp, bottom = 24.dp,
+            start = d.screenPad, end = d.screenPad, top = 4.dp, bottom = 24.dp,
         ),
-        verticalArrangement = Arrangement.spacedBy(12.dp),
+        verticalArrangement = Arrangement.spacedBy(d.gap),
     ) {
         item {
-            UnraidCard(padding = 18.dp) {
+            UnraidCard(padding = UnraidTheme.tokens.padHero) {
                 Column {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Column(modifier = Modifier.weight(1f)) {
@@ -215,7 +216,7 @@ private fun DiskCard(disk: Disk, errored: Boolean) {
         else             -> t.muted
     }
     val pct = if (disk.sizeTb > 0) (disk.usedTb / disk.sizeTb).toFloat() else 0f
-    UnraidCard(padding = 14.dp) {
+    UnraidCard(padding = UnraidTheme.tokens.pad) {
         Column {
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                 Box(

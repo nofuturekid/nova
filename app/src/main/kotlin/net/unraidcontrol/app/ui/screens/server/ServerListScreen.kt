@@ -103,12 +103,13 @@ fun ServerListScreen(
             UnraidIconButton(icon = { UC.Plus(20.dp, t.accent) }, onClick = onAdd, tone = Tone.Accent)
         }
 
+        val d = UnraidTheme.tokens
         LazyColumn(
             modifier = Modifier.fillMaxSize(),
             contentPadding = androidx.compose.foundation.layout.PaddingValues(
-                start = 16.dp, end = 16.dp, top = 8.dp, bottom = 24.dp,
+                start = d.screenPad, end = d.screenPad, top = 8.dp, bottom = 24.dp,
             ),
-            verticalArrangement = Arrangement.spacedBy(10.dp),
+            verticalArrangement = Arrangement.spacedBy(d.gap),
         ) {
             items(ui.servers, key = { it.id }) { s ->
                 val active = s.id == ui.activeId

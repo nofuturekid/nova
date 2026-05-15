@@ -197,14 +197,15 @@ fun SettingsScreen(
             Text("Settings", color = t.text, fontSize = 20.sp, fontWeight = FontWeight.SemiBold)
         }
 
+        val d = UnraidTheme.tokens
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 16.dp, vertical = 8.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp),
+                .padding(horizontal = d.screenPad, vertical = 8.dp),
+            verticalArrangement = Arrangement.spacedBy(d.gap),
         ) {
             SectionLabel("Theme")
-            UnraidCard(padding = 14.dp) {
+            UnraidCard(padding = UnraidTheme.tokens.pad) {
                 Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
                     SettingRow(label = "Accent") {
                         val currentArgb = ui.settings.accentHex.toInt()
@@ -245,7 +246,7 @@ fun SettingsScreen(
             }
 
             SectionLabel("Layout")
-            UnraidCard(padding = 14.dp) {
+            UnraidCard(padding = UnraidTheme.tokens.pad) {
                 SettingRow(label = "Docker view") {
                     Segmented(
                         value = ui.dockerView,
@@ -257,7 +258,7 @@ fun SettingsScreen(
             }
 
             SectionLabel("Updates")
-            UnraidCard(padding = 14.dp) {
+            UnraidCard(padding = UnraidTheme.tokens.pad) {
                 Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                     SettingRow(label = "Installed version") {
                         Text(

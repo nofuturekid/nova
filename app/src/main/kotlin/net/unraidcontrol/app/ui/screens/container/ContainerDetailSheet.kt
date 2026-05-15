@@ -286,7 +286,7 @@ fun ContainerDetailSheet(
 private fun InfoTabContent(c: Container) {
     val t = UnraidTheme.colors
     Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-        UnraidCard(padding = 14.dp) {
+        UnraidCard(padding = UnraidTheme.tokens.pad) {
             Row(horizontalArrangement = Arrangement.spacedBy(14.dp)) {
                 StatBlock(label = "CPU", value = "%.1f%%".format(c.cpu), modifier = Modifier.weight(1f))
                 StatBlock(
@@ -296,7 +296,7 @@ private fun InfoTabContent(c: Container) {
                 )
             }
         }
-        UnraidCard(padding = 14.dp) {
+        UnraidCard(padding = UnraidTheme.tokens.pad) {
             Column {
                 Kv("Image", c.image, mono = true)
                 Kv("Auto-start", if (c.autoStart) "Enabled" else "Disabled")
@@ -435,7 +435,7 @@ private fun PortsTabContent(c: Container) {
             val parts = mapping.split(':')
             val host = parts.getOrNull(0) ?: mapping
             val ctn = parts.getOrNull(1) ?: ""
-            UnraidCard(padding = 12.dp) {
+            UnraidCard(padding = UnraidTheme.tokens.padTight) {
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                     UC.More(18.dp, t.muted)
                     Row(modifier = Modifier.weight(1f)) {
@@ -459,7 +459,7 @@ private fun VolumesTabContent(c: Container) {
     }
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
         c.volumes.forEach { mount ->
-            UnraidCard(padding = 12.dp) {
+            UnraidCard(padding = UnraidTheme.tokens.padTight) {
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                     UC.Folder(18.dp, t.muted)
                     Text(mount, color = t.text, fontSize = 12.sp, fontFamily = JetBrainsMono)
