@@ -149,6 +149,30 @@ class MainViewModel @Inject constructor(
     init {
         checkForUpdate()
 
+        // Clear an id from `updatingContainerIds` as soon as the snapshot
+        // poll says the container is explicitly UpToDate. The update mutation
+        // can keep the HTTP connection open for the full duration of the
+        // image pull + container recreate (minutes), so relying on the
+        // `finally` block alone keeps the "Updating…" pill visible long
+        // after the user-observable result is achieved. The snapshot is the
+        // earlier observable signal — clear on that.
+        viewModelScope.launch {
+            dockerState.collect { state ->
+                val containers = (state as? DomainState.Content<List<Container>>)?.value
+                    ?: return@collect
+                _updatingContainerIds.update { current ->
+                    if (current.isEmpty()) return@update current
+                    current.filter { id ->
+                        // Drop only when the container is explicitly UpToDate.
+                        // Unknown / not-found / still-hasUpdate → keep the
+                        // pill visible.
+                        val status = containers.firstOrNull { it.id == id }?.updateStatus
+                        status != net.unraidcontrol.app.data.model.ContainerUpdateStatus.UpToDate
+                    }.toSet()
+                }
+            }
+        }
+
         viewModelScope.launch {
             InstallStatusReceiver.events.collect { event ->
                 _installState.value = when (event) {
