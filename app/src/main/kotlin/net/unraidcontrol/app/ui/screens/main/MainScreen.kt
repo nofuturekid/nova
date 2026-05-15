@@ -225,6 +225,20 @@ fun MainScreen(
                                 onConfirm = { vm.stopContainer(c.id); confirm = null },
                             )
                         },
+                        onUpdateAll = {
+                            val n = (dockerState as? DomainState.Content<List<Container>>)
+                                ?.value
+                                ?.count { it.updateStatus.hasUpdate() }
+                                ?: 0
+                            confirm = ConfirmRequest(
+                                title = if (n == 1) "Update 1 container?" else "Update $n containers?",
+                                body = "Each will pull its latest image and recreate the container — they'll be unavailable during the update. The whole batch can take several minutes.",
+                                confirmLabel = "Update all",
+                                tone = Tone.Info,
+                                icon = { UC.Refresh(22.dp, t.info) },
+                                onConfirm = { vm.updateAllContainers(); confirm = null },
+                            )
+                        },
                     )
                     MainTab.Vms      -> VmsTab(
                         state = vmsState,

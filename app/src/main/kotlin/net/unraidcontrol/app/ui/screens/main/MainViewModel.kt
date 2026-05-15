@@ -253,6 +253,31 @@ class MainViewModel @Inject constructor(
         }
     }
 
+    /** Bulk update: marks every container that currently reports
+     *  hasUpdate() as updating and fires the server-side
+     *  `updateAllContainers` mutation. The snapshot poll clears the
+     *  pills individually as each container transitions to UpToDate
+     *  (see the dockerState collector in init {}). */
+    fun updateAllContainers() {
+        val ids = (dockerState.value as? DomainState.Content<List<Container>>)
+            ?.value
+            ?.filter {
+                it.updateStatus == net.unraidcontrol.app.data.model.ContainerUpdateStatus.UpdateAvailable ||
+                    it.updateStatus == net.unraidcontrol.app.data.model.ContainerUpdateStatus.RebuildReady
+            }
+            ?.map { it.id }
+            ?: return
+        if (ids.isEmpty()) return
+        _updatingContainerIds.update { it + ids }
+        viewModelScope.launch {
+            try {
+                unraid.updateAllContainers()
+            } finally {
+                _updatingContainerIds.update { it - ids.toSet() }
+            }
+        }
+    }
+
     fun startVm(id: String)            = viewModelScope.launch { unraid.startVm(id) }
     fun stopVm(id: String, force: Boolean) = viewModelScope.launch { unraid.stopVm(id, force) }
     fun pauseVm(id: String)            = viewModelScope.launch { unraid.pauseVm(id) }

@@ -38,6 +38,7 @@ import net.unraidcontrol.app.graphql.StartContainerMutation
 import net.unraidcontrol.app.graphql.StartVmMutation
 import net.unraidcontrol.app.graphql.StopArrayMutation
 import net.unraidcontrol.app.graphql.StopContainerMutation
+import net.unraidcontrol.app.graphql.UpdateAllContainersMutation
 import net.unraidcontrol.app.graphql.UpdateContainerMutation
 import net.unraidcontrol.app.graphql.StopVmMutation
 import javax.inject.Inject
@@ -233,6 +234,14 @@ class UnraidRepository @Inject constructor(
      *  finally — see [MainViewModel.updateContainer]. */
     suspend fun updateContainer(id: String) {
         activeLongRunningClient()?.mutation(UpdateContainerMutation(id))?.execute()
+    }
+
+    /** Updates every container that the server reports as having an update
+     *  available. Same long-running plumbing as [updateContainer]; expect
+     *  the HTTP connection to stay open until the *last* container in the
+     *  batch has finished its pull + recreate. */
+    suspend fun updateAllContainers() {
+        activeLongRunningClient()?.mutation(UpdateAllContainersMutation())?.execute()
     }
 
     suspend fun startVm(id: String)  { activeClient()?.mutation(StartVmMutation(id))?.execute() }

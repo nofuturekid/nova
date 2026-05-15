@@ -267,6 +267,7 @@ type DockerMutations {
     pause(id: PrefixedID!): DockerContainer
     unpause(id: PrefixedID!): DockerContainer
     updateContainer(id: PrefixedID!): DockerContainer
+    updateAllContainers: [DockerContainer!]!
 }
 
 type VmMutations {
