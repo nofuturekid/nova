@@ -197,6 +197,7 @@ type DockerContainer {
     ports: [ContainerPort!]!
     iconUrl: String
     mounts: JSON
+    networkSettings: JSON
     # Both null when the server hasn't determined update status yet.
     isUpdateAvailable: Boolean
     isRebuildReady: Boolean

@@ -213,11 +213,21 @@ fun ContainerDetailSheet(
             container.webUiUrl?.let { url ->
                 Spacer(Modifier.height(8.dp))
                 val context = LocalContext.current
+                // Macvlan / ipvlan containers (br0 etc.) are reachable on
+                // their own LAN IP, not the Unraid host's. The unraid-api's
+                // resolved webUiUrl substitutes [IP] with the host's IP,
+                // which is correct for bridge-mode containers but wrong
+                // for containers that hold their own LAN IP. When we have
+                // a non-default-bridge network IP, swap the URL's host
+                // for that.
+                val targetUrl = container.networkIp
+                    ?.let { ip -> replaceUrlHost(url, ip) }
+                    ?: url
                 UnraidButton(
                     onClick = {
                         runCatching {
                             context.startActivity(
-                                Intent(Intent.ACTION_VIEW, url.toUri())
+                                Intent(Intent.ACTION_VIEW, targetUrl.toUri())
                                     .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK),
                             )
                         }
@@ -477,3 +487,21 @@ private fun parseColor(hex: String?): Color? {
     val argb = if (h.length == 6) (0xFF000000L or n) else n
     return Color(argb.toInt())
 }
+
+/**
+ * Replace the host portion of [url] with [newHost], preserving scheme,
+ * port, path and query. Falls back to [url] verbatim if parsing fails.
+ */
+private fun replaceUrlHost(url: String, newHost: String): String = runCatching {
+    val uri = url.toUri()
+    val portSuffix = if (uri.port > 0) ":${uri.port}" else ""
+    val authority = "$newHost$portSuffix"
+    android.net.Uri.Builder()
+        .scheme(uri.scheme)
+        .encodedAuthority(authority)
+        .encodedPath(uri.encodedPath)
+        .encodedQuery(uri.encodedQuery)
+        .encodedFragment(uri.encodedFragment)
+        .build()
+        .toString()
+}.getOrDefault(url)
