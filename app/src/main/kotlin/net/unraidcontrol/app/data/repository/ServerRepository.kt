@@ -63,5 +63,5 @@ class ServerRepository @Inject constructor(
     }
 
     /** Returns the stored API key for a server, or null if none. */
-    fun apiKeyFor(id: String): String? = keys.get(id)
+    suspend fun apiKeyFor(id: String): String? = keys.get(id)
 }

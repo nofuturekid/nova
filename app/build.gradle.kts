@@ -15,8 +15,8 @@ android {
         applicationId = "net.unraidcontrol.app"
         minSdk = 26
         targetSdk = 36
-        versionCode = 40
-        versionName = "0.1.28-beta4"
+        versionCode = 41
+        versionName = "0.1.28-beta5"
 
         vectorDrawables { useSupportLibrary = true }
     }
@@ -131,7 +131,7 @@ dependencies {
     implementation(libs.hilt.viewmodel.compose)
 
     implementation(libs.androidx.datastore.preferences)
-    implementation(libs.androidx.security.crypto)
+    implementation(libs.tink.android)
 
     implementation(libs.hilt.android)
     ksp(libs.hilt.compiler)

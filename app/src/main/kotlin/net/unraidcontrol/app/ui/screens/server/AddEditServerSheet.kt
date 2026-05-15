@@ -72,16 +72,20 @@ class AddEditServerViewModel @Inject constructor(
 
     fun load(server: Server?) {
         existingId = server?.id ?: ""
-        _state.value = AddEditUiState(
-            name = server?.name.orEmpty(),
-            localUrl = server?.localUrl.orEmpty(),
-            remoteUrl = server?.remoteUrl.orEmpty(),
-            // Pre-populate the actual stored key when editing so the user
-            // can see, copy, or modify it. Falls back to empty for a new
-            // server. Earlier versions used a '••••' placeholder which got
-            // typed-onto and then saved as the literal new key.
-            apiKey = server?.id?.let { servers.apiKeyFor(it) }.orEmpty(),
-        )
+        // apiKeyFor is suspend (DataStore + Tink, ADR-0024); resolve the
+        // stored key off-thread and publish the state when it's ready.
+        viewModelScope.launch {
+            _state.value = AddEditUiState(
+                name = server?.name.orEmpty(),
+                localUrl = server?.localUrl.orEmpty(),
+                remoteUrl = server?.remoteUrl.orEmpty(),
+                // Pre-populate the actual stored key when editing so the user
+                // can see, copy, or modify it. Falls back to empty for a new
+                // server. Earlier versions used a '••••' placeholder which got
+                // typed-onto and then saved as the literal new key.
+                apiKey = server?.id?.let { servers.apiKeyFor(it) }.orEmpty(),
+            )
+        }
     }
 
     fun setName(v: String)    { _state.value = _state.value.copy(name = v, testState = TestState.Idle) }
