@@ -52,10 +52,20 @@ KSP 2.3.8 / Hilt 2.59.2 / Compose BOM 2026.05.00 / Apollo 5.0.0 / JDK
 
 Kotlin is taken to the current stable **2.3.21** (not merely AGP 9's
 2.2.10 floor): the project tracks current tooling and AGP 9.2 supports a
-newer KGP than its bundled minimum. JDK is moved to the current LTS
-(**21**); AGP 9 only requires ≥ 17, and this has no app/device impact
-(minSdk stays 26, same signed APK, in-place self-update intact — it is
-purely a build-toolchain choice).
+newer KGP than its bundled minimum.
+
+**JDK 21 is the JVM that *runs the build* (CI runner + Gradle daemon +
+Kotlin/Java toolchain), not the Java class-file level the app is
+compiled to.** The app keeps `compileOptions` source/target at Java
+**17** (Android-appropriate; D8/R8 desugars; Android tooling does not
+expect Java-21 bytecode) — `jvmToolchain(21)` only selects which JDK
+compiles. A first attempt set `compileOptions` to 21 as well; CI failed
+at `:app:hiltJavaCompileRelease` with `error: invalid source release:
+21` (the Hilt javac task ran in-process on the Gradle daemon and was
+handed `--source 21`). The correction: build/toolchain JDK = 21, emitted
+bytecode = 17. This has no app/device impact (minSdk stays 26, same
+signed APK, in-place self-update intact — purely a build-toolchain
+choice).
 
 Built-in-Kotlin DSL changes: drop `org.jetbrains.kotlin.android` from
 the version catalog and both build scripts; keep `kotlin.compose` and
