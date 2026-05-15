@@ -54,6 +54,7 @@ type Mutation {
     docker: DockerMutations!
     vm: VmMutations!
     array: ArrayMutations!
+    parityCheck: ParityCheckMutations!
 }
 
 # ── Info ─────────────────────────────────────────────────────────────
@@ -277,4 +278,13 @@ type VmMutations {
     pause(id: PrefixedID!): Boolean!
     resume(id: PrefixedID!): Boolean!
     forceStop(id: PrefixedID!): Boolean!
+    reboot(id: PrefixedID!): Boolean!
+    reset(id: PrefixedID!): Boolean!
+}
+
+type ParityCheckMutations {
+    start(correct: Boolean!): JSON!
+    pause: JSON!
+    resume: JSON!
+    cancel: JSON!
 }

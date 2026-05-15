@@ -53,12 +53,19 @@ fun ArrayTab(
     onAddServer: () -> Unit,
     onStartArray: () -> Unit,
     onStopArray: () -> Unit,
+    onStartParity: () -> Unit,
+    onPauseParity: () -> Unit,
+    onResumeParity: () -> Unit,
+    onCancelParity: () -> Unit,
 ) {
     when (state) {
         DomainState.Loading    -> LoadingState()
         DomainState.NoServer   -> NoServerState(onAdd = onAddServer)
         is DomainState.Error   -> ErrorState(state.message)
-        is DomainState.Content -> ArrayContent(state.value, view, onStartArray, onStopArray)
+        is DomainState.Content -> ArrayContent(
+            state.value, view, onStartArray, onStopArray,
+            onStartParity, onPauseParity, onResumeParity, onCancelParity,
+        )
     }
 }
 
@@ -68,6 +75,10 @@ private fun ArrayContent(
     view: LayoutMode,
     onStart: () -> Unit,
     onStop: () -> Unit,
+    onStartParity: () -> Unit,
+    onPauseParity: () -> Unit,
+    onResumeParity: () -> Unit,
+    onCancelParity: () -> Unit,
 ) {
     val t = UnraidTheme.colors
     val arrayOn = arr.state != ArrayState.Stopped && arr.state != ArrayState.Offline
@@ -131,7 +142,8 @@ private fun ArrayContent(
                             )
                         }
                     }
-                    if (parity && arr.parity != null) {
+                    val pc = arr.parity
+                    if (pc != null) {
                         Spacer(Modifier.height(16.dp))
                         Column(
                             modifier = Modifier
@@ -141,29 +153,76 @@ private fun ArrayContent(
                                 .padding(horizontal = 14.dp, vertical = 12.dp),
                         ) {
                             Row {
-                                Text("Parity check in progress", color = t.info, fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
+                                Text(
+                                    if (pc.paused) "Parity check paused" else "Parity check in progress",
+                                    color = t.info,
+                                    fontSize = 13.sp,
+                                    fontWeight = FontWeight.SemiBold,
+                                )
                                 Spacer(Modifier.weight(1f))
                                 Text(
-                                    "${(arr.parity.progress * 100).toInt()}%",
+                                    "${(pc.progress * 100).toInt()}%",
                                     color = t.info,
                                     fontSize = 13.sp,
                                     fontFamily = JetBrainsMono,
                                 )
                             }
                             Spacer(Modifier.height(8.dp))
-                            UnraidProgress(arr.parity.progress, color = t.info, height = 6.dp)
+                            UnraidProgress(pc.progress, color = t.info, height = 6.dp)
                             Spacer(Modifier.height(8.dp))
                             Row {
                                 Text(
-                                    "${"%.0f".format(arr.parity.speedMbps)} MB/s · ${arr.parity.errors} errors",
+                                    "${"%.0f".format(pc.speedMbps)} MB/s · ${pc.errors} errors",
                                     color = t.muted,
                                     fontSize = 11.sp,
                                 )
                                 Spacer(Modifier.weight(1f))
-                                val eta = formatEta(arr.parity.etaSeconds)
+                                val eta = formatEta(pc.etaSeconds)
                                 if (eta.isNotEmpty()) Text("~$eta remaining", color = t.muted, fontSize = 11.sp)
                             }
+                            Spacer(Modifier.height(10.dp))
+                            Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                                if (pc.paused) {
+                                    UnraidButton(
+                                        onClick = onResumeParity,
+                                        label = "Resume",
+                                        modifier = Modifier.weight(1f),
+                                        variant = BtnVariant.Tonal,
+                                        fullWidth = true,
+                                        leadingIcon = { UC.Play(14.dp, t.accent) },
+                                    )
+                                } else {
+                                    UnraidButton(
+                                        onClick = onPauseParity,
+                                        label = "Pause",
+                                        modifier = Modifier.weight(1f),
+                                        variant = BtnVariant.Tonal,
+                                        tone = Tone.Warn,
+                                        fullWidth = true,
+                                        leadingIcon = { UC.Pause(14.dp, t.warn) },
+                                    )
+                                }
+                                UnraidButton(
+                                    onClick = onCancelParity,
+                                    label = "Cancel",
+                                    modifier = Modifier.weight(1f),
+                                    variant = BtnVariant.Tonal,
+                                    tone = Tone.Danger,
+                                    fullWidth = true,
+                                    leadingIcon = { UC.Stop(14.dp, t.danger) },
+                                )
+                            }
                         }
+                    } else if (arrayOn) {
+                        Spacer(Modifier.height(12.dp))
+                        UnraidButton(
+                            onClick = onStartParity,
+                            label = "Check parity",
+                            modifier = Modifier.fillMaxWidth(),
+                            variant = BtnVariant.Tonal,
+                            fullWidth = true,
+                            leadingIcon = { UC.Shield(14.dp, t.accent) },
+                        )
                     }
                     if (errored) {
                         Spacer(Modifier.height(16.dp))

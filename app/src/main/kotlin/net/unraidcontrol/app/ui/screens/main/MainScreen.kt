@@ -209,6 +209,28 @@ fun MainScreen(
                                 onConfirm = { vm.stopArray(); confirm = null },
                             )
                         },
+                        onStartParity = {
+                            confirm = ConfirmRequest(
+                                title = "Start a parity check?",
+                                body = "Reads every disk to verify parity. Non-correcting (read-only). Can take hours on large arrays; the array stays usable but slower.",
+                                confirmLabel = "Check parity",
+                                tone = Tone.Accent,
+                                icon = { UC.Shield(22.dp, t.accent) },
+                                onConfirm = { vm.startParityCheck(correct = false); confirm = null },
+                            )
+                        },
+                        onPauseParity = { vm.pauseParityCheck() },
+                        onResumeParity = { vm.resumeParityCheck() },
+                        onCancelParity = {
+                            confirm = ConfirmRequest(
+                                title = "Cancel the parity check?",
+                                body = "Progress is discarded. You'll have to start over from the beginning next time.",
+                                confirmLabel = "Cancel check",
+                                tone = Tone.Danger,
+                                icon = { UC.Stop(22.dp, t.danger) },
+                                onConfirm = { vm.cancelParityCheck(); confirm = null },
+                            )
+                        },
                     )
                     MainTab.Docker   -> DockerTab(
                         state = dockerState,
@@ -257,6 +279,17 @@ fun MainScreen(
                                 tone = Tone.Danger,
                                 icon = { UC.Power(22.dp, t.danger) },
                                 onConfirm = { vm.stopVm(v.id, force = true); confirm = null },
+                            )
+                        },
+                        onReboot = { v -> vm.rebootVm(v.id) },
+                        onReset  = { v ->
+                            confirm = ConfirmRequest(
+                                title = "Reset ${v.name}?",
+                                body = "Hard reset — like the physical reset button. The VM restarts immediately without a clean shutdown; unsaved data may be lost.",
+                                confirmLabel = "Reset",
+                                tone = Tone.Danger,
+                                icon = { UC.Power(22.dp, t.danger) },
+                                onConfirm = { vm.resetVm(v.id); confirm = null },
                             )
                         },
                     )

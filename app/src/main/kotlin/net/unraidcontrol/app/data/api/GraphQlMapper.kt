@@ -86,13 +86,14 @@ fun GetArrayQuery.Data.toArrayInfo(): ArrayInfo {
         totalTb = totalTb,
         usedTb = usedTb,
         parity = arrBlock.parityCheckStatus?.takeIf {
-            it.running == true && it.paused != true
+            it.running == true
         }?.let { p ->
             ParityCheck(
                 progress = (p.progress ?: 0) / 100f,
                 speedMbps = parseSpeedMbps(p.speed),
                 errors = p.errors ?: 0,
                 etaSeconds = 0,
+                paused = p.paused == true,
             )
         },
         disks = parities + data + caches,
