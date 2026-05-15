@@ -60,7 +60,7 @@ fun UnraidField(
             modifier = Modifier
                 .fillMaxWidth()
                 .background(
-                    color = Color.White.copy(alpha = 0.04f),
+                    color = t.muted.copy(alpha = 0.08f),
                     shape = RoundedCornerShape(14.dp),
                 )
                 .border(1.dp, borderColor, RoundedCornerShape(14.dp))

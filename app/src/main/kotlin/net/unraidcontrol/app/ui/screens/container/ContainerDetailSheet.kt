@@ -91,7 +91,7 @@ fun ContainerDetailSheet(
                         .width(36.dp)
                         .height(4.dp)
                         .clip(RoundedCornerShape(2.dp))
-                        .background(Color.White.copy(alpha = 0.18f)),
+                        .background(t.muted.copy(alpha = 0.40f)),
                 )
             }
         },
@@ -245,7 +245,7 @@ fun ContainerDetailSheet(
                 modifier = Modifier
                     .fillMaxWidth()
                     .clip(RoundedCornerShape(12.dp))
-                    .background(Color.White.copy(alpha = 0.04f))
+                    .background(t.muted.copy(alpha = 0.10f))
                     .padding(4.dp),
                 horizontalArrangement = Arrangement.spacedBy(4.dp),
             ) {
@@ -255,14 +255,14 @@ fun ContainerDetailSheet(
                         modifier = Modifier
                             .weight(1f)
                             .clip(RoundedCornerShape(9.dp))
-                            .background(if (isActive) t.surface else Color.Transparent)
+                            .background(if (isActive) t.accentDim else Color.Transparent)
                             .clickable { tab = tk }
                             .padding(vertical = 8.dp),
                         contentAlignment = Alignment.Center,
                     ) {
                         Text(
                             text = tk.name,
-                            color = if (isActive) t.text else t.muted,
+                            color = if (isActive) t.accent else t.muted,
                             fontSize = 12.sp,
                             fontWeight = FontWeight.SemiBold,
                         )
