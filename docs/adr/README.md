@@ -58,3 +58,4 @@ ADRs live under `docs/` so the CI docs-only bypass applies — pure-ADR PRs comp
 | [0021](./0021-relicense-to-gpl-3.md) | Relicense from CC BY-NC-SA 4.0 to GPL v3 | Accepted |
 | [0022](./0022-codeql-advisory-least-privilege-workflows.md) | CodeQL is advisory; workflows run least-privilege | Accepted |
 | [0023](./0023-upgrade-agp9-toolchain.md) | Upgrade to AGP 9 + modern Gradle/Kotlin/Hilt/Compose/Apollo toolchain | Accepted |
+| [0024](./0024-api-key-storage-datastore-tink.md) | API-key storage on DataStore + Tink (drop deprecated EncryptedSharedPreferences) | Accepted |
