@@ -33,12 +33,11 @@ import net.unraidcontrol.app.data.local.LayoutMode
 import net.unraidcontrol.app.data.model.Vm
 import net.unraidcontrol.app.data.model.VmState
 import net.unraidcontrol.app.data.repository.DomainState
-import net.unraidcontrol.app.ui.components.BtnVariant
+import net.unraidcontrol.app.ui.components.UnraidIconButton
 import net.unraidcontrol.app.ui.components.Pill
 import net.unraidcontrol.app.ui.components.SectionLabel
 import net.unraidcontrol.app.ui.components.Tone
 import net.unraidcontrol.app.ui.components.UC
-import net.unraidcontrol.app.ui.components.UnraidButton
 import net.unraidcontrol.app.ui.components.UnraidCard
 import net.unraidcontrol.app.ui.screens.ErrorState
 import net.unraidcontrol.app.ui.screens.LoadingState
@@ -53,9 +52,6 @@ fun VmsTab(
     onStart: (Vm) -> Unit,
     onResume: (Vm) -> Unit,
     onPause: (Vm) -> Unit,
-    onStop: (Vm) -> Unit,
-    onReboot: (Vm) -> Unit,
-    onReset: (Vm) -> Unit,
     onOpenVm: (Vm) -> Unit,
 ) {
     when (state) {
@@ -78,7 +74,7 @@ fun VmsTab(
                         verticalArrangement = Arrangement.spacedBy(d.gap),
                     ) {
                         items(vms, key = { it.id }) { vm ->
-                            VmCard(vm, onOpenVm, onStart, onResume, onPause, onStop, onReboot, onReset)
+                            VmCard(vm, onOpenVm, onStart, onResume, onPause)
                         }
                     }
                     LayoutMode.Grid -> LazyVerticalGrid(
@@ -104,19 +100,19 @@ fun VmsTab(
                             if (running.isNotEmpty()) {
                                 item { SectionLabel("Running · ${running.size}") }
                                 items(running, key = { "r-${it.id}" }) { vm ->
-                                    VmCard(vm, onOpenVm, onStart, onResume, onPause, onStop, onReboot, onReset)
+                                    VmCard(vm, onOpenVm, onStart, onResume, onPause)
                                 }
                             }
                             if (paused.isNotEmpty()) {
                                 item { SectionLabel("Paused · ${paused.size}") }
                                 items(paused, key = { "p-${it.id}" }) { vm ->
-                                    VmCard(vm, onOpenVm, onStart, onResume, onPause, onStop, onReboot, onReset)
+                                    VmCard(vm, onOpenVm, onStart, onResume, onPause)
                                 }
                             }
                             if (stopped.isNotEmpty()) {
                                 item { SectionLabel("Stopped · ${stopped.size}") }
                                 items(stopped, key = { "s-${it.id}" }) { vm ->
-                                    VmCard(vm, onOpenVm, onStart, onResume, onPause, onStop, onReboot, onReset)
+                                    VmCard(vm, onOpenVm, onStart, onResume, onPause)
                                 }
                             }
                         }
@@ -198,9 +194,6 @@ private fun VmCard(
     onStart: (Vm) -> Unit,
     onResume: (Vm) -> Unit,
     onPause: (Vm) -> Unit,
-    onStop: (Vm) -> Unit,
-    onReboot: (Vm) -> Unit,
-    onReset: (Vm) -> Unit,
 ) {
     val t = UnraidTheme.colors
     val tone = when (vm.state) {
@@ -209,114 +202,59 @@ private fun VmCard(
         VmState.Stopped -> Tone.Neutral
     }
     val stateLabel = vm.state.name.lowercase()
+    // Compact card: identity + spec + one safe primary action (no
+    // confirm). Tapping the card opens the detail sheet for everything
+    // else (stop/reboot/reset, which go through their confirms there).
     UnraidCard(padding = UnraidTheme.tokens.pad, onClick = { onOpen(vm) }) {
-        Column {
-            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                Box(
-                    modifier = Modifier
-                        .size(44.dp)
-                        .clip(RoundedCornerShape(12.dp))
-                        .background(
-                            Brush.linearGradient(
-                                listOf(t.accent, Color(0xFF3B82F6)),
-                            ),
-                        )
-                        .alpha(if (vm.state == VmState.Running) 1f else 0.55f),
-                    contentAlignment = Alignment.Center,
-                ) {
-                    UC.Vm(20.dp, Color(0xFF06120E))
-                }
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(vm.name, color = t.text, fontSize = 15.sp, fontWeight = FontWeight.SemiBold)
-                    Spacer(Modifier.height(3.dp))
-                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                        Pill(stateLabel, tone = tone, dot = true)
-                        Text(
-                            text = buildString {
-                                append("${vm.vcpus} vCPU · ${vm.memGb} GB")
-                                if (vm.gpu != null) append(" · ${vm.gpu}")
-                            },
-                            color = t.muted,
-                            fontSize = 11.sp,
-                        )
-                    }
-                }
-            }
-            Spacer(Modifier.height(10.dp))
-            Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                when (vm.state) {
-                    VmState.Running -> {
-                        UnraidButton(
-                            onClick = { onPause(vm) },
-                            label = "Pause",
-                            modifier = Modifier.weight(1f),
-                            variant = BtnVariant.Tonal,
-                            tone = Tone.Warn,
-                            fullWidth = true,
-                            leadingIcon = { UC.Pause(14.dp, t.warn) },
-                        )
-                        UnraidButton(
-                            onClick = { onStop(vm) },
-                            label = "Stop",
-                            modifier = Modifier.weight(1f),
-                            variant = BtnVariant.Tonal,
-                            tone = Tone.Danger,
-                            fullWidth = true,
-                            leadingIcon = { UC.Stop(14.dp, t.danger) },
-                        )
-                    }
-                    VmState.Paused -> {
-                        UnraidButton(
-                            onClick = { onResume(vm) },
-                            label = "Resume",
-                            modifier = Modifier.weight(1f),
-                            variant = BtnVariant.Tonal,
-                            fullWidth = true,
-                            leadingIcon = { UC.Play(14.dp, t.accent) },
-                        )
-                        UnraidButton(
-                            onClick = { onStop(vm) },
-                            label = "Stop",
-                            modifier = Modifier.weight(1f),
-                            variant = BtnVariant.Tonal,
-                            tone = Tone.Danger,
-                            fullWidth = true,
-                            leadingIcon = { UC.Stop(14.dp, t.danger) },
-                        )
-                    }
-                    VmState.Stopped -> {
-                        UnraidButton(
-                            onClick = { onStart(vm) },
-                            label = "Start",
-                            modifier = Modifier.weight(1f),
-                            variant = BtnVariant.Filled,
-                            fullWidth = true,
-                            leadingIcon = { UC.Play(14.dp, Color(0xFF06120E)) },
-                        )
-                    }
-                }
-            }
-            if (vm.state == VmState.Running) {
-                Spacer(Modifier.height(6.dp))
-                Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                    UnraidButton(
-                        onClick = { onReboot(vm) },
-                        label = "Reboot",
-                        modifier = Modifier.weight(1f),
-                        variant = BtnVariant.Tonal,
-                        fullWidth = true,
-                        leadingIcon = { UC.Restart(14.dp, t.accent) },
+        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+            Box(
+                modifier = Modifier
+                    .size(44.dp)
+                    .clip(RoundedCornerShape(12.dp))
+                    .background(
+                        Brush.linearGradient(
+                            listOf(t.accent, Color(0xFF3B82F6)),
+                        ),
                     )
-                    UnraidButton(
-                        onClick = { onReset(vm) },
-                        label = "Reset",
-                        modifier = Modifier.weight(1f),
-                        variant = BtnVariant.Tonal,
-                        tone = Tone.Danger,
-                        fullWidth = true,
-                        leadingIcon = { UC.Power(14.dp, t.danger) },
+                    .alpha(if (vm.state == VmState.Running) 1f else 0.55f),
+                contentAlignment = Alignment.Center,
+            ) {
+                UC.Vm(20.dp, Color(0xFF06120E))
+            }
+            Column(modifier = Modifier.weight(1f)) {
+                Text(vm.name, color = t.text, fontSize = 15.sp, fontWeight = FontWeight.SemiBold)
+                Spacer(Modifier.height(3.dp))
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                    Pill(stateLabel, tone = tone, dot = true)
+                    Text(
+                        text = buildString {
+                            append("${vm.vcpus} vCPU · ${vm.memGb} GB")
+                            if (vm.gpu != null) append(" · ${vm.gpu}")
+                        },
+                        color = t.muted,
+                        fontSize = 11.sp,
                     )
                 }
+            }
+            when (vm.state) {
+                VmState.Running -> UnraidIconButton(
+                    icon = { UC.Pause(16.dp, t.warn) },
+                    onClick = { onPause(vm) },
+                    size = 36.dp,
+                    tone = Tone.Warn,
+                )
+                VmState.Paused -> UnraidIconButton(
+                    icon = { UC.Play(16.dp, t.accent) },
+                    onClick = { onResume(vm) },
+                    size = 36.dp,
+                    tone = Tone.Accent,
+                )
+                VmState.Stopped -> UnraidIconButton(
+                    icon = { UC.Play(16.dp, t.accent) },
+                    onClick = { onStart(vm) },
+                    size = 36.dp,
+                    tone = Tone.Accent,
+                )
             }
         }
     }

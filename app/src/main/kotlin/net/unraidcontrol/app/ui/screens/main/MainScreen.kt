@@ -273,27 +273,6 @@ fun MainScreen(
                         onStart  = { v -> vm.startVm(v.id) },
                         onResume = { v -> vm.resumeVm(v.id) },
                         onPause  = { v -> vm.pauseVm(v.id) },
-                        onStop   = { v ->
-                            confirm = ConfirmRequest(
-                                title = "Force stop ${v.name}?",
-                                body = "This is equivalent to pulling the power cord. Unsaved data may be lost.",
-                                confirmLabel = "Force stop",
-                                tone = Tone.Danger,
-                                icon = { UC.Power(22.dp, t.danger) },
-                                onConfirm = { vm.stopVm(v.id, force = true); confirm = null },
-                            )
-                        },
-                        onReboot = { v -> vm.rebootVm(v.id) },
-                        onReset  = { v ->
-                            confirm = ConfirmRequest(
-                                title = "Reset ${v.name}?",
-                                body = "Hard reset — like the physical reset button. The VM restarts immediately without a clean shutdown; unsaved data may be lost.",
-                                confirmLabel = "Reset",
-                                tone = Tone.Danger,
-                                icon = { UC.Power(22.dp, t.danger) },
-                                onConfirm = { vm.resetVm(v.id); confirm = null },
-                            )
-                        },
                         onOpenVm = { openVm = it },
                     )
                 }
