@@ -50,6 +50,7 @@ import net.unraidcontrol.app.data.model.InstallState
 import net.unraidcontrol.app.data.model.Server
 import net.unraidcontrol.app.data.model.UpdateState
 import net.unraidcontrol.app.data.model.Vm
+import net.unraidcontrol.app.data.model.hasUpdate
 import net.unraidcontrol.app.data.repository.DomainState
 import net.unraidcontrol.app.ui.components.ConfirmDialog
 import net.unraidcontrol.app.ui.components.ConfirmRequest
