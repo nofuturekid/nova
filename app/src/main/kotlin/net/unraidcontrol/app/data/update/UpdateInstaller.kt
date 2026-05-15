@@ -32,7 +32,7 @@ import javax.inject.Singleton
  */
 @Singleton
 class UpdateInstaller @Inject constructor(
-    @ApplicationContext private val context: Context,
+    @param:ApplicationContext private val context: Context,
 ) {
     private val http: OkHttpClient = OkHttpClient.Builder()
         .connectTimeout(15, TimeUnit.SECONDS)
@@ -44,7 +44,7 @@ class UpdateInstaller @Inject constructor(
             val req = Request.Builder().url(url).build()
             http.newCall(req).execute().use { resp ->
                 if (!resp.isSuccessful) throw RuntimeException("HTTP ${resp.code} downloading APK")
-                val body = resp.body ?: throw RuntimeException("Empty body")
+                val body = resp.body
                 val total = body.contentLength().coerceAtLeast(1L)
                 val out = updatesDir().resolve("UnraidControl-update.apk")
                 out.parentFile?.mkdirs()

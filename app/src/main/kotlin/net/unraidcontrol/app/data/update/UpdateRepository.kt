@@ -40,7 +40,7 @@ class UpdateRepository @Inject constructor() {
                 if (!resp.isSuccessful) {
                     return@withContext UpdateState.Error("GitHub HTTP ${resp.code}")
                 }
-                val body = resp.body?.string().orEmpty()
+                val body = resp.body.string()
                 val releases = json.decodeFromString<List<GhRelease>>(body)
                 val current = parseVersion(BuildConfig.VERSION_NAME)
                     ?: return@withContext UpdateState.Error("Can't parse own version ${BuildConfig.VERSION_NAME}")

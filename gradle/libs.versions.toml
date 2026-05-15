@@ -3,7 +3,7 @@ agp = "9.2.0"
 kotlin = "2.3.21"
 ksp = "2.3.8"
 hilt = "2.59.2"
-hiltNavCompose = "1.3.0"
+hiltViewModelCompose = "1.3.0"
 coreKtx = "1.17.0"
 lifecycle = "2.10.0"
 activityCompose = "1.12.0"
@@ -44,7 +44,11 @@ androidx-security-crypto = { module = "androidx.security:security-crypto", versi
 
 hilt-android = { module = "com.google.dagger:hilt-android", version.ref = "hilt" }
 hilt-compiler = { module = "com.google.dagger:hilt-compiler", version.ref = "hilt" }
-hilt-navigation-compose = { module = "androidx.hilt:hilt-navigation-compose", version.ref = "hiltNavCompose" }
+# hiltViewModel() moved out of hilt-navigation-compose into this
+# navigation-independent artifact in androidx.hilt 1.3.0 (see ADR-0023
+# follow-up). We only use plain hiltViewModel(), so we depend on this
+# one directly instead of hilt-navigation-compose.
+hilt-viewmodel-compose = { module = "androidx.hilt:hilt-lifecycle-viewmodel-compose", version.ref = "hiltViewModelCompose" }
 
 apollo-runtime = { module = "com.apollographql.apollo:apollo-runtime", version.ref = "apollo" }
 apollo-api = { module = "com.apollographql.apollo:apollo-api", version.ref = "apollo" }
