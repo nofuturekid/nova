@@ -108,4 +108,4 @@ See `README.md` for the full architecture overview. Quick orientation:
 
 ## License
 
-This project is licensed under CC BY-NC-SA 4.0 (see `LICENSE`). By submitting a contribution you agree your changes are released under the same license.
+This project is licensed under the GNU General Public License v3.0 (see [`LICENSE`](./LICENSE), relicensed from CC BY-NC-SA 4.0 — see [ADR-0021](./docs/adr/0021-relicense-to-gpl-3.md)). By submitting a contribution you agree your changes are released under the same license.
