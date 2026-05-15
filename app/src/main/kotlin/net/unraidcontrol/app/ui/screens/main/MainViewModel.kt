@@ -15,6 +15,7 @@ import kotlinx.coroutines.flow.emptyFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import net.unraidcontrol.app.data.local.DockerView
 import net.unraidcontrol.app.data.model.AppSettings
@@ -124,6 +125,16 @@ class MainViewModel @Inject constructor(
     val vmsState: StateFlow<DomainState<List<Vm>>> =
         gatedStream(overviewOr(MainTab.Vms), unraid.vmsStream())
 
+    // ── In-flight container updates (ADR-0016) ────────────────────────
+    //
+    // The Update mutation runs server-side for 30s–several minutes (image
+    // pull + recreate). We track which container IDs are currently being
+    // updated so the UI can show an "Updating…" pill instead of the normal
+    // action buttons. The set is cleared in `finally` so a failed or
+    // cancelled mutation doesn't leave the UI stuck.
+    private val _updatingContainerIds = MutableStateFlow<Set<String>>(emptySet())
+    val updatingContainerIds: StateFlow<Set<String>> = _updatingContainerIds.asStateFlow()
+
     // ── App-updater plumbing (unchanged) ──────────────────────────────
 
     private val _updateState = MutableStateFlow<UpdateState>(UpdateState.Checking)
@@ -206,6 +217,17 @@ class MainViewModel @Inject constructor(
     fun stopContainer(id: String)    = viewModelScope.launch { unraid.stopContainer(id) }
     fun restartContainer(id: String) = viewModelScope.launch { unraid.restartContainer(id) }
     fun pauseContainer(id: String)   = viewModelScope.launch { unraid.pauseContainer(id) }
+
+    fun updateContainer(id: String) {
+        _updatingContainerIds.update { it + id }
+        viewModelScope.launch {
+            try {
+                unraid.updateContainer(id)
+            } finally {
+                _updatingContainerIds.update { it - id }
+            }
+        }
+    }
 
     fun startVm(id: String)            = viewModelScope.launch { unraid.startVm(id) }
     fun stopVm(id: String, force: Boolean) = viewModelScope.launch { unraid.stopVm(id, force) }

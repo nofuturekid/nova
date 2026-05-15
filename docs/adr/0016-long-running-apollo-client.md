@@ -1,6 +1,6 @@
 # ADR-0016: Separate Apollo client for long-running mutations
 
-- **Status**: Proposed
+- **Status**: Accepted
 - **Date**: 2026-05-14
 - **Tags**: data, ui, performance
 
