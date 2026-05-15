@@ -156,15 +156,16 @@ private fun OverviewContent(
         ArrayState.Offline -> "OFFLINE"
     }
 
+    val d = UnraidTheme.tokens
     LazyColumn(
         modifier = Modifier.fillMaxWidth(),
         contentPadding = androidx.compose.foundation.layout.PaddingValues(
-            start = 16.dp, end = 16.dp, top = 4.dp, bottom = 24.dp,
+            start = d.screenPad, end = d.screenPad, top = 4.dp, bottom = 24.dp,
         ),
-        verticalArrangement = Arrangement.spacedBy(12.dp),
+        verticalArrangement = Arrangement.spacedBy(d.gap),
     ) {
         item {
-            UnraidCard(padding = 18.dp) {
+            UnraidCard(padding = UnraidTheme.tokens.padHero) {
                 Column {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         UC.Shield(18.dp, t.muted)
@@ -271,7 +272,7 @@ private fun OverviewContent(
 
         item {
             Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                UnraidCard(modifier = Modifier.weight(1f), padding = 14.dp) {
+                UnraidCard(modifier = Modifier.weight(1f), padding = UnraidTheme.tokens.pad) {
                     Column {
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             UC.Docker(16.dp, t.muted)
@@ -297,7 +298,7 @@ private fun OverviewContent(
                         )
                     }
                 }
-                UnraidCard(modifier = Modifier.weight(1f), padding = 14.dp) {
+                UnraidCard(modifier = Modifier.weight(1f), padding = UnraidTheme.tokens.pad) {
                     Column {
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             UC.Vm(16.dp, t.muted)
@@ -317,7 +318,7 @@ private fun OverviewContent(
         }
 
         item {
-            UnraidCard(padding = 16.dp) {
+            UnraidCard(padding = UnraidTheme.tokens.pad) {
                 Column {
                     Text(
                         text = "SYSTEM",
@@ -349,7 +350,7 @@ private fun StatCard(
     max: Float?,
 ) {
     val t = UnraidTheme.colors
-    UnraidCard(padding = 16.dp) {
+    UnraidCard(padding = UnraidTheme.tokens.pad) {
         Column {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 icon()

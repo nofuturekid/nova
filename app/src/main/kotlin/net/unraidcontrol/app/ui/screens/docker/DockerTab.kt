@@ -103,13 +103,14 @@ private fun DockerContent(
             c.image.contains(query, ignoreCase = true)
     }
     val updateCount = containers.count { it.updateStatus.hasUpdate() }
+    val d = UnraidTheme.tokens
     when (view) {
         DockerView.List -> LazyColumn(
             modifier = Modifier.fillMaxWidth(),
             contentPadding = androidx.compose.foundation.layout.PaddingValues(
-                start = 16.dp, end = 16.dp, top = 4.dp, bottom = 24.dp,
+                start = d.screenPad, end = d.screenPad, top = 4.dp, bottom = 24.dp,
             ),
-            verticalArrangement = Arrangement.spacedBy(8.dp),
+            verticalArrangement = Arrangement.spacedBy(d.gap),
         ) {
             if (updateCount > 0) item { UpdateAllBanner(updateCount, onUpdateAll) }
             item { SearchBox(query, { query = it }) }
@@ -121,10 +122,10 @@ private fun DockerContent(
             columns = GridCells.Fixed(3),
             modifier = Modifier.fillMaxWidth(),
             contentPadding = androidx.compose.foundation.layout.PaddingValues(
-                start = 16.dp, end = 16.dp, top = 4.dp, bottom = 24.dp,
+                start = d.screenPad, end = d.screenPad, top = 4.dp, bottom = 24.dp,
             ),
-            horizontalArrangement = Arrangement.spacedBy(10.dp),
-            verticalArrangement = Arrangement.spacedBy(10.dp),
+            horizontalArrangement = Arrangement.spacedBy(d.gap),
+            verticalArrangement = Arrangement.spacedBy(d.gap),
         ) {
             if (updateCount > 0) item(span = { GridItemSpan(maxLineSpan) }) {
                 UpdateAllBanner(updateCount, onUpdateAll)
@@ -141,9 +142,9 @@ private fun DockerContent(
             LazyColumn(
                 modifier = Modifier.fillMaxWidth(),
                 contentPadding = androidx.compose.foundation.layout.PaddingValues(
-                    start = 16.dp, end = 16.dp, top = 4.dp, bottom = 24.dp,
+                    start = d.screenPad, end = d.screenPad, top = 4.dp, bottom = 24.dp,
                 ),
-                verticalArrangement = Arrangement.spacedBy(8.dp),
+                verticalArrangement = Arrangement.spacedBy(d.gap),
             ) {
                 if (updateCount > 0) item { UpdateAllBanner(updateCount, onUpdateAll) }
                 item { SearchBox(query, { query = it }) }
@@ -255,7 +256,7 @@ private fun ContainerRow(
         ContainerStatus.Paused  -> "paused"
         ContainerStatus.Exited  -> "stopped"
     }
-    UnraidCard(padding = 12.dp, onClick = { onOpen(c) }) {
+    UnraidCard(padding = UnraidTheme.tokens.padTight, onClick = { onOpen(c) }) {
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
             ContainerIcon(
                 name = c.name,
@@ -308,7 +309,7 @@ private fun ContainerGridTile(c: Container, serverBaseUrl: String, onOpen: (Cont
         ContainerStatus.Paused  -> t.warn
         ContainerStatus.Exited  -> t.muted
     }
-    UnraidCard(padding = 12.dp, onClick = { onOpen(c) }) {
+    UnraidCard(padding = UnraidTheme.tokens.padTight, onClick = { onOpen(c) }) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()

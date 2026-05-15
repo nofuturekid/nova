@@ -58,12 +58,13 @@ fun VmsTab(
             if (vms.isEmpty()) {
                 EmptyVms()
             } else {
+                val d = UnraidTheme.tokens
                 LazyColumn(
                     modifier = Modifier.fillMaxWidth(),
                     contentPadding = androidx.compose.foundation.layout.PaddingValues(
-                        start = 16.dp, end = 16.dp, top = 4.dp, bottom = 24.dp,
+                        start = d.screenPad, end = d.screenPad, top = 4.dp, bottom = 24.dp,
                     ),
-                    verticalArrangement = Arrangement.spacedBy(10.dp),
+                    verticalArrangement = Arrangement.spacedBy(d.gap),
                 ) {
                     items(vms, key = { it.id }) { vm ->
                         VmCard(vm, onStart, onResume, onPause, onStop)
@@ -112,7 +113,7 @@ private fun VmCard(
         VmState.Stopped -> Tone.Neutral
     }
     val stateLabel = vm.state.name.lowercase()
-    UnraidCard(padding = 14.dp) {
+    UnraidCard(padding = UnraidTheme.tokens.pad) {
         Column {
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                 Box(
