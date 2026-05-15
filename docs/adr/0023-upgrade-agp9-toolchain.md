@@ -73,15 +73,23 @@ ADR-0006/0013/0015:
 
 1. **PR-1 — `0.1.28-beta1` (vc 37):** the load-bearing set — Gradle
    wrapper, AGP, Kotlin, KSP, Hilt, Compose BOM, **Apollo 5**, JDK 21,
-   built-in-Kotlin DSL migration, this ADR. One atomic toolchain commit
-   (there is no green intermediate between old-AGP/new-Gradle and
-   new-AGP/old-Gradle, so a split buys nothing and keeps `git bisect`
-   honest).
-2. **PR-2 — `0.1.28-beta2` (vc 38):** GitHub Actions pin refresh —
-   ci.yml + cache-warm.yml in lockstep (checkout v6, gradle/actions v6,
-   setup-java JDK 21), release.yml treated conservatively (checkout v6,
-   download-artifact v8, action-gh-release v3) with input compatibility
-   verified before merge.
+   built-in-Kotlin DSL migration, **and the ci.yml + cache-warm.yml
+   `setup-java` bump to JDK 21**, this ADR. The CI JDK bump *must* ride
+   with PR-1: PR-1's build targets a Java 21 toolchain
+   (`jvmToolchain(21)`/`VERSION_21`), so a JDK-17 CI runner cannot
+   compile it (no foojay auto-provisioner is configured). This was a
+   latent ordering bug in the original plan (JDK-21 CI was slated for
+   PR-2) — caught by PR-1's first CI run failing at "Assemble debug"
+   with JDK 17 still installed. One atomic commit (there is no green
+   intermediate between old-AGP/new-Gradle and new-AGP/old-Gradle, nor
+   between a 21-targeting build and a 17 runner; a split buys nothing
+   and keeps `git bisect` honest). ci.yml ↔ cache-warm.yml stay in
+   lockstep per ADR-0018.
+2. **PR-2 — `0.1.28-beta2` (vc 38):** GitHub Actions *version-pin*
+   refresh only (JDK already moved to PR-1) — ci.yml + cache-warm.yml in
+   lockstep (checkout v6, gradle/actions v6), release.yml treated
+   conservatively (checkout v6, download-artifact v8, action-gh-release
+   v3) with input compatibility verified before merge.
 3. **PR-3 — `0.1.28-beta3` (vc 39):** remaining catalog libraries
    (coroutines, serialization, OkHttp, Coil, AndroidX, nav, datastore,
    …) refreshed to latest stable — isolated so a regression here is
