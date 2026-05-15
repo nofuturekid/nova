@@ -27,11 +27,13 @@ It talks to your server through the official Unraid API (the Connect plugin's Gr
 
 | Overview | Docker | Container detail |
 |:---:|:---:|:---:|
-| ![Overview](docs/screenshots/overview.png) | ![Docker](docs/screenshots/docker.png) | ![Container detail](docs/screenshots/container-detail.png) |
+| <img src="docs/screenshots/overview.png" width="240" alt="Overview — array, CPU, memory, containers, system"> | <img src="docs/screenshots/docker.png" width="240" alt="Docker — every container with live status"> | <img src="docs/screenshots/container-detail.png" width="240" alt="Container detail — start/stop/restart, Open Web UI"> |
+
+| Container logs | Settings & changelog |
+|:---:|:---:|
+| <img src="docs/screenshots/container-logs.png" width="240" alt="Live container logs"> | <img src="docs/screenshots/settings-changelog.png" width="240" alt="Settings, with the in-app changelog open"> |
 
 </div>
-
-> _Screenshots coming soon — drop PNGs into `docs/screenshots/` named `overview.png`, `docker.png`, `container-detail.png`._
 
 ## What you can do
 
