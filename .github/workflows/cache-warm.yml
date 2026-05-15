@@ -18,6 +18,11 @@ on:
     branches: [main]
   workflow_dispatch:
 
+# Least-privilege GITHUB_TOKEN (CodeQL actions/missing-workflow-permissions).
+# Only checks out + resolves Gradle deps; nothing is written to the repo.
+permissions:
+  contents: read
+
 concurrency:
   # Only one warmer at a time; if a second push lands while one is
   # running, cancel the older one — the newer commit is what we want

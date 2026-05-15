@@ -56,3 +56,4 @@ ADRs live under `docs/` so the CI docs-only bypass applies — pure-ADR PRs comp
 | [0019](./0019-parallel-debug-release-jobs.md) | Split CI into parallel debug + release jobs | Accepted |
 | [0020](./0020-migrate-to-ksp2.md) | Migrate from KSP1 to KSP2 | Accepted |
 | [0021](./0021-relicense-to-gpl-3.md) | Relicense from CC BY-NC-SA 4.0 to GPL v3 | Accepted |
+| [0022](./0022-codeql-advisory-least-privilege-workflows.md) | CodeQL is advisory; workflows run least-privilege | Accepted |
