@@ -1,6 +1,6 @@
 # ADR-0020: Migrate from KSP1 to KSP2
 
-- **Status**: Proposed
+- **Status**: Accepted
 - **Date**: 2026-05-14
 - **Tags**: ci, build, dependencies
 
