@@ -13,6 +13,9 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
+import androidx.compose.foundation.lazy.grid.items as gridItems
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -26,11 +29,13 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import net.unraidcontrol.app.data.local.LayoutMode
 import net.unraidcontrol.app.data.model.Vm
 import net.unraidcontrol.app.data.model.VmState
 import net.unraidcontrol.app.data.repository.DomainState
 import net.unraidcontrol.app.ui.components.BtnVariant
 import net.unraidcontrol.app.ui.components.Pill
+import net.unraidcontrol.app.ui.components.SectionLabel
 import net.unraidcontrol.app.ui.components.Tone
 import net.unraidcontrol.app.ui.components.UC
 import net.unraidcontrol.app.ui.components.UnraidButton
@@ -43,6 +48,7 @@ import net.unraidcontrol.app.ui.theme.UnraidTheme
 @Composable
 fun VmsTab(
     state: DomainState<List<Vm>>,
+    view: LayoutMode,
     onAddServer: () -> Unit,
     onStart: (Vm) -> Unit,
     onResume: (Vm) -> Unit,
@@ -59,18 +65,111 @@ fun VmsTab(
                 EmptyVms()
             } else {
                 val d = UnraidTheme.tokens
-                LazyColumn(
-                    modifier = Modifier.fillMaxWidth(),
-                    contentPadding = androidx.compose.foundation.layout.PaddingValues(
-                        start = d.screenPad, end = d.screenPad, top = 4.dp, bottom = 24.dp,
-                    ),
-                    verticalArrangement = Arrangement.spacedBy(d.gap),
-                ) {
-                    items(vms, key = { it.id }) { vm ->
-                        VmCard(vm, onStart, onResume, onPause, onStop)
+                val pad = androidx.compose.foundation.layout.PaddingValues(
+                    start = d.screenPad, end = d.screenPad, top = 4.dp, bottom = 24.dp,
+                )
+                when (view) {
+                    LayoutMode.List -> LazyColumn(
+                        modifier = Modifier.fillMaxWidth(),
+                        contentPadding = pad,
+                        verticalArrangement = Arrangement.spacedBy(d.gap),
+                    ) {
+                        items(vms, key = { it.id }) { vm ->
+                            VmCard(vm, onStart, onResume, onPause, onStop)
+                        }
+                    }
+                    LayoutMode.Grid -> LazyVerticalGrid(
+                        columns = GridCells.Fixed(2),
+                        modifier = Modifier.fillMaxWidth(),
+                        contentPadding = pad,
+                        horizontalArrangement = Arrangement.spacedBy(d.gap),
+                        verticalArrangement = Arrangement.spacedBy(d.gap),
+                    ) {
+                        gridItems(vms, key = { it.id }) { vm ->
+                            VmTile(vm, onStart, onResume, onPause, onStop)
+                        }
+                    }
+                    LayoutMode.Grouped -> {
+                        val running = vms.filter { it.state == VmState.Running }
+                        val paused  = vms.filter { it.state == VmState.Paused }
+                        val stopped = vms.filter { it.state == VmState.Stopped }
+                        LazyColumn(
+                            modifier = Modifier.fillMaxWidth(),
+                            contentPadding = pad,
+                            verticalArrangement = Arrangement.spacedBy(d.gap),
+                        ) {
+                            if (running.isNotEmpty()) {
+                                item { SectionLabel("Running · ${running.size}") }
+                                items(running, key = { "r-${it.id}" }) { vm ->
+                                    VmCard(vm, onStart, onResume, onPause, onStop)
+                                }
+                            }
+                            if (paused.isNotEmpty()) {
+                                item { SectionLabel("Paused · ${paused.size}") }
+                                items(paused, key = { "p-${it.id}" }) { vm ->
+                                    VmCard(vm, onStart, onResume, onPause, onStop)
+                                }
+                            }
+                            if (stopped.isNotEmpty()) {
+                                item { SectionLabel("Stopped · ${stopped.size}") }
+                                items(stopped, key = { "s-${it.id}" }) { vm ->
+                                    VmCard(vm, onStart, onResume, onPause, onStop)
+                                }
+                            }
+                        }
                     }
                 }
             }
+        }
+    }
+}
+
+/** Compact VM tile for the Grid layout — icon, name, state pill, tap to start/stop. */
+@Composable
+private fun VmTile(
+    vm: Vm,
+    onStart: (Vm) -> Unit,
+    onResume: (Vm) -> Unit,
+    onPause: (Vm) -> Unit,
+    onStop: (Vm) -> Unit,
+) {
+    val t = UnraidTheme.colors
+    val tone = when (vm.state) {
+        VmState.Running -> Tone.Accent
+        VmState.Paused  -> Tone.Warn
+        VmState.Stopped -> Tone.Neutral
+    }
+    val dim = vm.state != VmState.Running
+    UnraidCard(padding = UnraidTheme.tokens.padTight, onClick = {
+        when (vm.state) {
+            VmState.Running -> onStop(vm)
+            VmState.Paused  -> onResume(vm)
+            VmState.Stopped -> onStart(vm)
+        }
+    }) {
+        Column(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalAlignment = Alignment.CenterHorizontally,
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(40.dp)
+                    .clip(RoundedCornerShape(12.dp))
+                    .background(Brush.linearGradient(listOf(t.accent, Color(0xFF3B82F6))))
+                    .alpha(if (dim) 0.55f else 1f),
+                contentAlignment = Alignment.Center,
+            ) { UC.Vm(20.dp, Color(0xFF06120E)) }
+            Spacer(Modifier.height(8.dp))
+            Text(
+                text = vm.name,
+                color = t.text,
+                fontSize = 12.sp,
+                fontWeight = FontWeight.SemiBold,
+                maxLines = 1,
+                overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
+            )
+            Spacer(Modifier.height(6.dp))
+            Pill(vm.state.name.lowercase(), tone = tone, dot = true)
         }
     }
 }

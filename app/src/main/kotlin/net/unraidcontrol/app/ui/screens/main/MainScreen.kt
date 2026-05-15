@@ -187,6 +187,7 @@ fun MainScreen(
                     )
                     MainTab.Array    -> ArrayTab(
                         state = arrayState,
+                        view = ui.arrayView,
                         onAddServer = onAddServer,
                         onStartArray = {
                             confirm = ConfirmRequest(
@@ -243,6 +244,7 @@ fun MainScreen(
                     )
                     MainTab.Vms      -> VmsTab(
                         state = vmsState,
+                        view = ui.vmsView,
                         onAddServer = onAddServer,
                         onStart  = { v -> vm.startVm(v.id) },
                         onResume = { v -> vm.resumeVm(v.id) },

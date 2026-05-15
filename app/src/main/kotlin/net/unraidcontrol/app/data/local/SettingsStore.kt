@@ -30,12 +30,17 @@ private object Keys {
     val IsDark              = booleanPreferencesKey("is_dark")
     val Density             = stringPreferencesKey("density")
     val DockerView          = stringPreferencesKey("docker_view")
+    val VmsView             = stringPreferencesKey("vms_view")
+    val ArrayView           = stringPreferencesKey("array_view")
     val IncludePrereleases  = booleanPreferencesKey("include_prereleases")
     val LastUpdateCheck     = longPreferencesKey("last_update_check")
     val DismissedUpdateTag  = stringPreferencesKey("dismissed_update_tag")
 }
 
-enum class DockerView { List, Grid, Grouped }
+/** Shared layout mode for the Docker / VMs / Array list views. Each
+ *  view persists its own choice; "Grouped" is interpreted per view
+ *  (Docker → by status, VMs → by state, Array → by disk type). */
+enum class LayoutMode { List, Grid, Grouped }
 
 @Singleton
 class SettingsStore @Inject constructor(
@@ -59,13 +64,18 @@ class SettingsStore @Inject constructor(
         }
     }
 
-    val dockerView: Flow<DockerView> = ds.data.map {
-        when (it[Keys.DockerView]) {
-            "Grid"    -> DockerView.Grid
-            "Grouped" -> DockerView.Grouped
-            else      -> DockerView.List
+    private fun layoutFlow(key: androidx.datastore.preferences.core.Preferences.Key<String>): Flow<LayoutMode> =
+        ds.data.map {
+            when (it[key]) {
+                "Grid"    -> LayoutMode.Grid
+                "Grouped" -> LayoutMode.Grouped
+                else      -> LayoutMode.List
+            }
         }
-    }
+
+    val dockerView: Flow<LayoutMode> = layoutFlow(Keys.DockerView)
+    val vmsView: Flow<LayoutMode>    = layoutFlow(Keys.VmsView)
+    val arrayView: Flow<LayoutMode>  = layoutFlow(Keys.ArrayView)
 
     val settings: Flow<AppSettings> = ds.data.map { prefs ->
         AppSettings(
@@ -93,8 +103,16 @@ class SettingsStore @Inject constructor(
         ds.edit { it[Keys.ConnMode] = mode.name }
     }
 
-    suspend fun setDockerView(view: DockerView) {
+    suspend fun setDockerView(view: LayoutMode) {
         ds.edit { it[Keys.DockerView] = view.name }
+    }
+
+    suspend fun setVmsView(view: LayoutMode) {
+        ds.edit { it[Keys.VmsView] = view.name }
+    }
+
+    suspend fun setArrayView(view: LayoutMode) {
+        ds.edit { it[Keys.ArrayView] = view.name }
     }
 
     suspend fun setAccent(hex: Long) {
