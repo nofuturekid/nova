@@ -9,7 +9,7 @@ Native Android client for Unraid NAS servers (Kotlin + Jetpack Compose, Apollo G
 ## Repo
 
 - URL: https://github.com/nofuturekid/UnraidControl
-- License: CC BY-NC-SA 4.0
+- License: GPL-3.0-only (relicensed from CC BY-NC-SA 4.0 — see ADR-0021)
 - Default branch: `main` (protected)
 - Owner: nofuturekid (admin bypass on)
 
