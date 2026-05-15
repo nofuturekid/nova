@@ -64,6 +64,7 @@ import net.unraidcontrol.app.ui.screens.docker.DockerTab
 import net.unraidcontrol.app.ui.screens.overview.OverviewTab
 import net.unraidcontrol.app.ui.screens.update.UpdateBanner
 import net.unraidcontrol.app.ui.screens.update.UpdateDialog
+import net.unraidcontrol.app.ui.screens.vms.VmDetailSheet
 import net.unraidcontrol.app.ui.screens.vms.VmsTab
 import net.unraidcontrol.app.ui.theme.JetBrainsMono
 import net.unraidcontrol.app.ui.theme.UnraidTheme
@@ -113,6 +114,7 @@ fun MainScreen(
     androidx.compose.runtime.LaunchedEffect(openContainer) {
         vm.setDockerSheetOpen(openContainer != null)
     }
+    var openVm by remember { mutableStateOf<Vm?>(null) }
     var confirm by remember { mutableStateOf<ConfirmRequest?>(null) }
     val pullState = rememberPullToRefreshState()
     var refreshing by remember { mutableStateOf(false) }
@@ -292,6 +294,7 @@ fun MainScreen(
                                 onConfirm = { vm.resetVm(v.id); confirm = null },
                             )
                         },
+                        onOpenVm = { openVm = it },
                     )
                 }
             }
@@ -323,6 +326,37 @@ fun MainScreen(
                 )
             },
             onUpdate  = { c -> vm.updateContainer(c.id) },
+        )
+    }
+
+    if (openVm != null) {
+        VmDetailSheet(
+            vm = openVm!!,
+            onDismiss = { openVm = null },
+            onStart  = { vm.startVm(it.id); openVm = null },
+            onResume = { vm.resumeVm(it.id); openVm = null },
+            onPause  = { vm.pauseVm(it.id); openVm = null },
+            onStop   = { v ->
+                confirm = ConfirmRequest(
+                    title = "Force stop ${v.name}?",
+                    body = "This is equivalent to pulling the power cord. Unsaved data may be lost.",
+                    confirmLabel = "Force stop",
+                    tone = Tone.Danger,
+                    icon = { UC.Power(22.dp, t.danger) },
+                    onConfirm = { vm.stopVm(v.id, force = true); confirm = null; openVm = null },
+                )
+            },
+            onReboot = { vm.rebootVm(it.id); openVm = null },
+            onReset  = { v ->
+                confirm = ConfirmRequest(
+                    title = "Reset ${v.name}?",
+                    body = "Hard reset — like the physical reset button. The VM restarts immediately without a clean shutdown; unsaved data may be lost.",
+                    confirmLabel = "Reset",
+                    tone = Tone.Danger,
+                    icon = { UC.Power(22.dp, t.danger) },
+                    onConfirm = { vm.resetVm(v.id); confirm = null; openVm = null },
+                )
+            },
         )
     }
 

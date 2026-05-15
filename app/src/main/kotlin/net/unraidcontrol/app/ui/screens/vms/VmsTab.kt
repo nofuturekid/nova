@@ -56,6 +56,7 @@ fun VmsTab(
     onStop: (Vm) -> Unit,
     onReboot: (Vm) -> Unit,
     onReset: (Vm) -> Unit,
+    onOpenVm: (Vm) -> Unit,
 ) {
     when (state) {
         DomainState.Loading    -> LoadingState()
@@ -77,7 +78,7 @@ fun VmsTab(
                         verticalArrangement = Arrangement.spacedBy(d.gap),
                     ) {
                         items(vms, key = { it.id }) { vm ->
-                            VmCard(vm, onStart, onResume, onPause, onStop, onReboot, onReset)
+                            VmCard(vm, onOpenVm, onStart, onResume, onPause, onStop, onReboot, onReset)
                         }
                     }
                     LayoutMode.Grid -> LazyVerticalGrid(
@@ -88,7 +89,7 @@ fun VmsTab(
                         verticalArrangement = Arrangement.spacedBy(d.gap),
                     ) {
                         gridItems(vms, key = { it.id }) { vm ->
-                            VmTile(vm, onStart, onResume, onPause, onStop)
+                            VmTile(vm, onOpenVm)
                         }
                     }
                     LayoutMode.Grouped -> {
@@ -103,19 +104,19 @@ fun VmsTab(
                             if (running.isNotEmpty()) {
                                 item { SectionLabel("Running · ${running.size}") }
                                 items(running, key = { "r-${it.id}" }) { vm ->
-                                    VmCard(vm, onStart, onResume, onPause, onStop, onReboot, onReset)
+                                    VmCard(vm, onOpenVm, onStart, onResume, onPause, onStop, onReboot, onReset)
                                 }
                             }
                             if (paused.isNotEmpty()) {
                                 item { SectionLabel("Paused · ${paused.size}") }
                                 items(paused, key = { "p-${it.id}" }) { vm ->
-                                    VmCard(vm, onStart, onResume, onPause, onStop, onReboot, onReset)
+                                    VmCard(vm, onOpenVm, onStart, onResume, onPause, onStop, onReboot, onReset)
                                 }
                             }
                             if (stopped.isNotEmpty()) {
                                 item { SectionLabel("Stopped · ${stopped.size}") }
                                 items(stopped, key = { "s-${it.id}" }) { vm ->
-                                    VmCard(vm, onStart, onResume, onPause, onStop, onReboot, onReset)
+                                    VmCard(vm, onOpenVm, onStart, onResume, onPause, onStop, onReboot, onReset)
                                 }
                             }
                         }
@@ -130,10 +131,7 @@ fun VmsTab(
 @Composable
 private fun VmTile(
     vm: Vm,
-    onStart: (Vm) -> Unit,
-    onResume: (Vm) -> Unit,
-    onPause: (Vm) -> Unit,
-    onStop: (Vm) -> Unit,
+    onOpen: (Vm) -> Unit,
 ) {
     val t = UnraidTheme.colors
     val tone = when (vm.state) {
@@ -142,13 +140,7 @@ private fun VmTile(
         VmState.Stopped -> Tone.Neutral
     }
     val dim = vm.state != VmState.Running
-    UnraidCard(padding = UnraidTheme.tokens.padTight, onClick = {
-        when (vm.state) {
-            VmState.Running -> onStop(vm)
-            VmState.Paused  -> onResume(vm)
-            VmState.Stopped -> onStart(vm)
-        }
-    }) {
+    UnraidCard(padding = UnraidTheme.tokens.padTight, onClick = { onOpen(vm) }) {
         Column(
             modifier = Modifier.fillMaxWidth(),
             horizontalAlignment = Alignment.CenterHorizontally,
@@ -202,6 +194,7 @@ private fun EmptyVms() {
 @Composable
 private fun VmCard(
     vm: Vm,
+    onOpen: (Vm) -> Unit,
     onStart: (Vm) -> Unit,
     onResume: (Vm) -> Unit,
     onPause: (Vm) -> Unit,
@@ -216,7 +209,7 @@ private fun VmCard(
         VmState.Stopped -> Tone.Neutral
     }
     val stateLabel = vm.state.name.lowercase()
-    UnraidCard(padding = UnraidTheme.tokens.pad) {
+    UnraidCard(padding = UnraidTheme.tokens.pad, onClick = { onOpen(vm) }) {
         Column {
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                 Box(
