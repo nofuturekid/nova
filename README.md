@@ -4,15 +4,17 @@
 
 **A fast, native Android app for keeping an eye on — and a hand on — your Unraid server.**
 
-[![Stable](https://img.shields.io/github/v/release/nofuturekid/UnraidControl?sort=semver&label=stable&color=blue)](https://github.com/nofuturekid/UnraidControl/releases/latest)
-[![Beta](https://img.shields.io/github/v/release/nofuturekid/UnraidControl?include_prereleases&sort=semver&label=beta&color=orange)](https://github.com/nofuturekid/UnraidControl/releases)
-[![CI](https://img.shields.io/github/actions/workflow/status/nofuturekid/UnraidControl/ci.yml?branch=main&label=CI)](https://github.com/nofuturekid/UnraidControl/actions/workflows/ci.yml)
+[![Stable](https://img.shields.io/github/v/release/nofuturekid/UnraidControl?sort=semver&label=stable&color=blue&style=flat-square&logo=github)](https://github.com/nofuturekid/UnraidControl/releases/latest)
+[![Beta](https://img.shields.io/github/v/release/nofuturekid/UnraidControl?include_prereleases&sort=semver&label=beta&color=orange&style=flat-square&logo=github)](https://github.com/nofuturekid/UnraidControl/releases)
+[![Downloads](https://img.shields.io/github/downloads/nofuturekid/UnraidControl/total?label=downloads&style=flat-square&logo=github)](https://github.com/nofuturekid/UnraidControl/releases)
+
+[![Platform](https://img.shields.io/badge/platform-Android-3DDC84?style=flat-square&logo=android&logoColor=white)](https://github.com/nofuturekid/UnraidControl/releases)
+[![Min Android](https://img.shields.io/badge/Android-8.0%2B-3DDC84?style=flat-square&logo=android&logoColor=white)](https://github.com/nofuturekid/UnraidControl/releases)
+[![Made with Kotlin](https://img.shields.io/badge/Kotlin-Jetpack%20Compose-7F52FF?style=flat-square&logo=kotlin&logoColor=white)](https://kotlinlang.org)
+
+[![CI](https://img.shields.io/github/actions/workflow/status/nofuturekid/UnraidControl/ci.yml?branch=main&label=CI&style=flat-square&logo=githubactions&logoColor=white)](https://github.com/nofuturekid/UnraidControl/actions/workflows/ci.yml)
 [![CodeQL](https://github.com/nofuturekid/UnraidControl/actions/workflows/github-code-scanning/codeql/badge.svg)](https://github.com/nofuturekid/UnraidControl/security/code-scanning)
-[![License: GPL v3](https://img.shields.io/badge/license-GPLv3-blue.svg)](./LICENSE)
-[![Platform](https://img.shields.io/badge/platform-Android-3DDC84?logo=android&logoColor=white)](https://github.com/nofuturekid/UnraidControl/releases)
-[![Min Android](https://img.shields.io/badge/Android-8.0%2B-orange)](https://github.com/nofuturekid/UnraidControl/releases)
-[![Made with Kotlin](https://img.shields.io/badge/Kotlin-Jetpack%20Compose-7F52FF?logo=kotlin&logoColor=white)](https://kotlinlang.org)
-[![Downloads](https://img.shields.io/github/downloads/nofuturekid/UnraidControl/total?label=downloads)](https://github.com/nofuturekid/UnraidControl/releases)
+[![License: GPL v3](https://img.shields.io/badge/license-GPLv3-blue.svg?style=flat-square)](./LICENSE)
 
 </div>
 
