@@ -99,13 +99,13 @@ fun ContainerDetailSheet(
     ) {
         Column(
             // Fixed sheet height so it doesn't jump when switching tabs
-            // or when logs are empty / very long — the content scrolls
-            // inside this stable box instead of resizing the sheet.
+            // or when logs are empty / very long. Header + actions + tabs
+            // stay pinned; only the tab content below scrolls (see the
+            // weight(1f) + verticalScroll box further down).
             modifier = Modifier
                 .fillMaxWidth()
                 .fillMaxHeight(0.8f)
-                .padding(horizontal = 20.dp, vertical = 8.dp)
-                .verticalScroll(rememberScrollState()),
+                .padding(horizontal = 20.dp, vertical = 8.dp),
         ) {
             val tone = when (container.status) {
                 ContainerStatus.Running -> Tone.Accent
@@ -276,13 +276,23 @@ fun ContainerDetailSheet(
             }
             Spacer(Modifier.height(16.dp))
 
-            when (tab) {
-                DetailTab.Info    -> InfoTabContent(container)
-                DetailTab.Logs    -> LogsTabContent(container, logs, logsLoading)
-                DetailTab.Ports   -> PortsTabContent(container)
-                DetailTab.Volumes -> VolumesTabContent(container)
+            // Only the tab content scrolls; the header/actions/tabs above
+            // stay fixed. weight(1f) makes it take the remaining height of
+            // the fixed-height sheet.
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .weight(1f)
+                    .verticalScroll(rememberScrollState()),
+            ) {
+                when (tab) {
+                    DetailTab.Info    -> InfoTabContent(container)
+                    DetailTab.Logs    -> LogsTabContent(container, logs, logsLoading)
+                    DetailTab.Ports   -> PortsTabContent(container)
+                    DetailTab.Volumes -> VolumesTabContent(container)
+                }
+                Spacer(Modifier.height(24.dp))
             }
-            Spacer(Modifier.height(24.dp))
         }
     }
 }
