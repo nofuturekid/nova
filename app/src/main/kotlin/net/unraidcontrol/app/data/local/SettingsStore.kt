@@ -44,7 +44,7 @@ enum class LayoutMode { List, Grid, Grouped }
 
 @Singleton
 class SettingsStore @Inject constructor(
-    @ApplicationContext private val context: Context,
+    @param:ApplicationContext private val context: Context,
 ) {
     private val ds = context.dataStore
     private val json = Json { ignoreUnknownKeys = true }

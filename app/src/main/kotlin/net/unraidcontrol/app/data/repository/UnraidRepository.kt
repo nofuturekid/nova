@@ -140,7 +140,7 @@ class UnraidRepository @Inject constructor(
                             consecutiveErrors++
                             val tolerated = lastContent != null &&
                                 consecutiveErrors < TRANSIENT_ERROR_TOLERANCE
-                            emit(if (tolerated) lastContent!! else result)
+                            emit(if (tolerated) lastContent else result)
                         }
                         else -> emit(result)
                     }

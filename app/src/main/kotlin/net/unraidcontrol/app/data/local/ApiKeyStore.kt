@@ -10,7 +10,7 @@ import javax.inject.Singleton
 /** API keys are sensitive — keep them out of DataStore and in Tink-backed encrypted prefs. */
 @Singleton
 class ApiKeyStore @Inject constructor(
-    @ApplicationContext private val context: Context,
+    @param:ApplicationContext private val context: Context,
 ) {
     private val masterKey by lazy {
         MasterKey.Builder(context)
