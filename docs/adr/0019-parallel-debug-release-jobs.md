@@ -1,6 +1,6 @@
 # ADR-0019: Split CI into parallel debug + release jobs
 
-- **Status**: Proposed
+- **Status**: Accepted
 - **Date**: 2026-05-14
 - **Tags**: ci, performance
 

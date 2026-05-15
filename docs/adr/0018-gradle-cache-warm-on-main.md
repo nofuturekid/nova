@@ -1,6 +1,6 @@
 # ADR-0018: Populate the Gradle build cache on push to main
 
-- **Status**: Proposed
+- **Status**: Accepted
 - **Date**: 2026-05-14
 - **Tags**: ci, performance
 
