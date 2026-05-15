@@ -283,13 +283,22 @@ fun MainScreen(
     }
 
     if (openContainer != null) {
-        val baseUrl = (dockerState as? DomainState.Content<List<Container>>)
-            ?.serverBaseUrl.orEmpty()
+        val dockerContent = dockerState as? DomainState.Content<List<Container>>
+        // Show the LIVE container from the latest snapshot, not the
+        // frozen one captured on tap. Otherwise the "Update" button keeps
+        // showing (and just flickers as isUpdating toggles) after a
+        // successful update, because the snapshot's updateStatus never
+        // refreshes. Match by id, fall back to name in case a recreate
+        // changed the id, snapshot as last resort.
+        val shown = dockerContent?.value?.firstOrNull { it.id == openContainer!!.id }
+            ?: dockerContent?.value?.firstOrNull { it.name == openContainer!!.name }
+            ?: openContainer!!
+        val baseUrl = dockerContent?.serverBaseUrl.orEmpty()
         val updatingIds by vm.updatingContainerIds.collectAsState()
         ContainerDetailSheet(
-            container = openContainer!!,
+            container = shown,
             serverBaseUrl = baseUrl,
-            isUpdating = openContainer!!.id in updatingIds,
+            isUpdating = shown.id in updatingIds,
             onFetchLogs = { id -> vm.containerLogs(id) },
             onDismiss = { openContainer = null },
             onStart   = { vm.startContainer(it.id); openContainer = null },
