@@ -1,168 +1,82 @@
+<div align="center">
+
 # UnraidControl
 
-Native Android client for Unraid NAS servers. Kotlin + Jetpack Compose, talks to the Unraid Connect GraphQL API over HTTPS with an `x-api-key` header.
+**A fast, native Android app for keeping an eye on — and a hand on — your Unraid server.**
 
-This is a fresh scaffold built from the Claude Design HTML/CSS prototype. The visual language (dark/glassy Material 3, accent palette, dense cards) matches the prototype; the implementation is real native code.
+[![Latest release](https://img.shields.io/github/v/release/nofuturekid/UnraidControl?include_prereleases&sort=semver&label=release)](https://github.com/nofuturekid/UnraidControl/releases)
+[![CI](https://img.shields.io/github/actions/workflow/status/nofuturekid/UnraidControl/ci.yml?branch=main&label=CI)](https://github.com/nofuturekid/UnraidControl/actions/workflows/ci.yml)
+[![License: GPL v3](https://img.shields.io/badge/license-GPLv3-blue.svg)](./LICENSE)
+[![Platform](https://img.shields.io/badge/platform-Android-3DDC84?logo=android&logoColor=white)](https://github.com/nofuturekid/UnraidControl/releases)
+[![Min Android](https://img.shields.io/badge/Android-8.0%2B-orange)](https://github.com/nofuturekid/UnraidControl/releases)
+[![Made with Kotlin](https://img.shields.io/badge/Kotlin-Jetpack%20Compose-7F52FF?logo=kotlin&logoColor=white)](https://kotlinlang.org)
+[![Downloads](https://img.shields.io/github/downloads/nofuturekid/UnraidControl/total?label=downloads)](https://github.com/nofuturekid/UnraidControl/releases)
 
-## Status
+</div>
 
-| Area | State |
-| --- | --- |
-| Gradle scaffold | ✅ |
-| Theme + density system | ✅ |
-| 4 main tabs (Overview / Array / Docker / VMs) | ✅ |
-| Server list + Add/Edit (with Test Connection) | ✅ |
-| Container detail (Info / Ports / Volumes) | ✅ |
-| Container logs streaming | ⚠️ placeholder — needs GraphQL subscription wire-up |
-| Confirm dialogs for destructive actions | ✅ |
-| Settings (accent / dark / density / docker view) | ✅ |
-| Pull-to-refresh | ✅ |
-| GraphQL schema | ⚠️ hand-written — verify against your Unraid Connect version |
-| Downloadable fonts (Inter / JetBrains Mono) | ⚠️ falls back to system fonts; see "Fonts" below |
+---
 
-## Requirements
+UnraidControl puts the parts of your Unraid server you actually check on your phone — array health, container and VM state, live system metrics — into a clean, dark, one-thumb interface. Start a container, fix a stuck VM, kick off an update, glance at parity progress: without opening a laptop or fighting the desktop web UI on a phone screen.
 
-- **JDK 17** on `JAVA_HOME`
-- **Android SDK** with platform 36 (Android 16) installed
-- **Gradle 8.10.2** (the wrapper will fetch this automatically once `gradle-wrapper.jar` is present)
-- An Unraid 7.x server running the Connect plugin, with an API key
+It talks to your server through the official Unraid API (the Connect plugin's GraphQL endpoint) over your own network — nothing is routed through any third party.
 
-## First build
+## Screenshots
 
-The Gradle wrapper is committed, so a checkout is enough:
+<div align="center">
 
-```bash
-./gradlew :app:assembleDebug
-```
+| Overview | Docker | Container detail |
+|:---:|:---:|:---:|
+| ![Overview](docs/screenshots/overview.png) | ![Docker](docs/screenshots/docker.png) | ![Container detail](docs/screenshots/container-detail.png) |
 
-Apollo's codegen runs as part of the build and produces `net.unraidcontrol.app.graphql.*` types from the `.graphqls` files under `app/src/main/graphql/`.
+</div>
 
-## CI / CD
+> _Screenshots coming soon — drop PNGs into `docs/screenshots/` named `overview.png`, `docker.png`, `container-detail.png`._
 
-Two GitHub Actions workflows live in `.github/workflows/`:
+## What you can do
 
-- **`build.yml`** — every push to `main` and every PR. Builds a debug APK + runs Android Lint. The APK lives as an `app-debug` workflow artifact for 30 days.
-- **`release.yml`** — every push of a tag matching `v*` (e.g. `v0.1.0`). Builds a signed release APK, verifies the APK signature with `apksigner`, and publishes a GitHub Release with the APK + ProGuard mapping attached.
+- **Overview** — array capacity, CPU & memory live, container/VM counts, parity-check progress at a glance
+- **Array** — disk-by-disk status, temperatures, capacity, start/stop the array
+- **Docker** — every container with status; start / stop / restart / pause, jump straight to a container's Web UI, see which have image updates and update one — or all — in a tap
+- **VMs** — VM state with start / stop / pause / resume
+- **Multiple servers** — switch between them; each remembers its own local and remote address
+- **Stay current** — the app checks GitHub for its own updates and installs them in place
 
-### Release signing
+## Look & feel
 
-The release workflow expects four repository secrets (Settings → Secrets and variables → Actions):
+A deliberately dark, glassy Material 3 design — dense cards, a single accent color, restrained motion. Tuned for quick checks, not for living in.
 
-| Secret | Notes |
-| --- | --- |
-| `KEYSTORE_B64` | Base64 of the release keystore (`base64 -w 0 app/release.keystore`). |
-| `KEYSTORE_PASSWORD` | Keystore password. |
-| `KEY_PASSWORD` | Key password — PKCS12 keystores require this to equal `KEYSTORE_PASSWORD`. |
-| `KEY_ALIAS` | Alias inside the keystore (e.g. `unraidcontrol`). |
+A few things bend to taste in **Settings**:
 
-`app/build.gradle.kts` reads these from env vars in CI and falls back to the debug-signed config if `app/release.keystore` isn't present, so local debug builds work without any secrets.
+- **Accent** — mint, blue, purple, amber or red
+- **Mode** — dark or light
+- **Density** — compact, balanced or spacious padding
+- **Docker layout** — list, grid or grouped-by-state
 
-### Cutting a release
+## Getting started
 
-```bash
-git tag v0.1.0
-git push --tags
-```
+1. **Install** the latest APK from the [Releases page](https://github.com/nofuturekid/UnraidControl/releases). (Android will ask you to allow installing from your browser/files app — that's expected for apps outside the Play Store.)
+2. On your Unraid server, generate an **API key**: web UI → _Settings → Management Access → API / Connect_.
+3. Open the app → **Add server** and fill in:
+   - **Name** — a label, e.g. `Tower`
+   - **Local URL** — its address on your home network, e.g. `http://192.168.1.10`
+   - **Remote URL** — optional, e.g. a Connect/remote address for when you're away
+   - **API key** — the one you just generated
+4. Tap **Test**, then **Save**. The pill in the top bar flips between **Local** and **Remote**.
 
-This kicks off `release.yml`, which produces `UnraidControl-v0.1.0.apk` on the GitHub Releases page.
+Requires an Unraid 7.x server with the API/Connect plugin enabled.
 
-## Configuring the app
+## Not affiliated with Lime Technology
 
-On first launch you'll see "No server configured". Tap **Menu → Add server**, fill in:
+UnraidControl is an independent, community-built client. "Unraid" is a trademark of Lime Technology, Inc. This project is not affiliated with, endorsed by, or supported by Lime Technology.
 
-- **Server name** — display label (e.g. "Tower")
-- **Local URL** — base address on your home network, e.g. `http://192.168.1.10`
-- **Remote URL** — optional Unraid Connect host, e.g. `https://your-server.unraid.net`
-- **API Key** — generate in the Unraid web UI under Settings → Management Access → Connect
+## Contributing & internals
 
-Hit **Test** to verify, then **Save**. The connection-mode pill in the top bar toggles between Local and Remote.
-
-## Unraid Connect schema
-
-The GraphQL schema in `app/src/main/graphql/net/unraidcontrol/app/schema.graphqls` is **hand-written**. It's modelled on documented Unraid Connect shapes, but field names may differ between Connect plugin versions. If a query fails with `Cannot query field "X"`:
-
-1. Hit `https://{your-server}/graphql` in a browser with the Connect plugin's GraphQL playground enabled, or run an introspection query.
-2. Compare against the operations in `queries.graphql` / `mutations.graphql`.
-3. Adjust the schema + operations to match. UI code is decoupled via domain models in `data/model/`, so renames only affect the schema files and `data/api/GraphQlMapper.kt`.
-
-The currently assumed operations:
-
-| Operation | Query | Notes |
-| --- | --- | --- |
-| Snapshot | `GetServerSnapshot` | One poll fetches info, array, disks, dockerContainers, vms |
-| Array | `startArray`, `stopArray` | No variables |
-| Container | `startContainer`, `stopContainer`, `restartContainer`, `pauseContainer` | `id: ID!` |
-| VM | `startVm`, `stopVm(force)`, `pauseVm`, `resumeVm` | `id: ID!`, optional `force: Boolean` |
-
-Container logs are not wired yet — the detail sheet shows a placeholder. Once you confirm the live schema has a subscription or query for logs, add an operation and replace `LogsTabPlaceholder` in `ui/screens/container/ContainerDetailSheet.kt`.
-
-## Architecture
-
-```
-ui/             Composables + ViewModels (MVVM)
-  theme/        Custom dark/light palette + density tokens (CompositionLocals)
-  components/   Card, Pill, Btn, Sparkline, ConfirmDialog, UnraidField, etc.
-  screens/      Per-screen composables + Hilt ViewModels
-  nav/          NavHost
-data/
-  model/        Domain types (Server, Container, Vm, Disk, ...)
-  api/          ApolloClientFactory + GraphQL → domain mappers
-  local/        SettingsStore (DataStore) + ApiKeyStore (EncryptedSharedPreferences)
-  repository/   UnraidRepository (snapshot polling + mutations),
-                ServerRepository (servers CRUD), SettingsRepository (theme)
-di/             Hilt modules
-graphql/        Schema + operations (Apollo codegen input)
-```
-
-- All state flows are Hilt-scoped singletons or screen-scoped `StateFlow`s
-- Polling cadence: 2s on the active server while any tab is foregrounded
-- API keys are stored under Tink-encrypted prefs (`unraid_keys.xml`); excluded from cloud backup / device transfer
-
-## Theme & density
-
-The prototype's Tweaks panel is intentionally not shipped — it was a design-time tool. The user-facing equivalents live in the Settings screen (top-bar menu when no server is selected, or tap Edit on the active server to reach Add/Edit; the standalone Settings is reached via NavHost route `settings`):
-
-- **Accent**: 5 swatches (mint / blue / purple / amber / red)
-- **Mode**: dark / light
-- **Density**: compact (12dp pad) / balanced (16dp) / spacious (20dp)
-- **Docker view**: list / grid / grouped
-
-Each option drives the relevant CompositionLocal and rerenders the tree.
-
-## Fonts
-
-The Compose typography references `FontFamily.Default` (Roboto) and `FontFamily.Monospace`. To get pixel parity with the prototype's Inter + JetBrains Mono:
-
-1. Download the TTF files from Google Fonts.
-2. Drop them under `app/src/main/res/font/` as e.g. `inter_regular.ttf`, `inter_semibold.ttf`, etc.
-3. Update `ui/theme/Type.kt` to reference them via `FontFamily(Font(R.font.inter_regular, ...), ...)`.
-
-Alternatively, set up Downloadable Fonts via `androidx.compose.ui.text.googlefonts.GoogleFont.Provider` — that requires the canonical Google Play Services cert array (see Compose docs). Skipped here to keep the scaffold self-contained.
-
-## What's intentionally not in this scaffold
-
-- Tests (Compose UI tests, repository tests) — easy to add but out of scope for this pass
-- ProGuard rules beyond the minimum
-- Crash reporting / analytics
-- App Store assets
-
-## Reference
-
-The original design prototype is in the handoff bundle (`/tmp/design_extracted/unraid-control/`). Use it as the visual spec when adjusting the Compose UI — colors, spacing, and component shapes there are the source of truth.
+Architecture, the release pipeline, the GraphQL mapping, and design decisions live in [`CONTRIBUTING.md`](./CONTRIBUTING.md) and the Architecture Decision Records under [`docs/adr/`](./docs/adr/). Bug reports and PRs welcome.
 
 ## License
 
-[![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](https://www.gnu.org/licenses/gpl-3.0)
+[![License: GPL v3](https://img.shields.io/badge/license-GPLv3-blue.svg)](./LICENSE)
 
-This project is licensed under the **GNU General Public License v3.0** (GPL-3.0). In plain English:
-
-- ✅ Use it privately, on your own server, for any purpose — including commercial
-- ✅ Modify it and run modifications privately
-- 📤 If you distribute the app or a modification, you must publish the corresponding source under the same GPL v3 license
-- 🏷️ Keep the copyright notice and license intact in redistributions
-
-Full legal text: [LICENSE](./LICENSE) · canonical: [gnu.org/licenses/gpl-3.0.html](https://www.gnu.org/licenses/gpl-3.0.html)
-
-Relicensed from CC BY-NC-SA 4.0 in [ADR-0021](./docs/adr/0021-relicense-to-gpl-3.md).
+GNU General Public License v3.0. Use it (including commercially), modify it, run it — but if you distribute the app or a fork, the corresponding source has to be available under the same license. Full text in [`LICENSE`](./LICENSE); rationale in [ADR-0021](./docs/adr/0021-relicense-to-gpl-3.md).
 
 © 2026 nofuturekid
