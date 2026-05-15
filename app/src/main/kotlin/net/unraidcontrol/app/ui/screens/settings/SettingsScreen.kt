@@ -426,7 +426,7 @@ private fun <T> Segmented(
     Row(
         modifier = Modifier
             .clip(RoundedCornerShape(10.dp))
-            .background(Color.White.copy(alpha = 0.06f))
+            .background(t.muted.copy(alpha = 0.10f))
             .padding(2.dp),
     ) {
         options.forEach { opt ->
@@ -434,13 +434,13 @@ private fun <T> Segmented(
             Box(
                 modifier = Modifier
                     .clip(RoundedCornerShape(8.dp))
-                    .background(if (selected) t.surface else Color.Transparent)
+                    .background(if (selected) t.accentDim else Color.Transparent)
                     .clickable { onChange(opt) }
                     .padding(horizontal = 10.dp, vertical = 6.dp),
             ) {
                 Text(
                     text = label(opt),
-                    color = if (selected) t.text else t.muted,
+                    color = if (selected) t.accent else t.muted,
                     fontSize = 12.sp,
                     fontWeight = FontWeight.SemiBold,
                 )

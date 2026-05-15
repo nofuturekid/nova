@@ -210,7 +210,7 @@ private fun SearchBox(value: String, onChange: (String) -> Unit) {
         modifier = Modifier
             .fillMaxWidth()
             .clip(CircleShape)
-            .background(Color.White.copy(alpha = 0.04f))
+            .background(t.muted.copy(alpha = 0.08f))
             .border(1.dp, t.border, CircleShape)
             .padding(horizontal = 14.dp, vertical = 10.dp),
         verticalAlignment = Alignment.CenterVertically,

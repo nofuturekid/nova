@@ -36,7 +36,7 @@ fun UnraidProgress(
             .fillMaxWidth()
             .height(height)
             .clip(shape)
-            .background(track ?: Color.White.copy(alpha = 0.06f)),
+            .background(track ?: t.muted.copy(alpha = 0.18f)),
     ) {
         Box(
             modifier = Modifier
@@ -56,13 +56,14 @@ fun StackBar(
     modifier: Modifier = Modifier,
     height: Dp = 8.dp,
 ) {
+    val t = UnraidTheme.colors
     val shape = RoundedCornerShape(height / 2)
     Row(
         modifier = modifier
             .fillMaxWidth()
             .height(height)
             .clip(shape)
-            .background(Color.White.copy(alpha = 0.05f)),
+            .background(t.muted.copy(alpha = 0.18f)),
     ) {
         segments.forEach { s ->
             Box(

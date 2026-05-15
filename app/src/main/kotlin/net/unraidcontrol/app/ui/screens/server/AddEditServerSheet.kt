@@ -174,7 +174,7 @@ fun AddEditServerSheet(
                     modifier = Modifier
                         .width(36.dp)
                         .height(4.dp)
-                        .background(Color.White.copy(alpha = 0.18f), RoundedCornerShape(2.dp)),
+                        .background(t.muted.copy(alpha = 0.40f), RoundedCornerShape(2.dp)),
                 )
             }
             Spacer(Modifier.height(14.dp))
@@ -277,7 +277,7 @@ private fun TestConnectionPanel(state: TestState, onTest: () -> Unit, message: S
     val bg = when (state) {
         TestState.Ok   -> t.accent.copy(alpha = 0.08f)
         TestState.Fail -> t.danger.copy(alpha = 0.08f)
-        else           -> Color.White.copy(alpha = 0.04f)
+        else           -> t.muted.copy(alpha = 0.08f)
     }
     val border = when (state) {
         TestState.Ok   -> t.accent.copy(alpha = 0.30f)

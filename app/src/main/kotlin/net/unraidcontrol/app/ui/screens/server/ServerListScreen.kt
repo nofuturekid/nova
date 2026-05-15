@@ -127,7 +127,7 @@ fun ServerListScreen(
                             modifier = Modifier
                                 .size(40.dp)
                                 .clip(RoundedCornerShape(12.dp))
-                                .background(if (active) t.accentDim else androidx.compose.ui.graphics.Color.White.copy(alpha = 0.05f)),
+                                .background(if (active) t.accentDim else t.muted.copy(alpha = 0.12f)),
                             contentAlignment = Alignment.Center,
                         ) {
                             UC.Server(20.dp, if (active) t.accent else t.muted)

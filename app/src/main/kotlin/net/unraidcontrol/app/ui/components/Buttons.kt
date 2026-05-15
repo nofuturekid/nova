@@ -47,18 +47,31 @@ fun UnraidButton(
     val bg: Color
     val fg: Color
     val showBorder: Boolean
-    when (variant) {
-        BtnVariant.Filled  -> { bg = toneColor;                       fg = Color(0xFF06120E); showBorder = false }
-        BtnVariant.Tonal   -> { bg = toneColor.copy(alpha = 0.16f);   fg = toneColor;          showBorder = false }
-        BtnVariant.Outline -> { bg = Color.Transparent;               fg = t.text;             showBorder = true  }
-        BtnVariant.Text    -> { bg = Color.Transparent;               fg = toneColor;          showBorder = false }
+    if (!enabled) {
+        // Disabled: derive a theme-correct muted style instead of
+        // alpha-dimming the whole button. The old .alpha(0.5f) made
+        // Filled's hard-coded dark on-accent text unreadable on the
+        // dark sheet surface, and toggling enabled (e.g. Save's
+        // canSave) looked like an erratic colour flip.
+        fg = t.muted
+        when (variant) {
+            BtnVariant.Filled, BtnVariant.Tonal -> { bg = t.muted.copy(alpha = 0.14f); showBorder = false }
+            BtnVariant.Outline                  -> { bg = Color.Transparent;           showBorder = true  }
+            BtnVariant.Text                     -> { bg = Color.Transparent;           showBorder = false }
+        }
+    } else {
+        when (variant) {
+            BtnVariant.Filled  -> { bg = toneColor;                       fg = Color(0xFF06120E); showBorder = false }
+            BtnVariant.Tonal   -> { bg = toneColor.copy(alpha = 0.16f);   fg = toneColor;          showBorder = false }
+            BtnVariant.Outline -> { bg = Color.Transparent;               fg = t.text;             showBorder = true  }
+            BtnVariant.Text    -> { bg = Color.Transparent;               fg = toneColor;          showBorder = false }
+        }
     }
     val base = modifier
         .then(if (fullWidth) Modifier.fillMaxWidth() else Modifier)
         .clip(CircleShape)
         .background(bg)
         .let { if (showBorder) it.border(BorderStroke(1.dp, t.border), CircleShape) else it }
-        .alpha(if (enabled) 1f else 0.5f)
         .clickable(enabled = enabled, onClick = onClick)
         .padding(horizontal = 18.dp, vertical = 10.dp)
 
@@ -87,7 +100,7 @@ fun UnraidIconButton(
         Tone.Danger  -> t.danger.copy(alpha = 0.14f)
         Tone.Warn    -> t.warn.copy(alpha = 0.14f)
         Tone.Info    -> t.info.copy(alpha = 0.14f)
-        Tone.Neutral -> Color.White.copy(alpha = 0.05f)
+        Tone.Neutral -> t.muted.copy(alpha = 0.12f)
         null         -> Color.Transparent
     }
     Box(

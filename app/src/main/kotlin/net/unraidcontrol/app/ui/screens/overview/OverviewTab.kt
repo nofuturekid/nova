@@ -193,7 +193,7 @@ private fun OverviewContent(
                     StackBar(
                         segments = listOf(
                             StackSegment(arrUsedTb.toFloat(), t.accent),
-                            StackSegment((arrTotalTb - arrUsedTb).coerceAtLeast(0.0).toFloat(), Color.White.copy(alpha = 0.07f)),
+                            StackSegment((arrTotalTb - arrUsedTb).coerceAtLeast(0.0).toFloat(), t.muted.copy(alpha = 0.20f)),
                         ),
                     )
                     Spacer(Modifier.height(8.dp))

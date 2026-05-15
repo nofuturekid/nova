@@ -71,7 +71,7 @@ fun UpdateDialog(
                         .width(36.dp)
                         .height(4.dp)
                         .clip(RoundedCornerShape(2.dp))
-                        .background(Color.White.copy(alpha = 0.18f)),
+                        .background(t.muted.copy(alpha = 0.40f)),
                 )
             }
             Spacer(Modifier.height(14.dp))
@@ -113,7 +113,7 @@ fun UpdateDialog(
                         .fillMaxWidth()
                         .heightConstrainedAtMost(220.dp)
                         .clip(RoundedCornerShape(10.dp))
-                        .background(Color.White.copy(alpha = 0.04f))
+                        .background(t.muted.copy(alpha = 0.08f))
                         .padding(12.dp),
                 ) {
                     // Default Markdown typography maps headers to MaterialTheme
