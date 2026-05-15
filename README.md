@@ -4,7 +4,8 @@
 
 **A fast, native Android app for keeping an eye on — and a hand on — your Unraid server.**
 
-[![Latest release](https://img.shields.io/github/v/release/nofuturekid/UnraidControl?include_prereleases&sort=semver&label=release)](https://github.com/nofuturekid/UnraidControl/releases)
+[![Stable](https://img.shields.io/github/v/release/nofuturekid/UnraidControl?sort=semver&label=stable)](https://github.com/nofuturekid/UnraidControl/releases/latest)
+[![Beta](https://img.shields.io/github/v/release/nofuturekid/UnraidControl?include_prereleases&sort=semver&label=beta)](https://github.com/nofuturekid/UnraidControl/releases)
 [![CI](https://img.shields.io/github/actions/workflow/status/nofuturekid/UnraidControl/ci.yml?branch=main&label=CI)](https://github.com/nofuturekid/UnraidControl/actions/workflows/ci.yml)
 [![CodeQL](https://github.com/nofuturekid/UnraidControl/actions/workflows/github-code-scanning/codeql/badge.svg)](https://github.com/nofuturekid/UnraidControl/security/code-scanning)
 [![License: GPL v3](https://img.shields.io/badge/license-GPLv3-blue.svg)](./LICENSE)
