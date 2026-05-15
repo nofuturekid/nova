@@ -38,6 +38,7 @@ import net.unraidcontrol.app.graphql.StartContainerMutation
 import net.unraidcontrol.app.graphql.StartVmMutation
 import net.unraidcontrol.app.graphql.StopArrayMutation
 import net.unraidcontrol.app.graphql.StopContainerMutation
+import net.unraidcontrol.app.graphql.UpdateContainerMutation
 import net.unraidcontrol.app.graphql.StopVmMutation
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -193,11 +194,23 @@ class UnraidRepository @Inject constructor(
     private fun buildClient(active: ActiveServer): ApolloClient =
         apolloFactory.build(activeUrl(active), active.apiKey)
 
+    private fun buildLongRunningClient(active: ActiveServer): ApolloClient =
+        apolloFactory.buildLongRunning(activeUrl(active), active.apiKey)
+
     // ── Mutations ─────────────────────────────────────────────────────
     private suspend fun activeClient(): ApolloClient? {
         val active = servers.activeWithKey.first() ?: return null
         if (active.apiKey.isBlank()) return null
         return buildClient(active)
+    }
+
+    /** Same as [activeClient] but with the long-running timeouts (10 min
+     *  read/write). Use for mutations that pull images or otherwise spin
+     *  server-side work for minutes. See ADR-0016. */
+    private suspend fun activeLongRunningClient(): ApolloClient? {
+        val active = servers.activeWithKey.first() ?: return null
+        if (active.apiKey.isBlank()) return null
+        return buildLongRunningClient(active)
     }
 
     suspend fun startArray() { activeClient()?.mutation(StartArrayMutation())?.execute() }
@@ -212,6 +225,15 @@ class UnraidRepository @Inject constructor(
         c.mutation(StartContainerMutation(id)).execute()
     }
     suspend fun pauseContainer(id: String)   { activeClient()?.mutation(PauseContainerMutation(id))?.execute() }
+
+    /** Pulls the latest image and recreates the container. Server-side work
+     *  routinely takes 30 s – several minutes, so this routes through the
+     *  long-running Apollo client (ADR-0016). Caller (the ViewModel) marks
+     *  the container as updating before invoking and clears the mark in
+     *  finally — see [MainViewModel.updateContainer]. */
+    suspend fun updateContainer(id: String) {
+        activeLongRunningClient()?.mutation(UpdateContainerMutation(id))?.execute()
+    }
 
     suspend fun startVm(id: String)  { activeClient()?.mutation(StartVmMutation(id))?.execute() }
     suspend fun stopVm(id: String, force: Boolean = false) {

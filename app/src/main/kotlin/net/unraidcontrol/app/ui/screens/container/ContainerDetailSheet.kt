@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -55,11 +56,13 @@ private enum class DetailTab { Info, Logs, Ports, Volumes }
 fun ContainerDetailSheet(
     container: Container,
     serverBaseUrl: String,
+    isUpdating: Boolean,
     onFetchLogs: suspend (id: String) -> List<net.unraidcontrol.app.data.model.LogLine>,
     onDismiss: () -> Unit,
     onStart: (Container) -> Unit,
     onRestart: (Container) -> Unit,
     onStop: (Container) -> Unit,
+    onUpdate: (Container) -> Unit,
 ) {
     val t = UnraidTheme.colors
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
@@ -133,34 +136,75 @@ fun ContainerDetailSheet(
             }
             Spacer(Modifier.height(18.dp))
 
-            Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                if (container.status == ContainerStatus.Running) {
-                    UnraidButton(
-                        onClick = { onRestart(container) },
-                        label = "Restart",
-                        modifier = Modifier.weight(1f),
-                        variant = BtnVariant.Tonal,
-                        fullWidth = true,
-                        leadingIcon = { UC.Restart(14.dp, t.accent) },
+            if (isUpdating) {
+                // Mutation is in flight (image pull + recreate, can take
+                // minutes). Suppress all lifecycle actions to avoid the user
+                // hitting Start/Stop while the server is recreating the
+                // container. Snapshot polling clears this state once the
+                // new container is RUNNING.
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(10.dp))
+                        .background(t.info.copy(alpha = 0.10f))
+                        .padding(horizontal = 14.dp, vertical = 12.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(10.dp),
+                ) {
+                    androidx.compose.material3.CircularProgressIndicator(
+                        color = t.info,
+                        strokeWidth = 2.dp,
+                        modifier = Modifier.size(16.dp),
                     )
-                    UnraidButton(
-                        onClick = { onStop(container) },
-                        label = "Stop",
-                        modifier = Modifier.weight(1f),
-                        variant = BtnVariant.Tonal,
-                        tone = Tone.Danger,
-                        fullWidth = true,
-                        leadingIcon = { UC.Stop(14.dp, t.danger) },
+                    Text(
+                        text = "Updating container…",
+                        color = t.info,
+                        fontSize = 13.sp,
+                        fontWeight = FontWeight.Medium,
                     )
-                } else {
+                }
+            } else {
+                if (container.updateStatus.hasUpdate()) {
                     UnraidButton(
-                        onClick = { onStart(container) },
-                        label = "Start",
-                        modifier = Modifier.weight(1f),
+                        onClick = { onUpdate(container) },
+                        label = "Update container",
+                        modifier = Modifier.fillMaxWidth(),
                         variant = BtnVariant.Filled,
+                        tone = Tone.Info,
                         fullWidth = true,
-                        leadingIcon = { UC.Play(14.dp, Color(0xFF06120E)) },
+                        leadingIcon = { UC.Refresh(14.dp, Color(0xFF06120E)) },
                     )
+                    Spacer(Modifier.height(8.dp))
+                }
+                Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                    if (container.status == ContainerStatus.Running) {
+                        UnraidButton(
+                            onClick = { onRestart(container) },
+                            label = "Restart",
+                            modifier = Modifier.weight(1f),
+                            variant = BtnVariant.Tonal,
+                            fullWidth = true,
+                            leadingIcon = { UC.Restart(14.dp, t.accent) },
+                        )
+                        UnraidButton(
+                            onClick = { onStop(container) },
+                            label = "Stop",
+                            modifier = Modifier.weight(1f),
+                            variant = BtnVariant.Tonal,
+                            tone = Tone.Danger,
+                            fullWidth = true,
+                            leadingIcon = { UC.Stop(14.dp, t.danger) },
+                        )
+                    } else {
+                        UnraidButton(
+                            onClick = { onStart(container) },
+                            label = "Start",
+                            modifier = Modifier.weight(1f),
+                            variant = BtnVariant.Filled,
+                            fullWidth = true,
+                            leadingIcon = { UC.Play(14.dp, Color(0xFF06120E)) },
+                        )
+                    }
                 }
             }
             Spacer(Modifier.height(16.dp))

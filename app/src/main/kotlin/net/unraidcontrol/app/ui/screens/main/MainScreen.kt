@@ -253,9 +253,11 @@ fun MainScreen(
     if (openContainer != null) {
         val baseUrl = (dockerState as? DomainState.Content<List<Container>>)
             ?.serverBaseUrl.orEmpty()
+        val updatingIds by vm.updatingContainerIds.collectAsState()
         ContainerDetailSheet(
             container = openContainer!!,
             serverBaseUrl = baseUrl,
+            isUpdating = openContainer!!.id in updatingIds,
             onFetchLogs = { id -> vm.containerLogs(id) },
             onDismiss = { openContainer = null },
             onStart   = { vm.startContainer(it.id); openContainer = null },
@@ -270,6 +272,7 @@ fun MainScreen(
                     onConfirm = { vm.stopContainer(c.id); confirm = null; openContainer = null },
                 )
             },
+            onUpdate  = { c -> vm.updateContainer(c.id) },
         )
     }
 
