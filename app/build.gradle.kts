@@ -1,6 +1,5 @@
 plugins {
     alias(libs.plugins.android.application)
-    alias(libs.plugins.kotlin.android)
     alias(libs.plugins.kotlin.compose)
     alias(libs.plugins.kotlin.serialization)
     alias(libs.plugins.ksp)
@@ -16,8 +15,8 @@ android {
         applicationId = "net.unraidcontrol.app"
         minSdk = 26
         targetSdk = 36
-        versionCode = 36
-        versionName = "0.1.27-beta1"
+        versionCode = 37
+        versionName = "0.1.28-beta1"
 
         vectorDrawables { useSupportLibrary = true }
     }
@@ -57,12 +56,8 @@ android {
     }
 
     compileOptions {
-        sourceCompatibility = JavaVersion.VERSION_17
-        targetCompatibility = JavaVersion.VERSION_17
-    }
-
-    kotlin {
-        jvmToolchain(17)
+        sourceCompatibility = JavaVersion.VERSION_21
+        targetCompatibility = JavaVersion.VERSION_21
     }
 
     sourceSets["main"].kotlin.srcDir("src/main/kotlin")
@@ -82,6 +77,12 @@ android {
             )
         }
     }
+}
+
+// AGP 9 built-in Kotlin: the kotlin {} extension is top-level (no longer
+// nested in android {}). Toolchain 21 — see ADR-0023.
+kotlin {
+    jvmToolchain(21)
 }
 
 apollo {
