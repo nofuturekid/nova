@@ -6,6 +6,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
@@ -97,8 +98,12 @@ fun ContainerDetailSheet(
         },
     ) {
         Column(
+            // Fixed sheet height so it doesn't jump when switching tabs
+            // or when logs are empty / very long — the content scrolls
+            // inside this stable box instead of resizing the sheet.
             modifier = Modifier
                 .fillMaxWidth()
+                .fillMaxHeight(0.8f)
                 .padding(horizontal = 20.dp, vertical = 8.dp)
                 .verticalScroll(rememberScrollState()),
         ) {
