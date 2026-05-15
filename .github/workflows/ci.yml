@@ -18,6 +18,12 @@ on:
   pull_request:
   workflow_dispatch:
 
+# Least-privilege GITHUB_TOKEN (CodeQL actions/missing-workflow-permissions).
+# CI only checks out + builds + uploads artifacts within the same run —
+# read access to repo contents is all it needs.
+permissions:
+  contents: read
+
 concurrency:
   group: ci-${{ github.ref }}
   cancel-in-progress: true

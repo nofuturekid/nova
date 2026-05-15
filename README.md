@@ -6,6 +6,7 @@
 
 [![Latest release](https://img.shields.io/github/v/release/nofuturekid/UnraidControl?include_prereleases&sort=semver&label=release)](https://github.com/nofuturekid/UnraidControl/releases)
 [![CI](https://img.shields.io/github/actions/workflow/status/nofuturekid/UnraidControl/ci.yml?branch=main&label=CI)](https://github.com/nofuturekid/UnraidControl/actions/workflows/ci.yml)
+[![CodeQL](https://github.com/nofuturekid/UnraidControl/actions/workflows/github-code-scanning/codeql/badge.svg)](https://github.com/nofuturekid/UnraidControl/security/code-scanning)
 [![License: GPL v3](https://img.shields.io/badge/license-GPLv3-blue.svg)](./LICENSE)
 [![Platform](https://img.shields.io/badge/platform-Android-3DDC84?logo=android&logoColor=white)](https://github.com/nofuturekid/UnraidControl/releases)
 [![Min Android](https://img.shields.io/badge/Android-8.0%2B-orange)](https://github.com/nofuturekid/UnraidControl/releases)
