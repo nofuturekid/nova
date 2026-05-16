@@ -1,6 +1,6 @@
 # ADR-0026: GraphQL subscriptions for select domains (hybrid with polling)
 
-- **Status**: Proposed
+- **Status**: Accepted
 - **Date**: 2026-05-16
 - **Tags**: data, performance, resilience, api
 

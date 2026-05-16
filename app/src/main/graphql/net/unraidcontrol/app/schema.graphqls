@@ -93,6 +93,16 @@ type Mutation {
     parityCheck: ParityCheckMutations!
 }
 
+# ── Subscription ─────────────────────────────────────────────────────
+# Phase E (ADR-0026). Subset of the live Unraid `Subscription` type
+# (verified against unraid/api generated-schema.graphql, May 2026).
+# E1 pilot uses only the warnings/alerts feed; the live type also
+# exposes notificationsOverview / notificationAdded / metrics / array /
+# dockerContainerStats etc. (later phases).
+type Subscription {
+    notificationsWarningsAndAlerts: [Notification!]!
+}
+
 # ── Info ─────────────────────────────────────────────────────────────
 
 type Info {
