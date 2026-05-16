@@ -13,6 +13,7 @@ import net.unraidcontrol.app.data.api.ApolloClientFactory
 import net.unraidcontrol.app.data.api.toArrayInfo
 import net.unraidcontrol.app.data.api.toContainers
 import net.unraidcontrol.app.data.api.toLiveMetrics
+import net.unraidcontrol.app.data.api.toNotifications
 import net.unraidcontrol.app.data.api.toServerInfo
 import net.unraidcontrol.app.data.api.toVms
 import net.unraidcontrol.app.data.model.ArrayInfo
@@ -20,9 +21,11 @@ import net.unraidcontrol.app.data.model.ConnectionMode
 import net.unraidcontrol.app.data.model.Container
 import net.unraidcontrol.app.data.model.LiveMetrics
 import net.unraidcontrol.app.data.model.LogLine
+import net.unraidcontrol.app.data.model.Notifications
 import net.unraidcontrol.app.data.model.ServerInfo
 import net.unraidcontrol.app.data.model.Vm
 import net.unraidcontrol.app.graphql.FetchContainerLogsQuery
+import net.unraidcontrol.app.graphql.GetNotificationsQuery
 import net.unraidcontrol.app.graphql.ForceStopVmMutation
 import net.unraidcontrol.app.graphql.GetArrayQuery
 import net.unraidcontrol.app.graphql.GetDockerContainersQuery
@@ -64,6 +67,7 @@ class UnraidRepository @Inject constructor(
         const val POLL_ARRAY_MS = 5_000L      // disk states / parity-check progress
         const val POLL_DOCKER_MS = 2_000L     // container start/stop/update reactions
         const val POLL_VMS_MS = 3_000L        // VM state transitions
+        const val POLL_NOTIFICATIONS_MS = 60_000L  // alerts change rarely; bell is global
 
         /** Consecutive poll failures before the UI drops to an Error state. */
         const val TRANSIENT_ERROR_TOLERANCE = 3
@@ -99,6 +103,11 @@ class UnraidRepository @Inject constructor(
     fun vmsStream(intervalMs: Long = POLL_VMS_MS): Flow<DomainState<List<Vm>>> =
         domainStream(intervalMs) { client, baseUrl ->
             fetch(client, GetVmsQuery()) { data -> data.toVms() }.withBaseUrl(baseUrl)
+        }
+
+    fun notificationsStream(intervalMs: Long = POLL_NOTIFICATIONS_MS): Flow<DomainState<Notifications>> =
+        domainStream(intervalMs) { client, baseUrl ->
+            fetch(client, GetNotificationsQuery()) { data -> data.toNotifications() }.withBaseUrl(baseUrl)
         }
 
     /**

@@ -9,19 +9,24 @@ import net.unraidcontrol.app.data.model.Disk
 import net.unraidcontrol.app.data.model.DiskStatus
 import net.unraidcontrol.app.data.model.DiskType
 import net.unraidcontrol.app.data.model.LiveMetrics
+import net.unraidcontrol.app.data.model.NotifImportance
+import net.unraidcontrol.app.data.model.Notifications
 import net.unraidcontrol.app.data.model.ParityCheck
 import net.unraidcontrol.app.data.model.ServerInfo
+import net.unraidcontrol.app.data.model.UnraidNotification
 import net.unraidcontrol.app.data.model.Vm
 import net.unraidcontrol.app.data.model.VmState
 import net.unraidcontrol.app.graphql.GetArrayQuery
 import net.unraidcontrol.app.graphql.GetDockerContainersQuery
 import net.unraidcontrol.app.graphql.GetMetricsQuery
+import net.unraidcontrol.app.graphql.GetNotificationsQuery
 import net.unraidcontrol.app.graphql.GetServerInfoQuery
 import net.unraidcontrol.app.graphql.GetVmsQuery
 import net.unraidcontrol.app.graphql.type.ArrayDiskStatus
 import net.unraidcontrol.app.graphql.type.ArrayDiskType
 import net.unraidcontrol.app.graphql.type.ArrayState as GArrayState
 import net.unraidcontrol.app.graphql.type.ContainerState as GContainerState
+import net.unraidcontrol.app.graphql.type.NotificationImportance as GNotifImportance
 import net.unraidcontrol.app.graphql.type.VmState as GVmState
 
 /**
@@ -141,6 +146,24 @@ fun GetVmsQuery.Data.toVms(): List<Vm> =
         )
     }
 
+fun GetNotificationsQuery.Data.toNotifications(): Notifications {
+    val unread = notifications.overview.unread
+    return Notifications(
+        unreadWarning = unread.warning,
+        unreadAlert = unread.alert,
+        items = notifications.warningsAndAlerts.map { n ->
+            UnraidNotification(
+                id = n.id,
+                title = n.title,
+                subject = n.subject,
+                description = n.description,
+                importance = n.importance.toDomain(),
+                timestamp = n.timestamp,
+            )
+        },
+    )
+}
+
 // ── Helpers ──────────────────────────────────────────────────────────
 
 @Suppress("LongParameterList")
@@ -211,6 +234,12 @@ private fun GVmState.toDomain(): VmState = when (this) {
     GVmState.PAUSED, GVmState.PMSUSPENDED              -> VmState.Paused
     GVmState.SHUTDOWN, GVmState.SHUTOFF, GVmState.CRASHED, GVmState.IDLE, GVmState.NOSTATE -> VmState.Stopped
     else                                                -> VmState.Stopped
+}
+
+private fun GNotifImportance.toDomain(): NotifImportance = when (this) {
+    GNotifImportance.WARNING -> NotifImportance.Warning
+    GNotifImportance.ALERT   -> NotifImportance.Alert
+    else                     -> NotifImportance.Info   // INFO + UNKNOWN__
 }
 
 private fun parseSpeedMbps(speedString: String?): Double {

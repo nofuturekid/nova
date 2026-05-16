@@ -64,3 +64,17 @@ query GetVms {
         domains { id name state }
     }
 }
+
+query GetNotifications {
+    notifications {
+        overview { unread { warning alert } }
+        warningsAndAlerts {
+            id
+            title
+            subject
+            description
+            importance
+            timestamp
+        }
+    }
+}

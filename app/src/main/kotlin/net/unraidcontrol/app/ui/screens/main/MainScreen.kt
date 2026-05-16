@@ -45,6 +45,7 @@ import net.unraidcontrol.app.data.model.ArrayState
 import net.unraidcontrol.app.data.model.Container
 import net.unraidcontrol.app.data.model.ConnectionMode
 import net.unraidcontrol.app.data.model.InstallState
+import net.unraidcontrol.app.data.model.Notifications
 import net.unraidcontrol.app.data.model.Server
 import net.unraidcontrol.app.data.model.UpdateState
 import net.unraidcontrol.app.data.model.Vm
@@ -59,6 +60,7 @@ import net.unraidcontrol.app.ui.components.UnraidIconButton
 import net.unraidcontrol.app.ui.screens.array.ArrayTab
 import net.unraidcontrol.app.ui.screens.container.ContainerDetailSheet
 import net.unraidcontrol.app.ui.screens.docker.DockerTab
+import net.unraidcontrol.app.ui.screens.notifications.NotificationsSheet
 import net.unraidcontrol.app.ui.screens.overview.OverviewTab
 import net.unraidcontrol.app.ui.screens.update.UpdateBanner
 import net.unraidcontrol.app.ui.screens.update.UpdateDialog
@@ -90,6 +92,7 @@ fun MainScreen(
     val arrayState by vm.arrayState.collectAsState()
     val dockerState by vm.dockerState.collectAsState()
     val vmsState by vm.vmsState.collectAsState()
+    val notificationsState by vm.notificationsState.collectAsState()
     val scope = rememberCoroutineScope()
 
     // Pause polling when app is backgrounded (ADR-0017). Bound to the
@@ -113,6 +116,7 @@ fun MainScreen(
         vm.setDockerSheetOpen(openContainer != null)
     }
     var openVm by remember { mutableStateOf<Vm?>(null) }
+    var showNotifications by remember { mutableStateOf(false) }
     var confirm by remember { mutableStateOf<ConfirmRequest?>(null) }
     val pullState = rememberPullToRefreshState()
     var refreshing by remember { mutableStateOf(false) }
@@ -147,6 +151,8 @@ fun MainScreen(
             onOpenServerList = onOpenServerList,
             onMenu = onOpenSettings,
             onToggleConnection = { vm.toggleConnection() },
+            notificationBadge = (notificationsState as? DomainState.Content)?.value?.badgeCount ?: 0,
+            onOpenNotifications = { showNotifications = true },
         )
 
         val update = updateState
@@ -346,6 +352,14 @@ fun MainScreen(
         )
     }
 
+    if (showNotifications) {
+        NotificationsSheet(
+            data = (notificationsState as? DomainState.Content)?.value
+                ?: Notifications(0, 0, emptyList()),
+            onDismiss = { showNotifications = false },
+        )
+    }
+
     ConfirmDialog(request = confirm, onDismiss = { confirm = null })
 
     val u = updateState
@@ -386,6 +400,8 @@ private fun TopBar(
     onOpenServerList: () -> Unit,
     onMenu: () -> Unit,
     onToggleConnection: () -> Unit,
+    notificationBadge: Int,
+    onOpenNotifications: () -> Unit,
 ) {
     val t = UnraidTheme.colors
     val offline = state is DomainState.Error || state is DomainState.NoServer
@@ -445,6 +461,26 @@ private fun TopBar(
             Spacer(Modifier.weight(1f))
             Box(modifier = Modifier.clickable(onClick = onToggleConnection)) {
                 Pill(label = connLabel, tone = connTone, dot = true)
+            }
+            Box {
+                UnraidIconButton(icon = { UC.Bell(20.dp, t.text) }, onClick = onOpenNotifications)
+                if (notificationBadge > 0) {
+                    Box(
+                        modifier = Modifier
+                            .align(Alignment.TopEnd)
+                            .padding(2.dp)
+                            .size(16.dp)
+                            .clip(CircleShape)
+                            .background(t.danger),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        Text(
+                            text = if (notificationBadge > 9) "9+" else "$notificationBadge",
+                            color = Color.White,
+                            style = MaterialTheme.typography.labelSmall,
+                        )
+                    }
+                }
             }
             UnraidIconButton(icon = { UC.Settings(20.dp, t.text) }, onClick = onMenu)
         }

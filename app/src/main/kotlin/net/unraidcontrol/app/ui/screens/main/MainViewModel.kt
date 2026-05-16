@@ -24,6 +24,7 @@ import net.unraidcontrol.app.data.model.ConnectionMode
 import net.unraidcontrol.app.data.model.Container
 import net.unraidcontrol.app.data.model.InstallState
 import net.unraidcontrol.app.data.model.LiveMetrics
+import net.unraidcontrol.app.data.model.Notifications
 import net.unraidcontrol.app.data.model.Server
 import net.unraidcontrol.app.data.model.ServerInfo
 import net.unraidcontrol.app.data.model.UpdateInfo
@@ -137,6 +138,10 @@ class MainViewModel @Inject constructor(
 
     val vmsState: StateFlow<DomainState<List<Vm>>> =
         gatedStream(overviewOr(MainTab.Vms), unraid.vmsStream())
+
+    // Bell is global (not tab-bound) — gate only on app visibility.
+    val notificationsState: StateFlow<DomainState<Notifications>> =
+        gatedStream(_appVisible, unraid.notificationsStream())
 
     // ── In-flight container updates (ADR-0016) ────────────────────────
     //
