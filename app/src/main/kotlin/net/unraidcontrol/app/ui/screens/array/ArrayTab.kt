@@ -15,17 +15,15 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.text.font.FontFamily
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import net.unraidcontrol.app.data.local.LayoutMode
 import net.unraidcontrol.app.data.model.ArrayInfo
 import net.unraidcontrol.app.data.model.ArrayState
@@ -103,7 +101,7 @@ private fun ArrayContent(
                         Column(modifier = Modifier.weight(1f)) {
                             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                                 UC.Shield(18.dp, t.muted)
-                                Text("Array status", color = t.muted, fontSize = 13.sp, fontWeight = FontWeight.Medium)
+                                Text("Array status", color = t.muted, style = MaterialTheme.typography.labelLarge)
                             }
                             Spacer(Modifier.height(4.dp))
                             Text(
@@ -114,15 +112,13 @@ private fun ArrayContent(
                                     else     -> "Started"
                                 },
                                 color = t.text,
-                                fontSize = 24.sp,
-                                fontWeight = FontWeight.SemiBold,
-                                letterSpacing = (-0.5).sp,
+                                style = MaterialTheme.typography.headlineLarge,
                             )
                             Spacer(Modifier.height(4.dp))
                             Text(
                                 text = "${arr.disks.size} disks · ${"%.1f".format(totalUsedTb)} / ${"%.0f".format(totalSizeTb)} TB",
                                 color = t.muted,
-                                fontSize = 12.sp,
+                                style = MaterialTheme.typography.bodySmall,
                             )
                         }
                         if (arrayOn) {
@@ -156,15 +152,13 @@ private fun ArrayContent(
                                 Text(
                                     if (pc.paused) "Parity check paused" else "Parity check in progress",
                                     color = t.info,
-                                    fontSize = 13.sp,
-                                    fontWeight = FontWeight.SemiBold,
+                                    style = MaterialTheme.typography.labelLarge,
                                 )
                                 Spacer(Modifier.weight(1f))
                                 Text(
                                     "${(pc.progress * 100).toInt()}%",
                                     color = t.info,
-                                    fontSize = 13.sp,
-                                    fontFamily = JetBrainsMono,
+                                    style = MaterialTheme.typography.bodyMedium.copy(fontFamily = JetBrainsMono),
                                 )
                             }
                             Spacer(Modifier.height(8.dp))
@@ -174,11 +168,11 @@ private fun ArrayContent(
                                 Text(
                                     "${"%.0f".format(pc.speedMbps)} MB/s · ${pc.errors} errors",
                                     color = t.muted,
-                                    fontSize = 11.sp,
+                                    style = MaterialTheme.typography.labelSmall,
                                 )
                                 Spacer(Modifier.weight(1f))
                                 val eta = formatEta(pc.etaSeconds)
-                                if (eta.isNotEmpty()) Text("~$eta remaining", color = t.muted, fontSize = 11.sp)
+                                if (eta.isNotEmpty()) Text("~$eta remaining", color = t.muted, style = MaterialTheme.typography.labelSmall)
                             }
                             Spacer(Modifier.height(10.dp))
                             Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
@@ -240,14 +234,13 @@ private fun ArrayContent(
                                 Text(
                                     text = "${erroredDisk?.name ?: "disk"} read errors",
                                     color = t.danger,
-                                    fontSize = 13.sp,
-                                    fontWeight = FontWeight.SemiBold,
+                                    style = MaterialTheme.typography.labelLarge,
                                 )
                                 Spacer(Modifier.height(2.dp))
                                 Text(
                                     text = "Read errors detected. Investigate before next array operation.",
                                     color = t.muted,
-                                    fontSize = 12.sp,
+                                    style = MaterialTheme.typography.bodySmall,
                                 )
                             }
                         }
@@ -328,17 +321,14 @@ private fun DiskTile(disk: Disk, errored: Boolean) {
                     Text(
                         disk.name,
                         color = t.text,
-                        fontSize = 13.sp,
-                        fontWeight = FontWeight.SemiBold,
+                        style = MaterialTheme.typography.labelLarge,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
                     )
                     Text(
                         "${disk.tempC}°",
                         color = tempColor,
-                        fontSize = 11.sp,
-                        fontWeight = FontWeight.SemiBold,
-                        fontFamily = JetBrainsMono,
+                        style = MaterialTheme.typography.labelSmall.copy(fontFamily = JetBrainsMono),
                     )
                 }
                 if (errored) Pill("ERR", tone = Tone.Danger, dot = true)
@@ -350,8 +340,7 @@ private fun DiskTile(disk: Disk, errored: Boolean) {
                 Text(
                     "${(pct * 100).toInt()}% · ${formatTb(disk.sizeTb)}",
                     color = t.muted,
-                    fontSize = 10.sp,
-                    fontFamily = JetBrainsMono,
+                    style = MaterialTheme.typography.labelSmall.copy(fontFamily = JetBrainsMono),
                 )
             }
         }
@@ -384,14 +373,13 @@ private fun DiskCard(disk: Disk, errored: Boolean) {
                 ) { UC.Disk(18.dp, typeColor) }
                 Column(modifier = Modifier.weight(1f)) {
                     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        Text(disk.name, color = t.text, fontSize = 15.sp, fontWeight = FontWeight.SemiBold)
+                        Text(disk.name, color = t.text, style = MaterialTheme.typography.titleSmall)
                         if (errored) Pill("ERR", tone = Tone.Danger, dot = true)
                     }
                     Text(
                         text = "${disk.device} · ${disk.model}",
                         color = t.muted,
-                        fontSize = 11.sp,
-                        fontFamily = JetBrainsMono,
+                        style = MaterialTheme.typography.labelSmall.copy(fontFamily = JetBrainsMono),
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
                     )
@@ -401,9 +389,7 @@ private fun DiskCard(disk: Disk, errored: Boolean) {
                     Text(
                         text = "${disk.tempC}°",
                         color = tempColor,
-                        fontSize = 13.sp,
-                        fontWeight = FontWeight.SemiBold,
-                        fontFamily = JetBrainsMono,
+                        style = MaterialTheme.typography.labelLarge.copy(fontFamily = JetBrainsMono),
                     )
                 }
             }
@@ -415,15 +401,13 @@ private fun DiskCard(disk: Disk, errored: Boolean) {
                     Text(
                         text = formatTb(disk.usedTb) + " used",
                         color = t.muted,
-                        fontSize = 11.sp,
-                        fontFamily = JetBrainsMono,
+                        style = MaterialTheme.typography.labelSmall.copy(fontFamily = JetBrainsMono),
                     )
                     Spacer(Modifier.weight(1f))
                     Text(
                         text = "${(pct * 100).toInt()}% · ${formatTb(disk.sizeTb)}",
                         color = t.muted,
-                        fontSize = 11.sp,
-                        fontFamily = JetBrainsMono,
+                        style = MaterialTheme.typography.labelSmall.copy(fontFamily = JetBrainsMono),
                     )
                 }
             }

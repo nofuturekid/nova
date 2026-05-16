@@ -10,14 +10,13 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import net.unraidcontrol.app.data.model.UpdateInfo
 import net.unraidcontrol.app.ui.components.Pill
 import net.unraidcontrol.app.ui.components.Tone
@@ -49,8 +48,7 @@ fun UpdateBanner(
                 Text(
                     text = "Update available",
                     color = t.text,
-                    fontSize = 13.sp,
-                    fontWeight = FontWeight.SemiBold,
+                    style = MaterialTheme.typography.labelLarge,
                 )
                 if (info.isPrerelease) Pill("BETA", tone = Tone.Warn)
             }
@@ -58,7 +56,7 @@ fun UpdateBanner(
             Text(
                 text = "v${info.version} · tap to install",
                 color = t.muted,
-                fontSize = 11.sp,
+                style = MaterialTheme.typography.labelSmall,
             )
         }
         UnraidIconButton(

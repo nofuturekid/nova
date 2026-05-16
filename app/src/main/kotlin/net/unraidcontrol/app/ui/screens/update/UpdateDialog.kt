@@ -15,6 +15,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Text
 import androidx.compose.material3.rememberModalBottomSheetState
@@ -82,8 +83,7 @@ fun UpdateDialog(
                         Text(
                             text = "Update available",
                             color = t.text,
-                            fontSize = 20.sp,
-                            fontWeight = FontWeight.SemiBold,
+                            style = MaterialTheme.typography.titleLarge,
                         )
                         if (info.isPrerelease) Pill("BETA", tone = Tone.Warn)
                     }
@@ -91,8 +91,7 @@ fun UpdateDialog(
                     Text(
                         text = "v${BuildConfig.VERSION_NAME}  →  v${info.version}  ·  ${formatBytes(info.sizeBytes)}",
                         color = t.muted,
-                        fontSize = 12.sp,
-                        fontFamily = JetBrainsMono,
+                        style = MaterialTheme.typography.bodySmall.copy(fontFamily = JetBrainsMono),
                     )
                 }
                 UnraidIconButton(icon = { UC.X(20.dp, t.text) }, onClick = onDismiss)
@@ -103,9 +102,7 @@ fun UpdateDialog(
                 Text(
                     text = "Release notes",
                     color = t.muted,
-                    fontSize = 11.sp,
-                    fontWeight = FontWeight.SemiBold,
-                    letterSpacing = 1.3.sp,
+                    style = MaterialTheme.typography.labelSmall.copy(letterSpacing = 1.3.sp),
                 )
                 Spacer(Modifier.height(6.dp))
                 Box(
@@ -173,7 +170,7 @@ fun UpdateDialog(
                     Text(
                         text = "Downloading… ${(install.progress * 100).toInt()}%",
                         color = t.muted,
-                        fontSize = 12.sp,
+                        style = MaterialTheme.typography.bodySmall,
                     )
                     Spacer(Modifier.height(8.dp))
                     UnraidProgress(install.progress, color = t.accent, height = 6.dp)
@@ -182,14 +179,14 @@ fun UpdateDialog(
                     Text(
                         text = "Waiting for Android install confirm…",
                         color = t.muted,
-                        fontSize = 12.sp,
+                        style = MaterialTheme.typography.bodySmall,
                     )
                 }
                 is InstallState.NeedsPermission -> {
                     Text(
                         text = "Android needs you to allow this app to install other apps. Tap below to open the system settings.",
                         color = t.warn,
-                        fontSize = 12.sp,
+                        style = MaterialTheme.typography.bodySmall,
                     )
                     Spacer(Modifier.height(10.dp))
                     Row {
@@ -206,7 +203,7 @@ fun UpdateDialog(
                     Text(
                         text = "Install failed: ${install.message}",
                         color = t.danger,
-                        fontSize = 12.sp,
+                        style = MaterialTheme.typography.bodySmall,
                     )
                     Spacer(Modifier.height(10.dp))
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {

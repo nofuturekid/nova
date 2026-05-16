@@ -14,6 +14,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.background
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Text
 import androidx.compose.material3.rememberModalBottomSheetState
@@ -22,9 +23,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import net.unraidcontrol.app.data.model.Vm
 import net.unraidcontrol.app.data.model.VmState
 import net.unraidcontrol.app.ui.components.BtnVariant
@@ -85,7 +84,7 @@ fun VmDetailSheet(
         ) {
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(14.dp)) {
                 Column(modifier = Modifier.weight(1f)) {
-                    Text(vm.name, color = t.text, fontSize = 20.sp, fontWeight = FontWeight.SemiBold)
+                    Text(vm.name, color = t.text, style = MaterialTheme.typography.titleLarge)
                     Spacer(Modifier.height(6.dp))
                     Pill(label = vm.state.name.lowercase(), tone = tone, dot = true)
                 }
@@ -185,7 +184,7 @@ private fun InfoRow(key: String, value: String) {
         modifier = Modifier.fillMaxWidth().padding(vertical = 6.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Text(key, color = t.muted, fontSize = 13.sp, modifier = Modifier.weight(1f))
-        Text(value, color = t.text, fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
+        Text(key, color = t.muted, style = MaterialTheme.typography.bodyMedium, modifier = Modifier.weight(1f))
+        Text(value, color = t.text, style = MaterialTheme.typography.labelLarge)
     }
 }

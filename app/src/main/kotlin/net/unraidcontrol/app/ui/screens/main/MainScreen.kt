@@ -21,6 +21,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.material3.pulltorefresh.rememberPullToRefreshState
@@ -35,10 +36,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.text.font.FontFamily
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
@@ -431,8 +429,7 @@ private fun TopBar(
                         Text(
                             text = server?.name ?: "Pick a server",
                             color = t.text,
-                            fontSize = 16.sp,
-                            fontWeight = FontWeight.SemiBold,
+                            style = MaterialTheme.typography.titleSmall,
                         )
                         UC.ChevD(14.dp, t.muted)
                     }
@@ -440,8 +437,7 @@ private fun TopBar(
                         Text(
                             text = server.hostname,
                             color = t.muted,
-                            fontSize = 11.sp,
-                            fontFamily = JetBrainsMono,
+                            style = MaterialTheme.typography.labelSmall.copy(fontFamily = JetBrainsMono),
                         )
                     }
                 }
@@ -496,8 +492,7 @@ private fun TabBar(active: MainTab, onChange: (MainTab) -> Unit) {
                     Text(
                         text = tab.label,
                         color = labelColor,
-                        fontSize = 11.sp,
-                        fontWeight = if (isActive) FontWeight.SemiBold else FontWeight.Medium,
+                        style = MaterialTheme.typography.labelSmall,
                     )
                 }
             }

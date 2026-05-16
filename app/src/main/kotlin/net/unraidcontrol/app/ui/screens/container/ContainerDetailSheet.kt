@@ -17,6 +17,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Text
 import androidx.compose.material3.rememberModalBottomSheetState
@@ -30,8 +31,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.text.font.FontFamily
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -122,13 +121,12 @@ fun ContainerDetailSheet(
                     serverBaseUrl = serverBaseUrl,
                 )
                 Column(modifier = Modifier.weight(1f)) {
-                    Text(container.name, color = t.text, fontSize = 20.sp, fontWeight = FontWeight.SemiBold)
+                    Text(container.name, color = t.text, style = MaterialTheme.typography.titleLarge)
                     Spacer(Modifier.height(2.dp))
                     Text(
                         text = container.image,
                         color = t.muted,
-                        fontSize = 12.sp,
-                        fontFamily = JetBrainsMono,
+                        style = MaterialTheme.typography.bodySmall.copy(fontFamily = JetBrainsMono),
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
                     )
@@ -167,8 +165,7 @@ fun ContainerDetailSheet(
                     Text(
                         text = "Updating container…",
                         color = t.info,
-                        fontSize = 13.sp,
-                        fontWeight = FontWeight.Medium,
+                        style = MaterialTheme.typography.labelLarge,
                     )
                 }
             } else {
@@ -268,8 +265,7 @@ fun ContainerDetailSheet(
                         Text(
                             text = tk.name,
                             color = if (isActive) t.accent else t.muted,
-                            fontSize = 12.sp,
-                            fontWeight = FontWeight.SemiBold,
+                            style = MaterialTheme.typography.labelMedium,
                         )
                     }
                 }
@@ -328,17 +324,13 @@ private fun StatBlock(label: String, value: String, modifier: Modifier = Modifie
         Text(
             text = label.uppercase(),
             color = t.muted,
-            fontSize = 11.sp,
-            fontWeight = FontWeight.Medium,
-            letterSpacing = 1.sp,
+            style = MaterialTheme.typography.labelSmall.copy(letterSpacing = 1.sp),
         )
         Spacer(Modifier.height(4.dp))
         Text(
             text = value,
             color = t.text,
-            fontSize = 22.sp,
-            fontWeight = FontWeight.SemiBold,
-            letterSpacing = (-0.4).sp,
+            style = MaterialTheme.typography.headlineMedium,
         )
     }
 }
@@ -351,12 +343,13 @@ private fun Kv(key: String, value: String, mono: Boolean = false, last: Boolean 
             modifier = Modifier.fillMaxWidth().padding(vertical = 10.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            Text(key, color = t.muted, fontSize = 13.sp, modifier = Modifier.weight(1f))
+            Text(key, color = t.muted, style = MaterialTheme.typography.bodyMedium, modifier = Modifier.weight(1f))
             Text(
                 text = value,
                 color = t.text,
-                fontSize = 13.sp,
-                fontFamily = if (mono) JetBrainsMono else null,
+                style = MaterialTheme.typography.bodyMedium.copy(
+                    fontFamily = if (mono) JetBrainsMono else null,
+                ),
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
             )
@@ -376,7 +369,7 @@ private fun LogsTabContent(
         Text(
             text = "Logs are only available when the container is running.",
             color = t.muted,
-            fontSize = 13.sp,
+            style = MaterialTheme.typography.bodyMedium,
             modifier = Modifier.padding(vertical = 24.dp, horizontal = 12.dp),
         )
         return
@@ -391,7 +384,7 @@ private fun LogsTabContent(
         Text(
             text = "No log lines.",
             color = t.muted,
-            fontSize = 13.sp,
+            style = MaterialTheme.typography.bodyMedium,
             modifier = Modifier.padding(vertical = 24.dp, horizontal = 12.dp),
         )
         return
@@ -413,16 +406,16 @@ private fun LogsTabContent(
                 Text(
                     text = formatLogTime(line.time),
                     color = t.muted,
-                    fontSize = 11.sp,
-                    fontFamily = JetBrainsMono,
+                    style = MaterialTheme.typography.labelSmall.copy(fontFamily = JetBrainsMono),
                     modifier = Modifier.padding(end = 8.dp),
                 )
                 Text(
                     text = line.message,
                     color = color,
-                    fontSize = 11.sp,
-                    fontFamily = JetBrainsMono,
-                    lineHeight = 16.sp,
+                    style = MaterialTheme.typography.labelSmall.copy(
+                        fontFamily = JetBrainsMono,
+                        lineHeight = 16.sp,
+                    ),
                 )
             }
         }
@@ -454,9 +447,9 @@ private fun PortsTabContent(c: Container) {
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                     UC.More(18.dp, t.muted)
                     Row(modifier = Modifier.weight(1f)) {
-                        Text(host, color = t.accent, fontSize = 13.sp, fontFamily = JetBrainsMono)
-                        Text(" → ", color = t.muted, fontSize = 13.sp, fontFamily = JetBrainsMono)
-                        Text(ctn, color = t.text, fontSize = 13.sp, fontFamily = JetBrainsMono)
+                        Text(host, color = t.accent, style = MaterialTheme.typography.bodyMedium.copy(fontFamily = JetBrainsMono))
+                        Text(" → ", color = t.muted, style = MaterialTheme.typography.bodyMedium.copy(fontFamily = JetBrainsMono))
+                        Text(ctn, color = t.text, style = MaterialTheme.typography.bodyMedium.copy(fontFamily = JetBrainsMono))
                     }
                     UnraidIconButton(icon = { UC.Link(16.dp, t.muted) }, onClick = {}, size = 32.dp)
                 }
@@ -477,7 +470,7 @@ private fun VolumesTabContent(c: Container) {
             UnraidCard(padding = UnraidTheme.tokens.padTight) {
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                     UC.Folder(18.dp, t.muted)
-                    Text(mount, color = t.text, fontSize = 12.sp, fontFamily = JetBrainsMono)
+                    Text(mount, color = t.text, style = MaterialTheme.typography.bodySmall.copy(fontFamily = JetBrainsMono))
                 }
             }
         }
@@ -490,7 +483,7 @@ private fun Empty(label: String) {
     Text(
         text = label,
         color = t.muted,
-        fontSize = 13.sp,
+        style = MaterialTheme.typography.bodyMedium,
         modifier = Modifier.padding(vertical = 24.dp, horizontal = 12.dp),
     )
 }

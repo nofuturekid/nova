@@ -21,6 +21,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
@@ -33,9 +34,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.toArgb
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -205,7 +204,7 @@ fun SettingsScreen(
             horizontalArrangement = Arrangement.spacedBy(8.dp),
         ) {
             UnraidIconButton(icon = { UC.ChevL(20.dp, t.text) }, onClick = onBack)
-            Text("Settings", color = t.text, fontSize = 20.sp, fontWeight = FontWeight.SemiBold)
+            Text("Settings", color = t.text, style = MaterialTheme.typography.titleLarge)
         }
 
         val d = UnraidTheme.tokens
@@ -293,38 +292,37 @@ fun SettingsScreen(
                         Text(
                             text = "v${BuildConfig.VERSION_NAME}",
                             color = t.text,
-                            fontSize = 13.sp,
-                            fontWeight = FontWeight.SemiBold,
+                            style = MaterialTheme.typography.labelLarge,
                         )
                     }
                     val cs = checkState
                     SettingRow(label = "Latest available") {
                         when (cs) {
                             is UpdateState.Checking ->
-                                Text("Checking…", color = t.muted, fontSize = 13.sp)
+                                Text("Checking…", color = t.muted, style = MaterialTheme.typography.bodyMedium)
                             is UpdateState.UpToDate ->
-                                Text("Up to date", color = t.accent, fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
+                                Text("Up to date", color = t.accent, style = MaterialTheme.typography.labelLarge)
                             is UpdateState.Available ->
                                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                                    Text("v${cs.info.version}", color = t.text, fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
+                                    Text("v${cs.info.version}", color = t.text, style = MaterialTheme.typography.labelLarge)
                                     if (cs.info.isPrerelease) Pill("BETA", tone = Tone.Warn)
                                     cs.info.publishedAtEpochMs?.let {
                                         Text(
                                             "· ${formatRelativeAge(it)}",
                                             color = t.muted,
-                                            fontSize = 13.sp,
+                                            style = MaterialTheme.typography.bodyMedium,
                                         )
                                     }
                                 }
                             is UpdateState.Error ->
-                                Text("Couldn't check", color = t.danger, fontSize = 13.sp)
+                                Text("Couldn't check", color = t.danger, style = MaterialTheme.typography.bodyMedium)
                         }
                     }
                     SettingRow(label = "Last check") {
                         Text(
                             text = formatLastCheck(ui.lastUpdateCheck),
                             color = t.muted,
-                            fontSize = 13.sp,
+                            style = MaterialTheme.typography.bodyMedium,
                         )
                     }
                     SettingRow(label = "Include pre-releases") {
@@ -387,7 +385,7 @@ private fun formatRelativeAge(epochMs: Long): String {
 private fun SettingRow(label: String, content: @Composable () -> Unit) {
     val t = UnraidTheme.colors
     Row(verticalAlignment = Alignment.CenterVertically) {
-        Text(label, color = t.muted, fontSize = 13.sp, fontWeight = FontWeight.Medium, modifier = Modifier.weight(1f))
+        Text(label, color = t.muted, style = MaterialTheme.typography.labelLarge, modifier = Modifier.weight(1f))
         content()
     }
 }
@@ -441,8 +439,7 @@ private fun <T> Segmented(
                 Text(
                     text = label(opt),
                     color = if (selected) t.accent else t.muted,
-                    fontSize = 12.sp,
-                    fontWeight = FontWeight.SemiBold,
+                    style = MaterialTheme.typography.labelMedium,
                 )
             }
         }

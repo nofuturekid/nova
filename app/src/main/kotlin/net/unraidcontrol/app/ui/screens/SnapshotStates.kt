@@ -9,14 +9,13 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import net.unraidcontrol.app.ui.components.BtnVariant
 import net.unraidcontrol.app.ui.components.Tone
 import net.unraidcontrol.app.ui.components.UC
@@ -35,7 +34,7 @@ fun LoadingState(modifier: Modifier = Modifier) {
     ) {
         CircularProgressIndicator(color = t.accent)
         Spacer(Modifier.height(16.dp))
-        Text("Connecting to server…", color = t.muted, fontSize = 13.sp)
+        Text("Connecting to server…", color = t.muted, style = MaterialTheme.typography.bodyMedium)
     }
 }
 
@@ -58,15 +57,14 @@ fun ErrorState(
         Text(
             text = "Can't reach the server",
             color = t.text,
-            fontSize = 16.sp,
-            fontWeight = FontWeight.SemiBold,
+            style = MaterialTheme.typography.titleSmall,
             textAlign = TextAlign.Center,
         )
         Spacer(Modifier.height(4.dp))
         Text(
             text = message,
             color = t.muted,
-            fontSize = 13.sp,
+            style = MaterialTheme.typography.bodyMedium,
             textAlign = TextAlign.Center,
         )
         if (onRetry != null) {
@@ -94,12 +92,12 @@ fun NoServerState(onAdd: () -> Unit, modifier: Modifier = Modifier) {
     ) {
         UC.Cloud(36.dp, t.muted)
         Spacer(Modifier.height(8.dp))
-        Text("No server configured", color = t.text, fontSize = 16.sp, fontWeight = FontWeight.SemiBold)
+        Text("No server configured", color = t.text, style = MaterialTheme.typography.titleSmall)
         Spacer(Modifier.height(4.dp))
         Text(
             text = "Add an Unraid server to get started.",
             color = t.muted,
-            fontSize = 13.sp,
+            style = MaterialTheme.typography.bodyMedium,
             textAlign = TextAlign.Center,
         )
         Spacer(Modifier.height(16.dp))
@@ -124,12 +122,12 @@ fun OfflineEmpty(label: String, modifier: Modifier = Modifier) {
     ) {
         UC.Cloud(36.dp, t.muted)
         Spacer(Modifier.height(8.dp))
-        Text("Server offline", color = t.text, fontSize = 16.sp, fontWeight = FontWeight.SemiBold)
+        Text("Server offline", color = t.text, style = MaterialTheme.typography.titleSmall)
         Spacer(Modifier.height(4.dp))
         Text(
             text = "$label are unavailable while the server can't be reached.",
             color = t.muted,
-            fontSize = 13.sp,
+            style = MaterialTheme.typography.bodyMedium,
             textAlign = TextAlign.Center,
         )
     }

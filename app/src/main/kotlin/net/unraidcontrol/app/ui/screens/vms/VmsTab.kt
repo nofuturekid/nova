@@ -17,6 +17,7 @@ import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items as gridItems
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -25,10 +26,8 @@ import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import net.unraidcontrol.app.data.local.LayoutMode
 import net.unraidcontrol.app.data.model.Vm
 import net.unraidcontrol.app.data.model.VmState
@@ -153,8 +152,7 @@ private fun VmTile(
             Text(
                 text = vm.name,
                 color = t.text,
-                fontSize = 12.sp,
-                fontWeight = FontWeight.SemiBold,
+                style = MaterialTheme.typography.labelMedium,
                 maxLines = 1,
                 overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
             )
@@ -176,12 +174,12 @@ private fun EmptyVms() {
     ) {
         UC.Vm(36.dp, t.muted)
         Spacer(Modifier.height(8.dp))
-        Text("No VMs configured", color = t.text, fontSize = 16.sp, fontWeight = FontWeight.SemiBold)
+        Text("No VMs configured", color = t.text, style = MaterialTheme.typography.titleSmall)
         Spacer(Modifier.height(4.dp))
         Text(
             "This server has no virtual machines yet. Configure them in the web UI to manage them here.",
             color = t.muted,
-            fontSize = 13.sp,
+            style = MaterialTheme.typography.bodyMedium,
             textAlign = TextAlign.Center,
         )
     }
@@ -222,7 +220,7 @@ private fun VmCard(
                 UC.Vm(20.dp, Color(0xFF06120E))
             }
             Column(modifier = Modifier.weight(1f)) {
-                Text(vm.name, color = t.text, fontSize = 15.sp, fontWeight = FontWeight.SemiBold)
+                Text(vm.name, color = t.text, style = MaterialTheme.typography.titleSmall)
                 Spacer(Modifier.height(3.dp))
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                     Pill(stateLabel, tone = tone, dot = true)
@@ -232,7 +230,7 @@ private fun VmCard(
                             if (vm.gpu != null) append(" · ${vm.gpu}")
                         },
                         color = t.muted,
-                        fontSize = 11.sp,
+                        style = MaterialTheme.typography.labelSmall,
                     )
                 }
             }
