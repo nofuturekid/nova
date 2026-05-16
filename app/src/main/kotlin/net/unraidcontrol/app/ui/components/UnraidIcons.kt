@@ -79,7 +79,9 @@ object UC {
     @Composable fun Network(  size: Dp = 20.dp, tint: Color = Color.Unspecified) = Ico(Icons.Outlined.NetworkCheck,   size, tint)
     @Composable fun Shield(   size: Dp = 20.dp, tint: Color = Color.Unspecified) = Ico(Icons.Outlined.Security,       size, tint)
     @Composable fun Alert(    size: Dp = 20.dp, tint: Color = Color.Unspecified) = Ico(Icons.Outlined.Warning,        size, tint)
-    @Composable fun Bell(     size: Dp = 20.dp, tint: Color = Color.Unspecified) = Ico(Icons.Outlined.Notifications,  size, tint)
+    // Icons.Outlined.Notifications isn't in the icon set in use; the
+    // bell shows warnings & alerts, so the warning glyph fits.
+    @Composable fun Bell(     size: Dp = 20.dp, tint: Color = Color.Unspecified) = Ico(Icons.Outlined.Warning,        size, tint)
     @Composable fun Thermo(   size: Dp = 20.dp, tint: Color = Color.Unspecified) = Ico(Icons.Outlined.Thermostat,     size, tint)
     @Composable fun Power(    size: Dp = 20.dp, tint: Color = Color.Unspecified) = Ico(Icons.Outlined.PowerSettingsNew, size, tint)
     @Composable fun Link(     size: Dp = 20.dp, tint: Color = Color.Unspecified) = Ico(Icons.Outlined.Link,           size, tint)
