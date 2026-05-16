@@ -1,0 +1,41 @@
+# Dependabot — advisory dependency radar (ADR-0025).
+#
+# Intentionally low-noise and NON-autonomous: monthly, one grouped PR
+# per ecosystem, no auto-merge. Bumps still go through the normal
+# beta-cycle + on-device verification (CI only proves compile/lint —
+# Apollo 4→5, markdown-renderer 0.40 and the AGP DSL were real API
+# breaks). Dependabot removes the "what/when + correct target version"
+# legwork, not the verification.
+#
+# Security alerts + automated security fixes are enabled separately as
+# a repo setting (not expressible here), see ADR-0025.
+version: 2
+updates:
+  # GitHub Actions pins (checkout / setup-java / gradle-actions /
+  # upload-/download-artifact / action-gh-release). These we previously
+  # bumped by hand (ADR-0023 PR-2) — the highest-value, lowest-risk
+  # automation.
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "monthly"
+    groups:
+      github-actions:
+        patterns: ["*"]
+    open-pull-requests-limit: 3
+    commit-message:
+      prefix: "ci"
+
+  # Gradle: root + app build.gradle.kts + the libs.versions.toml
+  # version catalog. One grouped "radar" PR/month — reviewed and run
+  # through the beta cycle, never auto-merged.
+  - package-ecosystem: "gradle"
+    directory: "/"
+    schedule:
+      interval: "monthly"
+    groups:
+      gradle:
+        patterns: ["*"]
+    open-pull-requests-limit: 3
+    commit-message:
+      prefix: "build"
