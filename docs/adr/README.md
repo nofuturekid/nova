@@ -60,3 +60,4 @@ ADRs live under `docs/` so the CI docs-only bypass applies — pure-ADR PRs comp
 | [0023](./0023-upgrade-agp9-toolchain.md) | Upgrade to AGP 9 + modern Gradle/Kotlin/Hilt/Compose/Apollo toolchain | Accepted |
 | [0024](./0024-api-key-storage-datastore-tink.md) | API-key storage on DataStore + Tink (drop deprecated EncryptedSharedPreferences) | Accepted |
 | [0025](./0025-dependabot-advisory-radar.md) | Dependabot as a low-noise advisory radar (no auto-merge) | Accepted |
+| [0026](./0026-graphql-subscriptions-hybrid.md) | GraphQL subscriptions for select domains (hybrid with polling) | Proposed |
