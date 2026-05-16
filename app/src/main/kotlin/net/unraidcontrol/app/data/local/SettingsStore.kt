@@ -17,6 +17,7 @@ import net.unraidcontrol.app.data.model.AppSettings
 import net.unraidcontrol.app.data.model.ConnectionMode
 import net.unraidcontrol.app.data.model.Server
 import net.unraidcontrol.app.ui.theme.Density
+import net.unraidcontrol.app.ui.theme.ThemeMode
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -27,7 +28,7 @@ private object Keys {
     val ActiveServer        = stringPreferencesKey("active_server_id")
     val ConnMode            = stringPreferencesKey("connection_mode")
     val AccentHex           = longPreferencesKey("accent_hex")
-    val IsDark              = booleanPreferencesKey("is_dark")
+    val ThemeMode           = stringPreferencesKey("theme_mode")
     val Density             = stringPreferencesKey("density")
     val DockerView          = stringPreferencesKey("docker_view")
     val VmsView             = stringPreferencesKey("vms_view")
@@ -80,7 +81,11 @@ class SettingsStore @Inject constructor(
     val settings: Flow<AppSettings> = ds.data.map { prefs ->
         AppSettings(
             accentHex = prefs[Keys.AccentHex] ?: 0xFF22D3A4,
-            isDark    = prefs[Keys.IsDark] ?: true,
+            themeMode = when (prefs[Keys.ThemeMode]) {
+                "Light" -> ThemeMode.Light
+                "Dark"  -> ThemeMode.Dark
+                else    -> ThemeMode.System
+            },
             density   = when (prefs[Keys.Density]) {
                 "Compact"  -> Density.Compact
                 "Spacious" -> Density.Spacious
@@ -119,8 +124,8 @@ class SettingsStore @Inject constructor(
         ds.edit { it[Keys.AccentHex] = hex }
     }
 
-    suspend fun setIsDark(dark: Boolean) {
-        ds.edit { it[Keys.IsDark] = dark }
+    suspend fun setThemeMode(mode: ThemeMode) {
+        ds.edit { it[Keys.ThemeMode] = mode.name }
     }
 
     suspend fun setDensity(density: Density) {
