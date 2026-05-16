@@ -1,6 +1,8 @@
 # ADR-0026: GraphQL subscriptions for select domains (hybrid with polling)
 
-- **Status**: Deprecated — piloted (E0+E1) then reverted, see Outcome
+- **Status**: Deprecated — piloted (E0+E1) then reverted. **Reversal is
+  provisional**, not a permanent rejection: revisit once an ADR-0027
+  test environment exists (see Trigger to revisit).
 - **Date**: 2026-05-16
 - **Tags**: data, performance, resilience, api
 
@@ -40,19 +42,33 @@ server. Findings:
 **Decision: reverted in 0.1.29-beta13.** All E0/E1 code (WS transport,
 `subscriptionStream`, the subscription schema/operation/mapper, the
 pilot transport badge) is removed; `notificationsStream` is back to the
-ADR-0017 poll. Polling stays the only data path. E2–E4 are **not**
-pursued: the highest-value target (system metrics) uses a different
-(interval) publisher that *might* deliver, but the pilot showed the
-practical payoff is gated by per-server/per-domain server-side
-behaviour we can't control or test broadly, so the complexity isn't
-justified. This ADR is kept as the record of *why* subscriptions were
-evaluated and dropped, so it isn't re-litigated.
+ADR-0017 poll. Polling stays the only data path **for now**.
 
-**Trigger to revisit:** if Lime Technology documents/guarantees
-subscription delivery (with a subscribe-time snapshot) for a
-high-value domain, or the API gains server-push that doesn't depend
-on the FS watcher, re-evaluate from this ADR's Outcome — don't restart
-from the original premise.
+The revert is **provisional, and primarily about iterability, not a
+verdict that subscriptions can't work**. The technical findings stand
+(no subscribe-snapshot; notifications gated by a server-side FS
+watcher), but the deciding factor was that each hypothesis cost a
+multi-beta user-relay loop (beta9–beta13 for *one* investigation).
+Without a test environment the agent can drive directly (ADR-0027),
+continuing to probe E2–E4 by relay is not worth it. With one, the
+cost-of-iteration collapses and the calculus changes — notably system
+metrics and array use an **interval publisher, not the FS watcher**,
+so they may well deliver where notifications didn't. This ADR is kept
+as the record of *why* it was paused and on *what* it hinges, not as a
+closed door.
+
+**Trigger to revisit (any one):**
+- An **ADR-0027 test environment** exists (agent can run a real/test
+  Unraid, open the WSS subscription, read api logs, iterate without a
+  user relay). Re-test **system metrics first** (`systemMetricsCpu`/
+  `Memory` — interval publisher, highest value, biggest poll to
+  replace), then array.
+- Lime Technology documents/guarantees subscription delivery (with a
+  subscribe-time snapshot) for a high-value domain, or the API gains
+  server-push that doesn't depend on the FS watcher.
+
+Re-evaluate from this ADR's Outcome — don't restart from the original
+premise.
 
 ## Context
 
