@@ -10,6 +10,7 @@ import net.unraidcontrol.app.data.model.DiskStatus
 import net.unraidcontrol.app.data.model.DiskType
 import net.unraidcontrol.app.data.model.LiveMetrics
 import net.unraidcontrol.app.data.model.NotifImportance
+import net.unraidcontrol.app.data.model.NotifTransport
 import net.unraidcontrol.app.data.model.Notifications
 import net.unraidcontrol.app.data.model.ParityCheck
 import net.unraidcontrol.app.data.model.ServerInfo
@@ -162,6 +163,7 @@ fun GetNotificationsQuery.Data.toNotifications(): Notifications {
                 timestamp = n.timestamp,
             )
         },
+        transport = NotifTransport.Poll,
     )
 }
 
@@ -188,6 +190,7 @@ fun NotificationsFeedSubscription.Data.toNotifications(): Notifications {
         unreadWarning = items.count { it.importance == NotifImportance.Warning },
         unreadAlert = items.count { it.importance == NotifImportance.Alert },
         items = items,
+        transport = NotifTransport.Subscription,
     )
 }
 

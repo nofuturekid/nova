@@ -28,8 +28,11 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import net.unraidcontrol.app.data.model.NotifImportance
+import net.unraidcontrol.app.data.model.NotifTransport
 import net.unraidcontrol.app.data.model.Notifications
 import net.unraidcontrol.app.data.model.UnraidNotification
+import net.unraidcontrol.app.ui.components.Pill
+import net.unraidcontrol.app.ui.components.Tone
 import net.unraidcontrol.app.ui.components.UC
 import net.unraidcontrol.app.ui.components.UnraidIconButton
 import net.unraidcontrol.app.ui.theme.UnraidTheme
@@ -66,7 +69,19 @@ fun NotificationsSheet(
         ) {
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(14.dp)) {
                 Column(modifier = Modifier.weight(1f)) {
-                    Text("Notifications", color = t.text, style = MaterialTheme.typography.titleLarge)
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    ) {
+                        Text("Notifications", color = t.text, style = MaterialTheme.typography.titleLarge)
+                        // Phase E pilot diagnostic (ADR-0026 E1): which
+                        // transport is feeding this. "live" = WS
+                        // subscription active; "60s poll" = fallback.
+                        when (data.transport) {
+                            NotifTransport.Subscription -> Pill("live", tone = Tone.Accent, dot = true)
+                            NotifTransport.Poll         -> Pill("60s poll", tone = Tone.Neutral, dot = true)
+                        }
+                    }
                     Spacer(Modifier.height(2.dp))
                     Text(
                         text = "${data.unreadAlert} alerts · ${data.unreadWarning} warnings",
