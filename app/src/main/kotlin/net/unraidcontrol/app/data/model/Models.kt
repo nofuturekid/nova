@@ -91,6 +91,26 @@ data class Vm(
     val gpu: String?,
 )
 
+enum class NotifImportance { Info, Warning, Alert }
+
+data class UnraidNotification(
+    val id: String,
+    val title: String,
+    val subject: String,
+    val description: String,
+    val importance: NotifImportance,
+    val timestamp: String?,
+)
+
+/** Unread warning+alert count for the bell badge + the deduped list for the sheet. */
+data class Notifications(
+    val unreadWarning: Int,
+    val unreadAlert: Int,
+    val items: List<UnraidNotification>,
+) {
+    val badgeCount: Int get() = unreadWarning + unreadAlert
+}
+
 /** Static server identity + hardware spec. Polled rarely (info changes only between reboots). */
 data class ServerInfo(
     val hostname: String,

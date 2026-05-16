@@ -29,6 +29,42 @@ type Query {
     docker: Docker
     vms: Vms
     metrics: Metrics
+    notifications: Notifications!
+}
+
+# ── Notifications ────────────────────────────────────────────────────
+# Subset of the live Unraid `Notifications` type (verified against
+# unraid/api generated-schema.graphql, May 2026). Only the fields the
+# bell indicator + sheet consume; the live type exposes more
+# (list/filter/archive/link/formattedTimestamp/...).
+type Notifications {
+    overview: NotificationOverview!
+    # Deduplicated unread warnings + alerts, latest first.
+    warningsAndAlerts: [Notification!]!
+}
+
+type NotificationOverview {
+    unread: NotificationCounts!
+}
+
+type NotificationCounts {
+    warning: Int!
+    alert: Int!
+}
+
+type Notification {
+    id: PrefixedID!
+    title: String!
+    subject: String!
+    description: String!
+    importance: NotificationImportance!
+    timestamp: String
+}
+
+enum NotificationImportance {
+    ALERT
+    INFO
+    WARNING
 }
 
 type Metrics {
