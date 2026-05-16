@@ -14,6 +14,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -22,7 +23,6 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import net.unraidcontrol.app.data.model.ArrayInfo
@@ -170,7 +170,7 @@ private fun OverviewContent(
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         UC.Shield(18.dp, t.muted)
                         Spacer(Modifier.width(8.dp))
-                        Text("Array", color = t.muted, fontSize = 13.sp, fontWeight = FontWeight.Medium)
+                        Text("Array", color = t.muted, style = MaterialTheme.typography.labelLarge)
                         Spacer(Modifier.weight(1f))
                         Pill(arrLabel, tone = arrTone, dot = true)
                     }
@@ -179,14 +179,12 @@ private fun OverviewContent(
                         Text(
                             text = "%.1f".format(arrUsedTb),
                             color = t.text,
-                            fontSize = 32.sp,
-                            fontWeight = FontWeight.SemiBold,
-                            letterSpacing = (-0.5).sp,
+                            style = MaterialTheme.typography.displayLarge,
                         )
                         Text(
                             text = "/ ${"%.0f".format(arrTotalTb)} TB used",
                             color = t.muted,
-                            fontSize = 16.sp,
+                            style = MaterialTheme.typography.titleSmall,
                         )
                     }
                     Spacer(Modifier.height(12.dp))
@@ -198,11 +196,11 @@ private fun OverviewContent(
                     )
                     Spacer(Modifier.height(8.dp))
                     Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                        Text("${(arrayPct * 100).toInt()}% used", color = t.muted, fontSize = 12.sp)
+                        Text("${(arrayPct * 100).toInt()}% used", color = t.muted, style = MaterialTheme.typography.bodySmall)
                         Text(
                             "${"%.1f".format(arrTotalTb - arrUsedTb)} TB free",
                             color = t.muted,
-                            fontSize = 12.sp,
+                            style = MaterialTheme.typography.bodySmall,
                         )
                     }
                     array?.parity?.let { p ->
@@ -215,13 +213,12 @@ private fun OverviewContent(
                                 .padding(horizontal = 12.dp, vertical = 10.dp),
                         ) {
                             Row {
-                                Text(if (p.paused) "Parity check paused" else "Parity check running", color = t.info, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
+                                Text(if (p.paused) "Parity check paused" else "Parity check running", color = t.info, style = MaterialTheme.typography.labelMedium)
                                 Spacer(Modifier.weight(1f))
                                 Text(
                                     "${(p.progress * 100).toInt()}% · ${"%.0f".format(p.speedMbps)} MB/s",
                                     color = t.info,
-                                    fontSize = 12.sp,
-                                    fontWeight = FontWeight.SemiBold,
+                                    style = MaterialTheme.typography.labelMedium,
                                 )
                             }
                             Spacer(Modifier.height(6.dp))
@@ -277,12 +274,12 @@ private fun OverviewContent(
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             UC.Docker(16.dp, t.muted)
                             Spacer(Modifier.width(8.dp))
-                            Text("Containers", color = t.muted, fontSize = 12.sp, fontWeight = FontWeight.Medium)
+                            Text("Containers", color = t.muted, style = MaterialTheme.typography.labelMedium)
                         }
                         Spacer(Modifier.height(8.dp))
                         Row(verticalAlignment = Alignment.Bottom, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                            Text("$running", color = t.text, fontSize = 24.sp, fontWeight = FontWeight.SemiBold)
-                            Text("running", color = t.muted, fontSize = 13.sp)
+                            Text("$running", color = t.text, style = MaterialTheme.typography.headlineLarge)
+                            Text("running", color = t.muted, style = MaterialTheme.typography.bodyMedium)
                         }
                         Spacer(Modifier.height(6.dp))
                         Text(
@@ -294,7 +291,7 @@ private fun OverviewContent(
                                 ).joinToString(" · ")
                             },
                             color = t.muted,
-                            fontSize = 11.sp,
+                            style = MaterialTheme.typography.labelSmall,
                         )
                     }
                 }
@@ -303,15 +300,15 @@ private fun OverviewContent(
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             UC.Vm(16.dp, t.muted)
                             Spacer(Modifier.width(8.dp))
-                            Text("Virtual machines", color = t.muted, fontSize = 12.sp, fontWeight = FontWeight.Medium)
+                            Text("Virtual machines", color = t.muted, style = MaterialTheme.typography.labelMedium)
                         }
                         Spacer(Modifier.height(8.dp))
                         Row(verticalAlignment = Alignment.Bottom, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                            Text("$vmRunning", color = t.text, fontSize = 24.sp, fontWeight = FontWeight.SemiBold)
-                            Text("running", color = t.muted, fontSize = 13.sp)
+                            Text("$vmRunning", color = t.text, style = MaterialTheme.typography.headlineLarge)
+                            Text("running", color = t.muted, style = MaterialTheme.typography.bodyMedium)
                         }
                         Spacer(Modifier.height(6.dp))
-                        Text("$vmCount configured", color = t.muted, fontSize = 11.sp)
+                        Text("$vmCount configured", color = t.muted, style = MaterialTheme.typography.labelSmall)
                     }
                 }
             }
@@ -323,9 +320,7 @@ private fun OverviewContent(
                     Text(
                         text = "SYSTEM",
                         color = t.muted,
-                        fontSize = 11.sp,
-                        fontWeight = FontWeight.SemiBold,
-                        letterSpacing = 1.3.sp,
+                        style = MaterialTheme.typography.labelSmall,
                         modifier = Modifier.padding(bottom = 8.dp),
                     )
                     InfoRow(icon = { UC.Server(15.dp, t.muted) }, label = "Hostname", value = server?.hostname ?: info?.hostname.orEmpty())
@@ -355,14 +350,12 @@ private fun StatCard(
             Row(verticalAlignment = Alignment.CenterVertically) {
                 icon()
                 Spacer(Modifier.width(8.dp))
-                Text(label, color = t.muted, fontSize = 13.sp, fontWeight = FontWeight.Medium)
+                Text(label, color = t.muted, style = MaterialTheme.typography.labelLarge)
                 Spacer(Modifier.weight(1f))
                 Text(
                     text = value,
                     color = t.text,
-                    fontSize = 22.sp,
-                    fontWeight = FontWeight.SemiBold,
-                    letterSpacing = (-0.4).sp,
+                    style = MaterialTheme.typography.headlineMedium,
                 )
             }
             Spacer(Modifier.height(8.dp))
@@ -372,7 +365,7 @@ private fun StatCard(
                 height = 56.dp,
                 maxValue = max,
             )
-            Text(sub, color = t.muted, fontSize = 12.sp, modifier = Modifier.padding(top = 4.dp))
+            Text(sub, color = t.muted, style = MaterialTheme.typography.bodySmall, modifier = Modifier.padding(top = 4.dp))
         }
     }
 }
@@ -392,8 +385,8 @@ private fun InfoRow(
             horizontalArrangement = Arrangement.spacedBy(12.dp),
         ) {
             icon()
-            Text(label, color = t.muted, fontSize = 13.sp, modifier = Modifier.weight(1f))
-            Text(value, color = t.text, fontSize = 13.sp, fontFamily = JetBrainsMono)
+            Text(label, color = t.muted, style = MaterialTheme.typography.bodyMedium, modifier = Modifier.weight(1f))
+            Text(value, color = t.text, style = MaterialTheme.typography.bodyMedium.copy(fontFamily = JetBrainsMono))
         }
         if (!last) HorizontalDivider(color = t.border)
     }

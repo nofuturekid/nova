@@ -15,6 +15,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -24,7 +25,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.text.TextStyle
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
@@ -73,8 +73,7 @@ fun UnraidField(
                 Text(
                     text = label,
                     color = if (focused) t.accent else t.muted,
-                    fontSize = 11.sp,
-                    fontWeight = FontWeight.Medium,
+                    style = MaterialTheme.typography.labelSmall,
                 )
                 Spacer(Modifier.height(2.dp))
                 BasicTextField(
@@ -90,7 +89,7 @@ fun UnraidField(
                     decorationBox = { inner ->
                         Box {
                             if (value.isEmpty() && placeholder.isNotEmpty()) {
-                                Text(placeholder, color = t.muted.copy(alpha = 0.6f), fontSize = 15.sp)
+                                Text(placeholder, color = t.muted.copy(alpha = 0.6f), style = MaterialTheme.typography.bodyLarge)
                             }
                             inner()
                         }
@@ -103,7 +102,7 @@ fun UnraidField(
             Text(
                 text = helper,
                 color = if (isError) t.danger else t.muted,
-                fontSize = 12.sp,
+                style = MaterialTheme.typography.bodySmall,
                 modifier = Modifier.padding(start = 14.dp, top = 4.dp),
             )
         }

@@ -22,6 +22,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -35,8 +36,6 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.text.TextStyle
-import androidx.compose.ui.text.font.FontFamily
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -190,13 +189,12 @@ private fun UpdateAllBanner(count: Int, onTap: () -> Unit) {
             Text(
                 text = if (count == 1) "1 container has an update" else "$count containers have updates",
                 color = t.info,
-                fontSize = 13.sp,
-                fontWeight = FontWeight.SemiBold,
+                style = MaterialTheme.typography.labelLarge,
             )
             Text(
                 text = "Tap to update all",
                 color = t.info.copy(alpha = 0.75f),
-                fontSize = 11.sp,
+                style = MaterialTheme.typography.labelSmall,
             )
         }
         UC.ChevR(16.dp, t.info)
@@ -227,7 +225,7 @@ private fun SearchBox(value: String, onChange: (String) -> Unit) {
             decorationBox = { inner ->
                 Box {
                     if (value.isEmpty()) {
-                        Text("Search containers", color = t.muted, fontSize = 14.sp)
+                        Text("Search containers", color = t.muted, style = MaterialTheme.typography.bodyMedium)
                     }
                     inner()
                 }
@@ -269,8 +267,7 @@ private fun ContainerRow(
                 Text(
                     text = c.name,
                     color = t.text,
-                    fontSize = 15.sp,
-                    fontWeight = FontWeight.SemiBold,
+                    style = MaterialTheme.typography.titleSmall,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                 )
@@ -347,8 +344,7 @@ private fun ContainerGridTile(c: Container, serverBaseUrl: String, onOpen: (Cont
             Text(
                 text = c.name,
                 color = t.text,
-                fontSize = 12.sp,
-                fontWeight = FontWeight.SemiBold,
+                style = MaterialTheme.typography.labelMedium,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
             )

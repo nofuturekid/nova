@@ -19,6 +19,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.clickable
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
@@ -27,10 +28,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.text.font.FontFamily
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -96,8 +94,7 @@ fun ServerListScreen(
             Text(
                 text = "Servers",
                 color = t.text,
-                fontSize = 20.sp,
-                fontWeight = FontWeight.SemiBold,
+                style = MaterialTheme.typography.titleLarge,
                 modifier = Modifier.weight(1f),
             )
             UnraidIconButton(icon = { UC.Plus(20.dp, t.accent) }, onClick = onAdd, tone = Tone.Accent)
@@ -134,15 +131,14 @@ fun ServerListScreen(
                         }
                         Column(modifier = Modifier.weight(1f)) {
                             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                                Text(s.name, color = t.text, fontSize = 15.sp, fontWeight = FontWeight.SemiBold)
+                                Text(s.name, color = t.text, style = MaterialTheme.typography.titleSmall)
                                 if (active) Pill("active", tone = Tone.Accent, dot = true)
                             }
                             Spacer(Modifier.height(2.dp))
                             Text(
                                 text = s.localUrl,
                                 color = t.muted,
-                                fontSize = 11.sp,
-                                fontFamily = JetBrainsMono,
+                                style = MaterialTheme.typography.labelSmall.copy(fontFamily = JetBrainsMono),
                             )
                         }
                         UnraidIconButton(
@@ -165,7 +161,7 @@ fun ServerListScreen(
                 ) {
                     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                         UC.Plus(18.dp, t.muted)
-                        Text("Add another server", color = t.muted, fontSize = 14.sp, fontWeight = FontWeight.Medium)
+                        Text("Add another server", color = t.muted, style = MaterialTheme.typography.labelLarge)
                     }
                 }
             }

@@ -15,6 +15,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Text
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -23,10 +24,8 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -182,8 +181,7 @@ fun AddEditServerSheet(
                 Text(
                     text = if (server != null) "Edit server" else "Add server",
                     color = t.text,
-                    fontSize = 20.sp,
-                    fontWeight = FontWeight.SemiBold,
+                    style = MaterialTheme.typography.titleLarge,
                     modifier = Modifier.weight(1f),
                 )
                 UnraidIconButton(icon = { UC.X(20.dp, t.text) }, onClick = onDismiss)
@@ -302,8 +300,7 @@ private fun TestConnectionPanel(state: TestState, onTest: () -> Unit, message: S
                     TestState.Fail    -> "Failed to connect"
                 },
                 color = t.text,
-                fontSize = 13.sp,
-                fontWeight = FontWeight.SemiBold,
+                style = MaterialTheme.typography.labelLarge,
             )
             Spacer(Modifier.height(2.dp))
             Text(
@@ -314,7 +311,7 @@ private fun TestConnectionPanel(state: TestState, onTest: () -> Unit, message: S
                     TestState.Fail    -> message ?: "Check URL and API key"
                 },
                 color = t.muted,
-                fontSize = 11.sp,
+                style = MaterialTheme.typography.labelSmall,
             )
         }
         when (state) {
