@@ -119,7 +119,7 @@ fun UpdateDialog(
                     // heading↔body hierarchy, links render at body size.
                     // Colour comes from markdownColor / UnraidTheme.
                     Markdown(
-                        content = info.releaseNotes.trim(),
+                        content = tidyReleaseNotes(info.releaseNotes),
                         modifier = Modifier.verticalScroll(rememberScrollState()),
                         colors = markdownColor(
                             text = t.text,
@@ -234,4 +234,18 @@ private fun formatBytes(bytes: Long): String = when {
     bytes >= 1_000_000 -> "%.1f MB".format(bytes / 1_000_000.0)
     bytes >= 1_000     -> "%.0f KB".format(bytes / 1_000.0)
     else               -> "$bytes B"
+}
+
+/**
+ * GitHub auto-generated release notes inline full PR/compare URLs, which
+ * render as huge, unruly link blocks. Compact them to short link text
+ * before handing the markdown to the renderer.
+ */
+private fun tidyReleaseNotes(raw: String): String {
+    var s = raw.trim()
+    s = Regex("""https://github\.com/[\w.-]+/[\w.-]+/pull/(\d+)""")
+        .replace(s) { m -> "[#${m.groupValues[1]}](${m.value})" }
+    s = Regex("""\*\*Full Changelog\*\*:\s*(\S+)""")
+        .replace(s) { m -> "[Full changelog](${m.groupValues[1]})" }
+    return s
 }
