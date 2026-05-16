@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
@@ -21,12 +22,15 @@ import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Text
+import androidx.compose.material3.pulltorefresh.PullToRefreshBox
+import androidx.compose.material3.pulltorefresh.rememberPullToRefreshState
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -52,8 +56,15 @@ import net.unraidcontrol.app.ui.components.UnraidCard
 import net.unraidcontrol.app.ui.components.UnraidIconButton
 import net.unraidcontrol.app.ui.theme.JetBrainsMono
 import net.unraidcontrol.app.ui.theme.UnraidTheme
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 
 private enum class DetailTab { Info, Logs, Ports, Volumes }
+
+// Logs tab re-fetches on this cadence while open (live tail). The
+// unraid-api logs query returns a tail snapshot, not a stream, so we
+// poll — matching the app's polling architecture (ADR-0017).
+private const val LOG_TAIL_INTERVAL_MS = 3_000L
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -62,6 +73,7 @@ fun ContainerDetailSheet(
     serverBaseUrl: String,
     isUpdating: Boolean,
     onFetchLogs: suspend (id: String) -> List<net.unraidcontrol.app.data.model.LogLine>,
+    onRefresh: suspend () -> Unit,
     onDismiss: () -> Unit,
     onStart: (Container) -> Unit,
     onRestart: (Container) -> Unit,
@@ -69,15 +81,38 @@ fun ContainerDetailSheet(
     onUpdate: (Container) -> Unit,
 ) {
     val t = UnraidTheme.colors
+    val scope = rememberCoroutineScope()
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     var tab by remember { mutableStateOf(DetailTab.Info) }
     var logs by remember(container.id) { mutableStateOf<List<net.unraidcontrol.app.data.model.LogLine>?>(null) }
     var logsLoading by remember(container.id) { mutableStateOf(false) }
+    // Live tail: while the Logs tab is open on a running container, re-fetch
+    // on an interval. The keyed LaunchedEffect cancels the loop when the
+    // tab changes, the container stops, or the sheet is dismissed.
     LaunchedEffect(tab, container.id, container.status) {
-        if (tab == DetailTab.Logs && container.status == ContainerStatus.Running && logs == null) {
-            logsLoading = true
-            try { logs = onFetchLogs(container.id) }
-            finally { logsLoading = false }
+        if (tab == DetailTab.Logs && container.status == ContainerStatus.Running) {
+            if (logs == null) logsLoading = true
+            while (true) {
+                try { logs = onFetchLogs(container.id) } catch (_: Exception) {}
+                logsLoading = false
+                delay(LOG_TAIL_INTERVAL_MS)
+            }
+        }
+    }
+
+    val pullState = rememberPullToRefreshState()
+    var refreshing by remember { mutableStateOf(false) }
+    val onPull: () -> Unit = {
+        if (!refreshing) {
+            refreshing = true
+            scope.launch {
+                try {
+                    onRefresh()
+                    if (tab == DetailTab.Logs && container.status == ContainerStatus.Running) {
+                        runCatching { onFetchLogs(container.id) }.getOrNull()?.let { logs = it }
+                    }
+                } finally { refreshing = false }
+            }
         }
     }
 
@@ -275,20 +310,30 @@ fun ContainerDetailSheet(
 
             // Only the tab content scrolls; the header/actions/tabs above
             // stay fixed. weight(1f) makes it take the remaining height of
-            // the fixed-height sheet.
-            Column(
+            // the fixed-height sheet. Pull-to-refresh wraps just this
+            // scrollable region so its gesture doesn't fight the sheet's
+            // own drag-to-dismiss on the pinned header.
+            PullToRefreshBox(
+                isRefreshing = refreshing,
+                state = pullState,
+                onRefresh = onPull,
                 modifier = Modifier
                     .fillMaxWidth()
-                    .weight(1f)
-                    .verticalScroll(rememberScrollState()),
+                    .weight(1f),
             ) {
-                when (tab) {
-                    DetailTab.Info    -> InfoTabContent(container)
-                    DetailTab.Logs    -> LogsTabContent(container, logs, logsLoading)
-                    DetailTab.Ports   -> PortsTabContent(container)
-                    DetailTab.Volumes -> VolumesTabContent(container)
+                Column(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .verticalScroll(rememberScrollState()),
+                ) {
+                    when (tab) {
+                        DetailTab.Info    -> InfoTabContent(container)
+                        DetailTab.Logs    -> LogsTabContent(container, logs, logsLoading)
+                        DetailTab.Ports   -> PortsTabContent(container)
+                        DetailTab.Volumes -> VolumesTabContent(container)
+                    }
+                    Spacer(Modifier.height(24.dp))
                 }
-                Spacer(Modifier.height(24.dp))
             }
         }
     }

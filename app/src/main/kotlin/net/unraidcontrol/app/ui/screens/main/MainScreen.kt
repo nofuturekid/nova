@@ -304,6 +304,7 @@ fun MainScreen(
             serverBaseUrl = baseUrl,
             isUpdating = shown.id in updatingIds,
             onFetchLogs = { id -> vm.containerLogs(id) },
+            onRefresh = { vm.refresh() },
             onDismiss = { openContainer = null },
             onStart   = { vm.startContainer(it.id); openContainer = null },
             onRestart = { vm.restartContainer(it.id) },
