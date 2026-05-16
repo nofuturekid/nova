@@ -24,7 +24,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.mikepenz.markdown.m3.Markdown
@@ -115,11 +114,10 @@ fun UpdateDialog(
                 ) {
                     // Default Markdown typography maps headers to MaterialTheme
                     // display/headline sizes (28-57 sp) which are sized for
-                    // full-screen layouts and overwhelm a bottom-sheet. Override
-                    // with dialog-appropriate sizes; body colour comes from our
-                    // UnraidTheme. (markdown-renderer 0.40 dropped the linkText/
-                    // link style slots; links inherit the body style.)
-                    val bodyStyle = androidx.compose.ui.text.TextStyle(color = t.text, fontSize = 12.sp)
+                    // Markdown styles derive from the app's M3 type scale
+                    // so the changelog matches the rest of the UI: clear
+                    // heading↔body hierarchy, links render at body size.
+                    // Colour comes from markdownColor / UnraidTheme.
                     Markdown(
                         content = info.releaseNotes.trim(),
                         modifier = Modifier.verticalScroll(rememberScrollState()),
@@ -127,20 +125,20 @@ fun UpdateDialog(
                             text = t.text,
                         ),
                         typography = markdownTypography(
-                            h1 = bodyStyle.copy(fontSize = 17.sp, fontWeight = FontWeight.SemiBold),
-                            h2 = bodyStyle.copy(fontSize = 15.sp, fontWeight = FontWeight.SemiBold),
-                            h3 = bodyStyle.copy(fontSize = 13.sp, fontWeight = FontWeight.SemiBold),
-                            h4 = bodyStyle.copy(fontSize = 12.sp, fontWeight = FontWeight.SemiBold),
-                            h5 = bodyStyle.copy(fontSize = 12.sp, fontWeight = FontWeight.Medium),
-                            h6 = bodyStyle.copy(fontSize = 12.sp, fontWeight = FontWeight.Medium),
-                            text = bodyStyle,
-                            paragraph = bodyStyle,
-                            ordered = bodyStyle,
-                            bullet = bodyStyle,
-                            list = bodyStyle,
-                            code = bodyStyle.copy(fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace),
-                            inlineCode = bodyStyle.copy(fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace),
-                            quote = bodyStyle.copy(fontStyle = androidx.compose.ui.text.font.FontStyle.Italic),
+                            h1 = MaterialTheme.typography.titleMedium,
+                            h2 = MaterialTheme.typography.titleSmall,
+                            h3 = MaterialTheme.typography.labelLarge,
+                            h4 = MaterialTheme.typography.labelLarge,
+                            h5 = MaterialTheme.typography.labelMedium,
+                            h6 = MaterialTheme.typography.labelMedium,
+                            text = MaterialTheme.typography.bodyMedium,
+                            paragraph = MaterialTheme.typography.bodyMedium,
+                            ordered = MaterialTheme.typography.bodyMedium,
+                            bullet = MaterialTheme.typography.bodyMedium,
+                            list = MaterialTheme.typography.bodyMedium,
+                            code = MaterialTheme.typography.bodyMedium.copy(fontFamily = JetBrainsMono),
+                            inlineCode = MaterialTheme.typography.bodyMedium.copy(fontFamily = JetBrainsMono),
+                            quote = MaterialTheme.typography.bodyMedium.copy(fontStyle = androidx.compose.ui.text.font.FontStyle.Italic),
                         ),
                     )
                 }

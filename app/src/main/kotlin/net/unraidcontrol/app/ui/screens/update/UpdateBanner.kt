@@ -1,6 +1,7 @@
 package net.unraidcontrol.app.ui.screens.update
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -36,7 +37,10 @@ fun UpdateBanner(
             .fillMaxWidth()
             .padding(horizontal = 12.dp, vertical = 8.dp)
             .clip(RoundedCornerShape(12.dp))
-            .background(t.accentDim)
+            // Stronger than accentDim + an accent outline so the update
+            // banner actually stands out on the dark dashboard.
+            .background(t.accent.copy(alpha = 0.20f))
+            .border(1.dp, t.accent.copy(alpha = 0.45f), RoundedCornerShape(12.dp))
             .clickable(onClick = onTap)
             .padding(start = 14.dp, end = 4.dp, top = 10.dp, bottom = 10.dp),
         verticalAlignment = Alignment.CenterVertically,
@@ -47,7 +51,7 @@ fun UpdateBanner(
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 Text(
                     text = "Update available",
-                    color = t.text,
+                    color = t.accent,
                     style = MaterialTheme.typography.labelLarge,
                 )
                 if (info.isPrerelease) Pill("BETA", tone = Tone.Warn)
