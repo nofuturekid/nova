@@ -102,11 +102,19 @@ data class UnraidNotification(
     val timestamp: String?,
 )
 
+/** Which transport produced the current notifications snapshot.
+ *  Phase E pilot diagnostic (ADR-0026 E1): the WS subscription and the
+ *  poll fallback are intentionally indistinguishable in behaviour, so
+ *  this is surfaced in the sheet header to verify the pilot on-device.
+ *  Remove once the subscription path is proven and the gate decided. */
+enum class NotifTransport { Subscription, Poll }
+
 /** Unread warning+alert count for the bell badge + the deduped list for the sheet. */
 data class Notifications(
     val unreadWarning: Int,
     val unreadAlert: Int,
     val items: List<UnraidNotification>,
+    val transport: NotifTransport = NotifTransport.Poll,
 ) {
     val badgeCount: Int get() = unreadWarning + unreadAlert
 }
