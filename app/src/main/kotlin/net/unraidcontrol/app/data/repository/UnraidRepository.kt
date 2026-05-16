@@ -5,14 +5,10 @@ import com.apollographql.apollo.api.Query
 import com.apollographql.apollo.exception.ApolloException
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.channelFlow
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.first
-import kotlinx.coroutines.flow.FlowCollector
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flow
-import kotlinx.coroutines.flow.map
-import kotlinx.coroutines.launch
 import net.unraidcontrol.app.data.api.ApolloClientFactory
 import net.unraidcontrol.app.data.api.toArrayInfo
 import net.unraidcontrol.app.data.api.toContainers
@@ -30,7 +26,6 @@ import net.unraidcontrol.app.data.model.ServerInfo
 import net.unraidcontrol.app.data.model.Vm
 import net.unraidcontrol.app.graphql.FetchContainerLogsQuery
 import net.unraidcontrol.app.graphql.GetNotificationsQuery
-import net.unraidcontrol.app.graphql.NotificationsFeedSubscription
 import net.unraidcontrol.app.graphql.ForceStopVmMutation
 import net.unraidcontrol.app.graphql.GetArrayQuery
 import net.unraidcontrol.app.graphql.GetDockerContainersQuery
@@ -110,44 +105,10 @@ class UnraidRepository @Inject constructor(
             fetch(client, GetVmsQuery()) { data -> data.toVms() }.withBaseUrl(baseUrl)
         }
 
-    /**
-     * E1 pilot (ADR-0026): the bell badge + sheet list are driven by a
-     * GraphQL subscription, with the 60 s [GetNotificationsQuery] poll as
-     * the automatic fallback when the WS session can't be established
-     * (older API versions / a proxy that doesn't pass the WS upgrade).
-     */
     fun notificationsStream(intervalMs: Long = POLL_NOTIFICATIONS_MS): Flow<DomainState<Notifications>> =
-        subscriptionStream(
-            intervalMs = intervalMs,
-            poll = { client, baseUrl ->
-                fetch(client, GetNotificationsQuery()) { data -> data.toNotifications() }
-                    .withBaseUrl(baseUrl)
-            },
-            subscribe = { client ->
-                client.subscription(NotificationsFeedSubscription()).toFlow().map { resp ->
-                    // Any non-Content outcome means the WS path is unusable
-                    // (older API "cannot subscribe field", auth, transport)
-                    // — throw so subscriptionStream degrades to the poll
-                    // fallback and records the reason, instead of pinning
-                    // the bell to an error state.
-                    when {
-                        resp.exception != null -> throw resp.exception!!
-                        resp.hasErrors() -> throw IllegalStateException(
-                            resp.errors?.joinToString { it.message } ?: "GraphQL subscription error"
-                        )
-                        resp.data == null -> throw IllegalStateException("Empty subscription payload")
-                        else -> DomainState.Content(resp.data!!.toNotifications())
-                    }
-                }
-            },
-            tagFallback = { state, wsError ->
-                if (state is DomainState.Content) {
-                    DomainState.Content(state.value.copy(wsError = wsError), state.serverBaseUrl)
-                } else {
-                    state
-                }
-            },
-        )
+        domainStream(intervalMs) { client, baseUrl ->
+            fetch(client, GetNotificationsQuery()) { data -> data.toNotifications() }.withBaseUrl(baseUrl)
+        }
 
     /**
      * Generic per-domain polling loop.
@@ -174,117 +135,28 @@ class UnraidRepository @Inject constructor(
                 }
                 val url = activeUrl(active)
                 val client = apolloFactory.build(url, active.apiKey)
-                pollLoop(client, url, intervalMs, fetch)
-            }
-        }
 
-    /**
-     * Phase E (ADR-0026): subscription-backed domain stream with a hard
-     * fallback to polling. Tries the WS subscription first; if it never
-     * connects, errors, or the server closes it, drops into the exact
-     * same [pollLoop] resilience the polling streams use — so an API
-     * version without `type Subscription` (or a proxy without WS
-     * upgrade) degrades to the prior behaviour instead of breaking.
-     * App-visible gating is unchanged: this is composed under the same
-     * `gatedStream` as every other domain in MainViewModel.
-     */
-    private fun <T> subscriptionStream(
-        intervalMs: Long,
-        poll: suspend (ApolloClient, String) -> DomainState<T>,
-        subscribe: (ApolloClient) -> Flow<DomainState<T>>,
-        // Phase E pilot diagnostic: lets a domain stamp *why* the WS
-        // path didn't take onto its fallback payload, so it can be
-        // surfaced in the UI instead of silently swallowed.
-        tagFallback: (DomainState<T>, String?) -> DomainState<T> = { s, _ -> s },
-    ): Flow<DomainState<T>> = servers.activeWithKey
-        .distinctUntilChanged()
-        .flatMapLatest { active ->
-            channelFlow<DomainState<T>> {
-                if (active == null) {
-                    send(DomainState.NoServer)
-                    return@channelFlow
-                }
-                if (active.apiKey.isBlank()) {
-                    send(DomainState.Error("Missing API key for ${active.server.name}"))
-                    return@channelFlow
-                }
-                val url = activeUrl(active)
-                val client = apolloFactory.build(url, active.apiKey)
-                var wsError: String? = null
-
-                // Seed + overlay (ADR-0026 E1): the WS subscription may
-                // not push an initial snapshot — it only fires on change.
-                // So always run the poll loop as the baseline (immediate
-                // data, transport=Poll, tagged with any WS error) and
-                // concurrently run the subscription. The first time the
-                // subscription delivers Content the poll loop is stopped
-                // and the subscription becomes the source of truth
-                // (transport=Subscription). If the subscription errors or
-                // the server closes it, the reason is recorded and the
-                // poll loop resumes — so a silent WS shows real data, a
-                // working WS flips to live, and a broken WS shows why.
-                val pollSink = FlowCollector<DomainState<T>> { send(it) }
-                suspend fun runPoll() =
-                    with(pollSink) {
-                        pollLoop(client, url, intervalMs) { c, u ->
-                            tagFallback(poll(c, u), wsError)
+                var lastContent: DomainState.Content<T>? = null
+                var consecutiveErrors = 0
+                while (true) {
+                    when (val result = fetch(client, url)) {
+                        is DomainState.Content<T> -> {
+                            lastContent = result
+                            consecutiveErrors = 0
+                            emit(result)
                         }
+                        is DomainState.Error -> {
+                            consecutiveErrors++
+                            val tolerated = lastContent != null &&
+                                consecutiveErrors < TRANSIENT_ERROR_TOLERANCE
+                            emit(if (tolerated) lastContent else result)
+                        }
+                        else -> emit(result)
                     }
-                var pollJob = launch { runPoll() }
-
-                try {
-                    subscribe(client).collect { st ->
-                        if (st is DomainState.Content) pollJob.cancel()
-                        send(st.withBaseUrl(url))
-                    }
-                    wsError = "WS stream closed by server"
-                } catch (e: kotlinx.coroutines.CancellationException) {
-                    throw e // gate closed / active server switched — honour it
-                } catch (e: Throwable) {
-                    val cls = e::class.simpleName ?: "Throwable"
-                    val msg = e.message?.trim()?.takeIf { it.isNotEmpty() }
-                    wsError = if (msg != null) "$cls: $msg" else cls
-                }
-
-                // Subscription ended. Resume polling (now carrying the
-                // WS reason) if it was stopped; otherwise it's still the
-                // running baseline — just let it continue.
-                if (!pollJob.isActive) {
-                    runPoll()
-                } else {
-                    pollJob.join()
+                    delay(intervalMs)
                 }
             }
         }
-
-    /** Shared resilience loop (see [domainStream] kdoc). Runs until the
-     *  collecting coroutine is cancelled. */
-    private suspend fun <T> FlowCollector<DomainState<T>>.pollLoop(
-        client: ApolloClient,
-        url: String,
-        intervalMs: Long,
-        fetch: suspend (ApolloClient, String) -> DomainState<T>,
-    ) {
-        var lastContent: DomainState.Content<T>? = null
-        var consecutiveErrors = 0
-        while (true) {
-            when (val result = fetch(client, url)) {
-                is DomainState.Content<T> -> {
-                    lastContent = result
-                    consecutiveErrors = 0
-                    emit(result)
-                }
-                is DomainState.Error -> {
-                    consecutiveErrors++
-                    val tolerated = lastContent != null &&
-                        consecutiveErrors < TRANSIENT_ERROR_TOLERANCE
-                    emit(if (tolerated) lastContent else result)
-                }
-                else -> emit(result)
-            }
-            delay(intervalMs)
-        }
-    }
 
     /** Single Apollo query → DomainState wrapper. The base URL is filled in
      *  by [withBaseUrl] after the call so we keep [fetch] generic. */

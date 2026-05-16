@@ -28,11 +28,8 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import net.unraidcontrol.app.data.model.NotifImportance
-import net.unraidcontrol.app.data.model.NotifTransport
 import net.unraidcontrol.app.data.model.Notifications
 import net.unraidcontrol.app.data.model.UnraidNotification
-import net.unraidcontrol.app.ui.components.Pill
-import net.unraidcontrol.app.ui.components.Tone
 import net.unraidcontrol.app.ui.components.UC
 import net.unraidcontrol.app.ui.components.UnraidIconButton
 import net.unraidcontrol.app.ui.theme.UnraidTheme
@@ -69,38 +66,13 @@ fun NotificationsSheet(
         ) {
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(14.dp)) {
                 Column(modifier = Modifier.weight(1f)) {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    ) {
-                        Text("Notifications", color = t.text, style = MaterialTheme.typography.titleLarge)
-                        // Phase E pilot diagnostic (ADR-0026 E1): which
-                        // transport is feeding this. "live" = WS
-                        // subscription active; "60s poll" = fallback.
-                        when (data.transport) {
-                            NotifTransport.Subscription -> Pill("live", tone = Tone.Accent, dot = true)
-                            NotifTransport.Poll         -> Pill("60s poll", tone = Tone.Neutral, dot = true)
-                        }
-                    }
+                    Text("Notifications", color = t.text, style = MaterialTheme.typography.titleLarge)
                     Spacer(Modifier.height(2.dp))
                     Text(
                         text = "${data.unreadAlert} alerts · ${data.unreadWarning} warnings",
                         color = t.muted,
                         style = MaterialTheme.typography.bodySmall,
                     )
-                    // Phase E pilot diagnostic: on the poll fallback, show
-                    // *why* the WS subscription didn't take so it can be
-                    // reported. Removed with the pilot.
-                    if (data.transport == NotifTransport.Poll && data.wsError != null) {
-                        Spacer(Modifier.height(4.dp))
-                        Text(
-                            text = "WS: ${data.wsError}",
-                            color = t.warn,
-                            style = MaterialTheme.typography.labelSmall,
-                            maxLines = 3,
-                            overflow = TextOverflow.Ellipsis,
-                        )
-                    }
                 }
                 UnraidIconButton(icon = { UC.X(20.dp, t.text) }, onClick = onDismiss)
             }
