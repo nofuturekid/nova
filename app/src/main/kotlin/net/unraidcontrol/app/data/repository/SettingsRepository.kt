@@ -5,6 +5,7 @@ import net.unraidcontrol.app.data.local.LayoutMode
 import net.unraidcontrol.app.data.local.SettingsStore
 import net.unraidcontrol.app.data.model.AppSettings
 import net.unraidcontrol.app.ui.theme.Density
+import net.unraidcontrol.app.ui.theme.ThemeMode
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -21,7 +22,7 @@ class SettingsRepository @Inject constructor(
     val dismissedUpdateTag: Flow<String?> = store.dismissedUpdateTag
 
     suspend fun setAccent(hex: Long)         = store.setAccent(hex)
-    suspend fun setDark(isDark: Boolean)     = store.setIsDark(isDark)
+    suspend fun setThemeMode(mode: ThemeMode) = store.setThemeMode(mode)
     suspend fun setDensity(density: Density) = store.setDensity(density)
     suspend fun setDockerView(view: LayoutMode) = store.setDockerView(view)
     suspend fun setVmsView(view: LayoutMode) = store.setVmsView(view)

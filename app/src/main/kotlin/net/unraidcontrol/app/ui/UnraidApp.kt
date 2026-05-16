@@ -32,7 +32,7 @@ fun UnraidApp(theme: ThemeViewModel = hiltViewModel()) {
     val settings by theme.settings.collectAsState()
     UnraidTheme(
         accent = Color(settings.accentHex.toInt()),
-        isDark = settings.isDark,
+        themeMode = settings.themeMode,
         density = settings.density,
     ) {
         androidx.compose.foundation.layout.Box(modifier = Modifier.fillMaxSize()) {

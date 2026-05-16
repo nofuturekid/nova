@@ -26,10 +26,15 @@ object UnraidTheme {
 @Composable
 fun UnraidTheme(
     accent: Color = AccentSwatches.Mint,
-    isDark: Boolean = true,
+    themeMode: ThemeMode = ThemeMode.System,
     density: Density = Density.Balanced,
     content: @Composable () -> Unit,
 ) {
+    val isDark = when (themeMode) {
+        ThemeMode.Dark   -> true
+        ThemeMode.Light  -> false
+        ThemeMode.System -> androidx.compose.foundation.isSystemInDarkTheme()
+    }
     val colors = if (isDark) darkColors(accent) else lightColors(accent)
     val tokens = tokensFor(density)
 

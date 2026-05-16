@@ -68,6 +68,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import net.unraidcontrol.app.ui.screens.update.UpdateDialog
 import net.unraidcontrol.app.ui.theme.AccentSwatches
 import net.unraidcontrol.app.ui.theme.Density
+import net.unraidcontrol.app.ui.theme.ThemeMode
 import net.unraidcontrol.app.ui.theme.UnraidTheme
 import javax.inject.Inject
 
@@ -130,7 +131,7 @@ class SettingsViewModel @Inject constructor(
     }
 
     fun setAccent(hex: Long)            = viewModelScope.launch { repo.setAccent(hex) }
-    fun setDark(isDark: Boolean)        = viewModelScope.launch { repo.setDark(isDark) }
+    fun setThemeMode(m: ThemeMode)      = viewModelScope.launch { repo.setThemeMode(m) }
     fun setDensity(d: Density)          = viewModelScope.launch { repo.setDensity(d) }
     fun setDockerView(v: LayoutMode)    = viewModelScope.launch { repo.setDockerView(v) }
     fun setVmsView(v: LayoutMode)       = viewModelScope.launch { repo.setVmsView(v) }
@@ -241,8 +242,13 @@ fun SettingsScreen(
                             }
                         }
                     }
-                    SettingRow(label = "Dark mode") {
-                        Toggle(value = ui.settings.isDark, onChange = vm::setDark)
+                    SettingRow(label = "Theme") {
+                        Segmented(
+                            value = ui.settings.themeMode,
+                            options = listOf(ThemeMode.System, ThemeMode.Light, ThemeMode.Dark),
+                            label = { it.name },
+                            onChange = vm::setThemeMode,
+                        )
                     }
                     SettingRow(label = "Density") {
                         Segmented(
