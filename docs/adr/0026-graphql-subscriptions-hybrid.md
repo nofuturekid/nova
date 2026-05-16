@@ -1,8 +1,58 @@
 # ADR-0026: GraphQL subscriptions for select domains (hybrid with polling)
 
-- **Status**: Accepted
+- **Status**: Deprecated — piloted (E0+E1) then reverted, see Outcome
 - **Date**: 2026-05-16
 - **Tags**: data, performance, resilience, api
+
+## Outcome (E1 pilot, reverted)
+
+E0 (WS transport) + E1 (notifications subscription) shipped as
+0.1.29-beta9…beta12 and were tested against a real current Unraid
+server. Findings:
+
+- **Transport works.** The `graphql-ws` WSS connection to
+  `wss://<host>/graphql` established and authenticated with the same
+  `x-api-key` (no `connection_init` timeout / close / auth error ever
+  surfaced on-device).
+- **No subscribe-time snapshot — for any notification subscription.**
+  Verified in `unraid/api` source: the resolvers use a bare
+  `pubsub.asyncIterableIterator` (no replay) and the FS watcher runs
+  `ignoreInitial: true`. A subscriber gets *only* events published
+  after it subscribes. The query poll as seed + reconciliation is
+  therefore mandatory, not optional — which validated the seed+overlay
+  design but also removed most of the subscription's value.
+- **Notification events did not deliver on the real server.** A new
+  ALERT created via the legacy `notify` script was picked up by the
+  60 s query poll but never by `notificationsWarningsAndAlerts` (pill
+  stayed "60s poll", no WS error). All three notification
+  subscriptions share the same chokidar `add` trigger; the most
+  likely cause is the api's FS watcher not seeing the legacy script's
+  writes (inotify not propagating in the api's environment, or a
+  notify-path mismatch) — **server-side, not client-fixable**, and it
+  would affect every notification subscription equally.
+- **Net value too low to carry the complexity.** Notifications change
+  rarely and the 60 s poll already reconciles them; with no
+  subscribe-snapshot and a server-dependent FS-watcher trigger, the
+  WS path added a second transport, schema-subset growth, and
+  reconnect/lifecycle handling for ~0 reliable benefit on real
+  hardware.
+
+**Decision: reverted in 0.1.29-beta13.** All E0/E1 code (WS transport,
+`subscriptionStream`, the subscription schema/operation/mapper, the
+pilot transport badge) is removed; `notificationsStream` is back to the
+ADR-0017 poll. Polling stays the only data path. E2–E4 are **not**
+pursued: the highest-value target (system metrics) uses a different
+(interval) publisher that *might* deliver, but the pilot showed the
+practical payoff is gated by per-server/per-domain server-side
+behaviour we can't control or test broadly, so the complexity isn't
+justified. This ADR is kept as the record of *why* subscriptions were
+evaluated and dropped, so it isn't re-litigated.
+
+**Trigger to revisit:** if Lime Technology documents/guarantees
+subscription delivery (with a subscribe-time snapshot) for a
+high-value domain, or the API gains server-push that doesn't depend
+on the FS watcher, re-evaluate from this ADR's Outcome — don't restart
+from the original premise.
 
 ## Context
 

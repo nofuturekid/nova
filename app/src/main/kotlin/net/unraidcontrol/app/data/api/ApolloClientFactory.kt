@@ -2,8 +2,6 @@ package net.unraidcontrol.app.data.api
 
 import com.apollographql.apollo.ApolloClient
 import com.apollographql.apollo.network.okHttpClient
-import com.apollographql.apollo.network.websocket.GraphQLWsProtocol
-import com.apollographql.apollo.network.websocket.WebSocketNetworkTransport
 import okhttp3.OkHttpClient
 import okhttp3.logging.HttpLoggingInterceptor
 import java.util.concurrent.TimeUnit
@@ -73,24 +71,9 @@ class ApolloClientFactory @Inject constructor() {
                 chain.proceed(req)
             }
             .build()
-        // Phase E (ADR-0026): subscriptions ride the same vhost/path as
-        // HTTP — only the scheme differs (https→wss, http→ws). The WS
-        // socket is opened lazily by Apollo on the first collected
-        // subscription and closed when none remain, so query/mutation
-        // clients carry this config at zero cost until used. Auth reuses
-        // the same x-api-key, sent in the graphql-ws connection_init
-        // payload (the server merges connectionParams into headers).
-        val wsEndpoint = endpoint
-            .replaceFirst("https://", "wss://")
-            .replaceFirst("http://", "ws://")
-        val wsTransport = WebSocketNetworkTransport.Builder()
-            .serverUrl(wsEndpoint)
-            .wsProtocol(GraphQLWsProtocol(connectionPayload = { mapOf("x-api-key" to apiKey) }))
-            .build()
         return ApolloClient.Builder()
             .serverUrl(endpoint)
             .okHttpClient(keyed)
-            .subscriptionNetworkTransport(wsTransport)
             .build()
     }
 }

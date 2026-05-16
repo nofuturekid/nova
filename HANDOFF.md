@@ -208,21 +208,16 @@ README screenshots, Edge-to-Edge incl. system-bar contrast
 ### Decision needed
 - [ ] Overview Network card shows `0.0 Mbps` (Unraid API exposes no host throughput) — remove / keep / file unraid-api feature request.
 
-### Planned
-- **Phase E — GraphQL subscriptions (hybrid), ADR-0026 (Proposed).**
-  The earlier "no `type Subscription`" verdict was wrong — it read our
-  hand-written subset, not the upstream `generated-schema.graphql`,
-  which has a full `type Subscription` served over `graphql-ws` on the
-  same `wss://<host>/graphql` path, authed with the same `x-api-key`.
-  Hybrid (polling stays for docker-list/vms/info — no subscription
-  exists there). Phased, each its own beta + device verification:
-  E0 transport+fallback · **E1 notifications pilot = go/no-go gate** ·
-  E2 metrics · E3 array · E4 container stats (the old per-container
-  CPU/Mem ask). Fallback to the ADR-0017 poll loop on WS error /
-  unsupported is mandatory (older API versions). Start after the
-  current beta is device-accepted.
-
 ### Parked / blocked / out of scope
+- **Phase E — GraphQL subscriptions: evaluated, piloted, REVERTED.**
+  ADR-0026 (Deprecated). WSS transport + auth work, but `unraid/api`
+  gives no subscribe-time snapshot for any notification subscription
+  and notification events did not deliver on a real server (server-side
+  FS-watcher, not client-fixable). Net value too low for the
+  complexity. Reverted in 0.1.29-beta13; polling (ADR-0017) stays the
+  only data path. See ADR-0026 "Outcome" for the full finding + the
+  trigger to revisit. Per-container CPU/Mem (the old #2) stays
+  impossible — subscription-only, and subscriptions are dropped.
 - **Baseline Profiles: parked** — modest startup gain vs. real infra
   cost (generation needs an emulator; only an on-demand GMD workflow
   fits our lean CI). Own ADR if revisited.
