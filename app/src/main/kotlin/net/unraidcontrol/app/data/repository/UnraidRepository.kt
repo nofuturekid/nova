@@ -123,14 +123,26 @@ class UnraidRepository @Inject constructor(
             },
             subscribe = { client ->
                 client.subscription(NotificationsFeedSubscription()).toFlow().map { resp ->
+                    // Any non-Content outcome means the WS path is unusable
+                    // (older API "cannot subscribe field", auth, transport)
+                    // — throw so subscriptionStream degrades to the poll
+                    // fallback and records the reason, instead of pinning
+                    // the bell to an error state.
                     when {
                         resp.exception != null -> throw resp.exception!!
-                        resp.hasErrors() -> DomainState.Error(
+                        resp.hasErrors() -> throw IllegalStateException(
                             resp.errors?.joinToString { it.message } ?: "GraphQL subscription error"
                         )
-                        resp.data == null -> DomainState.Error("Empty subscription payload")
+                        resp.data == null -> throw IllegalStateException("Empty subscription payload")
                         else -> DomainState.Content(resp.data!!.toNotifications())
                     }
+                }
+            },
+            tagFallback = { state, wsError ->
+                if (state is DomainState.Content) {
+                    DomainState.Content(state.value.copy(wsError = wsError), state.serverBaseUrl)
+                } else {
+                    state
                 }
             },
         )
@@ -178,6 +190,10 @@ class UnraidRepository @Inject constructor(
         intervalMs: Long,
         poll: suspend (ApolloClient, String) -> DomainState<T>,
         subscribe: (ApolloClient) -> Flow<DomainState<T>>,
+        // Phase E pilot diagnostic: lets a domain stamp *why* the WS
+        // path didn't take onto its fallback payload, so it can be
+        // surfaced in the UI instead of silently swallowed.
+        tagFallback: (DomainState<T>, String?) -> DomainState<T> = { s, _ -> s },
     ): Flow<DomainState<T>> = servers.activeWithKey
         .distinctUntilChanged()
         .flatMapLatest { active ->
@@ -192,15 +208,20 @@ class UnraidRepository @Inject constructor(
                 }
                 val url = activeUrl(active)
                 val client = apolloFactory.build(url, active.apiKey)
+                var wsError: String? = null
                 try {
                     subscribe(client).collect { emit(it.withBaseUrl(url)) }
-                    // Server closed the stream cleanly — keep data fresh via poll.
+                    wsError = "WS stream closed by server"
                 } catch (e: kotlinx.coroutines.CancellationException) {
                     throw e // gate closed / active server switched — honour it
-                } catch (_: Throwable) {
-                    // WS unsupported / dropped / auth rejected — degrade.
+                } catch (e: Throwable) {
+                    // WS unsupported / dropped / auth rejected — degrade,
+                    // but remember why for the pilot badge.
+                    val cls = e::class.simpleName ?: "Throwable"
+                    val msg = e.message?.trim()?.takeIf { it.isNotEmpty() }
+                    wsError = if (msg != null) "$cls: $msg" else cls
                 }
-                pollLoop(client, url, intervalMs, poll)
+                pollLoop(client, url, intervalMs) { c, u -> tagFallback(poll(c, u), wsError) }
             }
         }
 
