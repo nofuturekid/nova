@@ -1,6 +1,7 @@
 package net.unraidcontrol.app.ui.screens.container
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -392,7 +393,11 @@ private fun LogsTabContent(
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .background(Color(0xFF06090A), RoundedCornerShape(12.dp))
+            // Theme-correct log surface (was a hardcoded near-black
+            // "terminal"): t.bg stays dark in dark mode, light in light
+            // mode; border keeps it defined against the sheet in both.
+            .background(t.bg, RoundedCornerShape(12.dp))
+            .border(1.dp, t.border, RoundedCornerShape(12.dp))
             .padding(12.dp),
     ) {
         logs.forEach { line ->
@@ -400,7 +405,7 @@ private fun LogsTabContent(
                 line.message.contains("error", ignoreCase = true) -> t.danger
                 line.message.contains("warn",  ignoreCase = true) -> t.warn
                 line.message.contains("debug", ignoreCase = true) -> t.muted
-                else                                              -> t.accent
+                else                                              -> t.text
             }
             Row {
                 Text(
