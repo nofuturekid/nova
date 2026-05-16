@@ -209,15 +209,16 @@ README screenshots, Edge-to-Edge incl. system-bar contrast
 - [ ] Overview Network card shows `0.0 Mbps` (Unraid API exposes no host throughput) — remove / keep / file unraid-api feature request.
 
 ### Parked / blocked / out of scope
-- **Phase E — GraphQL subscriptions: evaluated, piloted, REVERTED.**
-  ADR-0026 (Deprecated). WSS transport + auth work, but `unraid/api`
-  gives no subscribe-time snapshot for any notification subscription
-  and notification events did not deliver on a real server (server-side
-  FS-watcher, not client-fixable). Net value too low for the
-  complexity. Reverted in 0.1.29-beta13; polling (ADR-0017) stays the
-  only data path. See ADR-0026 "Outcome" for the full finding + the
-  trigger to revisit. Per-container CPU/Mem (the old #2) stays
-  impossible — subscription-only, and subscriptions are dropped.
+- **Phase E — GraphQL subscriptions: piloted, reverted — PROVISIONALLY.**
+  ADR-0026 (Deprecated, but reversal is provisional). WSS transport +
+  auth work; the blockers are no subscribe-snapshot + notifications
+  gated by a server-side FS-watcher, but the deciding factor was that
+  iterating cost a multi-beta user-relay loop. **Not a closed door:**
+  revisit once an ADR-0027 test environment exists — re-test system
+  metrics first (interval publisher, not the FS-watcher; highest
+  value). Reverted in 0.1.29-beta13; polling (ADR-0017) stays the only
+  data path for now. Per-container CPU/Mem (old #2) stays blocked while
+  subscriptions are paused (subscription-only field).
 - **Baseline Profiles: parked** — modest startup gain vs. real infra
   cost (generation needs an emulator; only an on-demand GMD workflow
   fits our lean CI). Own ADR if revisited.
