@@ -38,6 +38,20 @@ fun UnraidTheme(
     val colors = if (isDark) darkColors(accent) else lightColors(accent)
     val tokens = tokensFor(density)
 
+    // System status/navigation bar icons must stay readable against the
+    // *app* theme, not the OS theme (e.g. app forced Light while the
+    // phone is in Dark): light app → dark icons, dark app → light icons.
+    // Reactive to themeMode so it follows the Settings choice live.
+    val view = androidx.compose.ui.platform.LocalView.current
+    if (!view.isInEditMode) {
+        androidx.compose.runtime.SideEffect {
+            val window = (view.context as android.app.Activity).window
+            val controller = androidx.core.view.WindowCompat.getInsetsController(window, view)
+            controller.isAppearanceLightStatusBars = !isDark
+            controller.isAppearanceLightNavigationBars = !isDark
+        }
+    }
+
     val m3 = if (isDark) {
         darkColorScheme(
             primary = colors.accent,
