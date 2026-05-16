@@ -115,6 +115,11 @@ data class Notifications(
     val unreadAlert: Int,
     val items: List<UnraidNotification>,
     val transport: NotifTransport = NotifTransport.Poll,
+    /** Phase E pilot diagnostic: when on the [NotifTransport.Poll]
+     *  fallback, why the WS subscription didn't take (exception class +
+     *  message / close reason). Null while WS is healthy or untried.
+     *  Remove with [transport] once the E1 gate is decided. */
+    val wsError: String? = null,
 ) {
     val badgeCount: Int get() = unreadWarning + unreadAlert
 }

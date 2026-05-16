@@ -88,6 +88,19 @@ fun NotificationsSheet(
                         color = t.muted,
                         style = MaterialTheme.typography.bodySmall,
                     )
+                    // Phase E pilot diagnostic: on the poll fallback, show
+                    // *why* the WS subscription didn't take so it can be
+                    // reported. Removed with the pilot.
+                    if (data.transport == NotifTransport.Poll && data.wsError != null) {
+                        Spacer(Modifier.height(4.dp))
+                        Text(
+                            text = "WS: ${data.wsError}",
+                            color = t.warn,
+                            style = MaterialTheme.typography.labelSmall,
+                            maxLines = 3,
+                            overflow = TextOverflow.Ellipsis,
+                        )
+                    }
                 }
                 UnraidIconButton(icon = { UC.X(20.dp, t.text) }, onClick = onDismiss)
             }
