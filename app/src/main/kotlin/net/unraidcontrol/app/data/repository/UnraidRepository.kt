@@ -5,12 +5,14 @@ import com.apollographql.apollo.api.Query
 import com.apollographql.apollo.exception.ApolloException
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.channelFlow
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.FlowCollector
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.launch
 import net.unraidcontrol.app.data.api.ApolloClientFactory
 import net.unraidcontrol.app.data.api.toArrayInfo
 import net.unraidcontrol.app.data.api.toContainers
@@ -197,31 +199,61 @@ class UnraidRepository @Inject constructor(
     ): Flow<DomainState<T>> = servers.activeWithKey
         .distinctUntilChanged()
         .flatMapLatest { active ->
-            flow {
+            channelFlow<DomainState<T>> {
                 if (active == null) {
-                    emit(DomainState.NoServer)
-                    return@flow
+                    send(DomainState.NoServer)
+                    return@channelFlow
                 }
                 if (active.apiKey.isBlank()) {
-                    emit(DomainState.Error("Missing API key for ${active.server.name}"))
-                    return@flow
+                    send(DomainState.Error("Missing API key for ${active.server.name}"))
+                    return@channelFlow
                 }
                 val url = activeUrl(active)
                 val client = apolloFactory.build(url, active.apiKey)
                 var wsError: String? = null
+
+                // Seed + overlay (ADR-0026 E1): the WS subscription may
+                // not push an initial snapshot — it only fires on change.
+                // So always run the poll loop as the baseline (immediate
+                // data, transport=Poll, tagged with any WS error) and
+                // concurrently run the subscription. The first time the
+                // subscription delivers Content the poll loop is stopped
+                // and the subscription becomes the source of truth
+                // (transport=Subscription). If the subscription errors or
+                // the server closes it, the reason is recorded and the
+                // poll loop resumes — so a silent WS shows real data, a
+                // working WS flips to live, and a broken WS shows why.
+                val pollSink = FlowCollector<DomainState<T>> { send(it) }
+                suspend fun runPoll() =
+                    with(pollSink) {
+                        pollLoop(client, url, intervalMs) { c, u ->
+                            tagFallback(poll(c, u), wsError)
+                        }
+                    }
+                var pollJob = launch { runPoll() }
+
                 try {
-                    subscribe(client).collect { emit(it.withBaseUrl(url)) }
+                    subscribe(client).collect { st ->
+                        if (st is DomainState.Content) pollJob.cancel()
+                        send(st.withBaseUrl(url))
+                    }
                     wsError = "WS stream closed by server"
                 } catch (e: kotlinx.coroutines.CancellationException) {
                     throw e // gate closed / active server switched — honour it
                 } catch (e: Throwable) {
-                    // WS unsupported / dropped / auth rejected — degrade,
-                    // but remember why for the pilot badge.
                     val cls = e::class.simpleName ?: "Throwable"
                     val msg = e.message?.trim()?.takeIf { it.isNotEmpty() }
                     wsError = if (msg != null) "$cls: $msg" else cls
                 }
-                pollLoop(client, url, intervalMs) { c, u -> tagFallback(poll(c, u), wsError) }
+
+                // Subscription ended. Resume polling (now carrying the
+                // WS reason) if it was stopped; otherwise it's still the
+                // running baseline — just let it continue.
+                if (!pollJob.isActive) {
+                    runPoll()
+                } else {
+                    pollJob.join()
+                }
             }
         }
 
