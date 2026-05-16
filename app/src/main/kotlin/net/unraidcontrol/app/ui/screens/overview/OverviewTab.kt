@@ -274,12 +274,12 @@ private fun OverviewContent(
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             UC.Docker(16.dp, t.muted)
                             Spacer(Modifier.width(8.dp))
-                            Text("Containers", color = t.muted, style = MaterialTheme.typography.labelMedium)
+                            Text("Containers", color = t.muted, style = MaterialTheme.typography.labelLarge)
                         }
                         Spacer(Modifier.height(8.dp))
                         Row(verticalAlignment = Alignment.Bottom, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                            Text("$running", color = t.text, style = MaterialTheme.typography.headlineLarge)
-                            Text("running", color = t.muted, style = MaterialTheme.typography.bodyMedium)
+                            Text("$running", color = t.text, style = MaterialTheme.typography.headlineMedium)
+                            Text("running", color = t.muted, style = MaterialTheme.typography.bodySmall)
                         }
                         Spacer(Modifier.height(6.dp))
                         Text(
@@ -291,7 +291,7 @@ private fun OverviewContent(
                                 ).joinToString(" · ")
                             },
                             color = t.muted,
-                            style = MaterialTheme.typography.labelSmall,
+                            style = MaterialTheme.typography.bodySmall,
                         )
                     }
                 }
@@ -300,15 +300,15 @@ private fun OverviewContent(
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             UC.Vm(16.dp, t.muted)
                             Spacer(Modifier.width(8.dp))
-                            Text("Virtual machines", color = t.muted, style = MaterialTheme.typography.labelMedium)
+                            Text("Virtual machines", color = t.muted, style = MaterialTheme.typography.labelLarge)
                         }
                         Spacer(Modifier.height(8.dp))
                         Row(verticalAlignment = Alignment.Bottom, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                            Text("$vmRunning", color = t.text, style = MaterialTheme.typography.headlineLarge)
-                            Text("running", color = t.muted, style = MaterialTheme.typography.bodyMedium)
+                            Text("$vmRunning", color = t.text, style = MaterialTheme.typography.headlineMedium)
+                            Text("running", color = t.muted, style = MaterialTheme.typography.bodySmall)
                         }
                         Spacer(Modifier.height(6.dp))
-                        Text("$vmCount configured", color = t.muted, style = MaterialTheme.typography.labelSmall)
+                        Text("$vmCount configured", color = t.muted, style = MaterialTheme.typography.bodySmall)
                     }
                 }
             }
