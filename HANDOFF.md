@@ -30,17 +30,30 @@ Native Android client for Unraid NAS servers (Kotlin + Jetpack Compose, Apollo G
 | v0.1.9 | release | Transient poll error tolerance (3 polls grace) |
 | v0.1.10 | release | Array tab unit fix (ArrayDisk fields are KB) |
 | v0.1.11 | release | Container detail: real logs fetch + volume mappings |
+| v0.1.12–0.1.21 | release | Incremental fixes/features (see git tags / GitHub releases) |
+| v0.1.22–0.1.25 | release | Docker-update phases A–C (ADR-0016/0017), WebUI link, GPL-v3 relicense (ADR-0021), CI acceleration (ADR-0018/0019/0020) |
+| v0.1.26 | release | Density setting wired, per-view layout (List/Grid/Grouped) |
+| v0.1.27-beta1 | pre-release | (interim) |
+| v0.1.28-beta1…rc2 | pre-release | **AGP-9 toolchain** (ADR-0023), **API-key → Tink+DataStore** (ADR-0024), UI Light/Dark pass, VM detail sheet + slim cards, ContainerDetailSheet layout, numeric SemVer compare, container-update-button fix |
+| **v0.1.28** | **release (Latest)** | Stable promotion of the whole 0.1.28 cycle, device-verified |
+| v0.1.29-beta1…beta7 | pre-release | M3 type-scale migration; Docker-logs Dark/Light; Theme-mode **Dark/Light/System**; Dependabot adopted (ADR-0025); **notifications bell+badge+sheet**; UI polish (changelog typo, overview cards, banner); system-bar contrast vs app theme |
 
 ## Stack
 
-- Kotlin **2.0.21**, AGP **8.9.2**, Gradle **8.11.1**
-- compileSdk/targetSdk **36**, minSdk **26**
-- Jetpack Compose BOM **2024.12.01**, Material 3
-- Apollo Kotlin **4.1.1**
-- Hilt **2.52** + KSP **1** (NOT KSP2 — broken with Hilt 2.52)
-- DataStore + AndroidX Security Crypto (Tink) for storage
-- Coil **3.0.4** for AsyncImage
-- kotlinx.coroutines 1.9.0, kotlinx.serialization 1.7.3
+_Toolchain raised in the 0.1.28 cycle — see ADR-0023 (AGP-9) / ADR-0024
+(storage) / ADR-0020 (KSP2)._
+
+- Kotlin **2.3.21**, AGP **9.2.1**, Gradle **9.5.1**, JDK **21**
+- AGP-9 built-in-Kotlin DSL (no `org.jetbrains.kotlin.android` plugin)
+- compileSdk/targetSdk **36**, minSdk **26** (app bytecode = Java 17)
+- Jetpack Compose BOM **2026.05.00**, Material 3 + custom M3 type scale
+- Apollo Kotlin **5.0.0**
+- Hilt **2.59.2** + **KSP2** (2.3.8)
+- **DataStore (Preferences) + Google Tink AEAD** for the API-key store
+  (Android-Keystore-wrapped keyset; `security-crypto` removed, ADR-0024)
+- Coil **3.4.0** for AsyncImage
+- okhttp **5.3.2**, kotlinx.coroutines **1.11.0**, serialization **1.11.0**
+- Dependabot (github-actions + gradle, monthly, no auto-merge — ADR-0025)
 
 ## Layout
 
@@ -56,7 +69,7 @@ app/src/main/
     ├── data/
     │   ├── model/Models.kt        Server, Container, Vm, Disk, ServerSnapshot, LogLine
     │   ├── api/                   ApolloClientFactory (per-server, x-api-key header), GraphQlMapper
-    │   ├── local/                 SettingsStore (DataStore), ApiKeyStore (Tink EncryptedSharedPrefs)
+    │   ├── local/                 SettingsStore (DataStore), ApiKeyStore (Tink AEAD + Preferences DataStore, ADR-0024)
     │   └── repository/            UnraidRepository (polled snapshot stream + mutations + logs),
     │                              ServerRepository (CRUD + active server),
     │                              SettingsRepository (theme/density/docker view)
@@ -74,7 +87,8 @@ app/src/main/
             ├── vms/
             ├── container/         detail sheet (Info / Logs / Ports / Volumes)
             ├── server/            list + Add/Edit sheet
-            └── settings/          accent / dark / density / docker view
+            ├── notifications/     warnings+alerts bell sheet (0.1.29-beta6)
+            └── settings/          accent / theme-mode (Dark/Light/System) / density / views
 ```
 
 ## CI / CD workflow
@@ -129,7 +143,7 @@ JSON-scalar decision rationale (incl. why-not-String): [ADR-0007](docs/adr/0007-
 - **Docker containers** live under `docker.containers`, NOT top-level `dockerContainers`.
 - **VMs** live under `vms.domains`, NOT a top-level list.
 - Apollo with `generateOptionalOperationVariables = false`: optional GraphQL vars become `T?` directly. **Never wrap in `Optional.present()`** — it won't compile.
-- **KSP1 only**: `ksp.useKSP2=false` in `gradle.properties`. Hilt 2.52 + KSP2 fails with "Did you forget to apply the Gradle plugin?" even when the plugin is applied.
+- **KSP2 + Hilt 2.59.2** (ADR-0020/0023): the old `ksp.useKSP2=false` / Hilt-2.52 pin is gone. Hilt requires Kotlin ≥ 2.1.10 — it is coupled to the toolchain (ADR-0023 rollback note: Hilt can't be reverted in isolation).
 - **`DockerContainer.mounts` is `JSON` (single scalar) NOT `[JSON!]`** — the JSON content itself is an encoded array of mount objects. Easy to mistype based on intuition; v0.1.11 made the snapshot fail server-wide because of this exact wrong type. Parse via `parseMountsArray` in `GraphQlMapper.kt`.
 - **JSON scalar → kotlin.Any via Apollo's `AnyAdapter`** — the Unraid GraphQL `JSON` scalar serialises as inline JSON values (objects/arrays/primitives), not pre-stringified text. Custom `kotlin.String` adapters crash. We map it to `kotlin.Any` with `com.apollographql.apollo.api.AnyAdapter` (public, built-in). Don't try to write your own with `reader.readAny()` — that's `@ApolloInternal`.
 - **In-app updater** lives under `data/update/`: `UpdateRepository` polls `https://api.github.com/repos/nofuturekid/UnraidControl/releases` (no auth, 60 req/h rate limit fine for on-start checks), `UpdateInstaller` downloads APK to `cacheDir/updates/` and uses `PackageInstaller` for the install handshake, `InstallStatusReceiver` catches the session callback via a `BroadcastReceiver` declared in the manifest. The `REQUEST_INSTALL_PACKAGES` permission is needed; on first install Android prompts the user to whitelist us at `Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES`. The Settings screen exposes the "Include pre-releases" toggle + manual "Check now". Banner on MainScreen dismisses per-tag via `dismissedUpdateTag` in DataStore.
@@ -176,30 +190,36 @@ Without the keystore the release config falls back to debug signing for local bu
 
 ## Open TODOs
 
-### Bug-class
-- [ ] AGP deprecation: move `android.defaults.buildfeatures.buildconfig=true` (gradle.properties) into the app module's `android.buildFeatures.buildConfig = true`. Removed in AGP 10.
-- [ ] Container logs only fetched once on tab open — no live tail, no in-sheet refresh.
-- [ ] AsyncImage occasionally 404s silently on edge-case icon URLs.
+_Done since the old list: AGP-buildconfig (ADR-0023), parity-check
+mutations (wired), KSP1→KSP2 (ADR-0020), Tink-storage (ADR-0024),
+notifications indicator (0.1.29-beta6, on-device verify pending),
+README screenshots, Edge-to-Edge incl. system-bar contrast
+(0.1.29-beta7)._
 
-### Feature gaps vs the design prototype
-- [ ] Network sparkline flat zero — Unraid GraphQL doesn't expose throughput. Would need REST scraping or proc.
-- [ ] Per-container CPU%/Mem in Info tab — wire `dockerContainerStats(id)`.
-- [ ] VM details (vCPU / RAM / GPU placeholders) — schema doesn't expose them on VmDomain.
-- [ ] Auto-start toggle in container Info is read-only — no mutation.
-- [ ] Container Restart emulated as stop+start (no atomic mutation in schema).
+### Open
+- [ ] Container logs fetched once on tab open — no live tail / in-sheet refresh.
+- [ ] Per-container CPU%/Mem — wire `dockerContainerStats(id)` (schema has it).
 - [ ] Pull-to-refresh on container detail sheet.
-- [ ] Parity check mutations (start/pause/resume/cancel) — schema has them, UI doesn't.
+- [ ] Mid-size feature tabs (schema-backed, not started): Shares · SMART disks · UPS card · System logs.
+- [ ] AsyncImage occasionally 404s silently on edge-case icon URLs.
+- [ ] No tests / no crash reporting / no offline cache.
+- [ ] German localization; real app icon; bundle Inter/JetBrains-Mono TTFs; CHANGELOG.md from tags.
 
-### Production hardening
-- [ ] No tests (Compose UI tests, repository unit tests).
-- [ ] No crash reporting.
-- [ ] No offline cache — cold start always hits network.
-- [ ] Inter / JetBrains Mono are fallback `FontFamily.Default`/`Monospace`. Bundle real TTFs in `res/font/` for parity with prototype.
+### Decision needed
+- [ ] Overview Network card shows `0.0 Mbps` (Unraid API exposes no host throughput) — remove / keep / file unraid-api feature request.
 
-### Polish
-- [ ] German localization (UI is English only).
-- [ ] App icon is a placeholder "UC" mark — could use a real logo.
-- [ ] CHANGELOG.md auto-generated from tags.
+### Parked / blocked / out of scope
+- **Phase E (Subscriptions instead of polling): blocked** — the Unraid
+  schema has no `type Subscription`; only viable if Lime Technology
+  extends the API. Polling (ADR-0017) stays.
+- **Baseline Profiles: parked** — modest startup gain vs. real infra
+  cost (generation needs an emulator; only an on-demand GMD workflow
+  fits our lean CI). Own ADR if revisited.
+- **App-rename: waiting on Lime Technology** (trademark mail sent
+  2026-05-15). If needed: full package/applicationId change + own ADR.
+- VM vCPU/RAM/GPU stay placeholder zeros — `VmDomain` doesn't expose them.
+- Container auto-start toggle read-only; Restart = stop+start (no atomic
+  mutation in schema).
 
 ## Useful gh commands
 
