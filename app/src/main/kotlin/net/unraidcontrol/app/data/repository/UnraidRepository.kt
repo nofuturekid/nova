@@ -7,8 +7,10 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.FlowCollector
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.flow.map
 import net.unraidcontrol.app.data.api.ApolloClientFactory
 import net.unraidcontrol.app.data.api.toArrayInfo
 import net.unraidcontrol.app.data.api.toContainers
@@ -26,6 +28,7 @@ import net.unraidcontrol.app.data.model.ServerInfo
 import net.unraidcontrol.app.data.model.Vm
 import net.unraidcontrol.app.graphql.FetchContainerLogsQuery
 import net.unraidcontrol.app.graphql.GetNotificationsQuery
+import net.unraidcontrol.app.graphql.NotificationsFeedSubscription
 import net.unraidcontrol.app.graphql.ForceStopVmMutation
 import net.unraidcontrol.app.graphql.GetArrayQuery
 import net.unraidcontrol.app.graphql.GetDockerContainersQuery
@@ -105,10 +108,32 @@ class UnraidRepository @Inject constructor(
             fetch(client, GetVmsQuery()) { data -> data.toVms() }.withBaseUrl(baseUrl)
         }
 
+    /**
+     * E1 pilot (ADR-0026): the bell badge + sheet list are driven by a
+     * GraphQL subscription, with the 60 s [GetNotificationsQuery] poll as
+     * the automatic fallback when the WS session can't be established
+     * (older API versions / a proxy that doesn't pass the WS upgrade).
+     */
     fun notificationsStream(intervalMs: Long = POLL_NOTIFICATIONS_MS): Flow<DomainState<Notifications>> =
-        domainStream(intervalMs) { client, baseUrl ->
-            fetch(client, GetNotificationsQuery()) { data -> data.toNotifications() }.withBaseUrl(baseUrl)
-        }
+        subscriptionStream(
+            intervalMs = intervalMs,
+            poll = { client, baseUrl ->
+                fetch(client, GetNotificationsQuery()) { data -> data.toNotifications() }
+                    .withBaseUrl(baseUrl)
+            },
+            subscribe = { client ->
+                client.subscription(NotificationsFeedSubscription()).toFlow().map { resp ->
+                    when {
+                        resp.exception != null -> throw resp.exception!!
+                        resp.hasErrors() -> DomainState.Error(
+                            resp.errors?.joinToString { it.message } ?: "GraphQL subscription error"
+                        )
+                        resp.data == null -> DomainState.Error("Empty subscription payload")
+                        else -> DomainState.Content(resp.data!!.toNotifications())
+                    }
+                }
+            },
+        )
 
     /**
      * Generic per-domain polling loop.
@@ -135,28 +160,78 @@ class UnraidRepository @Inject constructor(
                 }
                 val url = activeUrl(active)
                 val client = apolloFactory.build(url, active.apiKey)
-
-                var lastContent: DomainState.Content<T>? = null
-                var consecutiveErrors = 0
-                while (true) {
-                    when (val result = fetch(client, url)) {
-                        is DomainState.Content<T> -> {
-                            lastContent = result
-                            consecutiveErrors = 0
-                            emit(result)
-                        }
-                        is DomainState.Error -> {
-                            consecutiveErrors++
-                            val tolerated = lastContent != null &&
-                                consecutiveErrors < TRANSIENT_ERROR_TOLERANCE
-                            emit(if (tolerated) lastContent else result)
-                        }
-                        else -> emit(result)
-                    }
-                    delay(intervalMs)
-                }
+                pollLoop(client, url, intervalMs, fetch)
             }
         }
+
+    /**
+     * Phase E (ADR-0026): subscription-backed domain stream with a hard
+     * fallback to polling. Tries the WS subscription first; if it never
+     * connects, errors, or the server closes it, drops into the exact
+     * same [pollLoop] resilience the polling streams use — so an API
+     * version without `type Subscription` (or a proxy without WS
+     * upgrade) degrades to the prior behaviour instead of breaking.
+     * App-visible gating is unchanged: this is composed under the same
+     * `gatedStream` as every other domain in MainViewModel.
+     */
+    private fun <T> subscriptionStream(
+        intervalMs: Long,
+        poll: suspend (ApolloClient, String) -> DomainState<T>,
+        subscribe: (ApolloClient) -> Flow<DomainState<T>>,
+    ): Flow<DomainState<T>> = servers.activeWithKey
+        .distinctUntilChanged()
+        .flatMapLatest { active ->
+            flow {
+                if (active == null) {
+                    emit(DomainState.NoServer)
+                    return@flow
+                }
+                if (active.apiKey.isBlank()) {
+                    emit(DomainState.Error("Missing API key for ${active.server.name}"))
+                    return@flow
+                }
+                val url = activeUrl(active)
+                val client = apolloFactory.build(url, active.apiKey)
+                try {
+                    subscribe(client).collect { emit(it.withBaseUrl(url)) }
+                    // Server closed the stream cleanly — keep data fresh via poll.
+                } catch (e: kotlinx.coroutines.CancellationException) {
+                    throw e // gate closed / active server switched — honour it
+                } catch (_: Throwable) {
+                    // WS unsupported / dropped / auth rejected — degrade.
+                }
+                pollLoop(client, url, intervalMs, poll)
+            }
+        }
+
+    /** Shared resilience loop (see [domainStream] kdoc). Runs until the
+     *  collecting coroutine is cancelled. */
+    private suspend fun <T> FlowCollector<DomainState<T>>.pollLoop(
+        client: ApolloClient,
+        url: String,
+        intervalMs: Long,
+        fetch: suspend (ApolloClient, String) -> DomainState<T>,
+    ) {
+        var lastContent: DomainState.Content<T>? = null
+        var consecutiveErrors = 0
+        while (true) {
+            when (val result = fetch(client, url)) {
+                is DomainState.Content<T> -> {
+                    lastContent = result
+                    consecutiveErrors = 0
+                    emit(result)
+                }
+                is DomainState.Error -> {
+                    consecutiveErrors++
+                    val tolerated = lastContent != null &&
+                        consecutiveErrors < TRANSIENT_ERROR_TOLERANCE
+                    emit(if (tolerated) lastContent else result)
+                }
+                else -> emit(result)
+            }
+            delay(intervalMs)
+        }
+    }
 
     /** Single Apollo query → DomainState wrapper. The base URL is filled in
      *  by [withBaseUrl] after the call so we keep [fetch] generic. */

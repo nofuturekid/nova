@@ -20,6 +20,7 @@ import net.unraidcontrol.app.graphql.GetArrayQuery
 import net.unraidcontrol.app.graphql.GetDockerContainersQuery
 import net.unraidcontrol.app.graphql.GetMetricsQuery
 import net.unraidcontrol.app.graphql.GetNotificationsQuery
+import net.unraidcontrol.app.graphql.NotificationsFeedSubscription
 import net.unraidcontrol.app.graphql.GetServerInfoQuery
 import net.unraidcontrol.app.graphql.GetVmsQuery
 import net.unraidcontrol.app.graphql.type.ArrayDiskStatus
@@ -161,6 +162,32 @@ fun GetNotificationsQuery.Data.toNotifications(): Notifications {
                 timestamp = n.timestamp,
             )
         },
+    )
+}
+
+/**
+ * E1 pilot (ADR-0026). The subscription only carries the warnings/alerts
+ * feed (no `overview` counts field), so the badge counts are derived
+ * from the list itself — the feed *is* the unread warnings+alerts, so
+ * count-by-importance matches `overview.unread.{warning,alert}` for the
+ * badge's purposes. If on-device the badge ever disagrees with the
+ * query path, combine with `notificationsOverview` in a follow-up.
+ */
+fun NotificationsFeedSubscription.Data.toNotifications(): Notifications {
+    val items = notificationsWarningsAndAlerts.map { n ->
+        UnraidNotification(
+            id = n.id,
+            title = n.title,
+            subject = n.subject,
+            description = n.description,
+            importance = n.importance.toDomain(),
+            timestamp = n.timestamp,
+        )
+    }
+    return Notifications(
+        unreadWarning = items.count { it.importance == NotifImportance.Warning },
+        unreadAlert = items.count { it.importance == NotifImportance.Alert },
+        items = items,
     )
 }
 
