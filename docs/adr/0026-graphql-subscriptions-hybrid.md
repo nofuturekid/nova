@@ -227,6 +227,53 @@ deferred; the per-domain fallback achieves the resilience goal without
 sacrificing Apollo compile-time types. Revisit only if drift breakage
 recurs.
 
+## Amendment 2026-05-17 — live verification of the revisit trigger
+
+The Outcome above paused this ADR on an explicit hinge: notifications are
+gated by the api's FS watcher, but **system metrics and array use an
+interval publisher, not the FS watcher, so they may well deliver where
+notifications didn't**. That hypothesis was tested today via a read-only
+`graphql-transport-ws` session against the real current Unraid server
+(authenticated with the existing `x-api-key`, no writes). It is now
+**empirically confirmed**, not hypothetical:
+
+- **Metrics subscriptions deliver reliably.** Valid payloads, every tick,
+  with a **near-instant first event** — `systemMetricsCpu` ~1 Hz,
+  `systemMetricsMemory` ~0.5 Hz, `systemMetricsTemperature` ~0.2 Hz. The
+  near-instant first event materially **softens the "no subscribe-time
+  snapshot" concern** from the Outcome for these fast publishers: the gap
+  between subscribe and first usable value is sub-second, not a poll
+  interval. `dockerContainerStats` also delivers but is a firehose
+  (~29 Hz across containers) — usable, but would need client-side
+  throttling/conflation.
+- **`arraySubscription` is server-broken.** It emits ~every 8 s, but
+  every tick is a GraphQL error — `Cannot return null for non-nullable
+  field Subscription.arraySubscription` (`data: null`). This is a
+  server-side resolver fault, **not client-fixable**. Array stays
+  polling.
+- **Notifications: unchanged.** Still gated by the server-side chokidar
+  FS watcher exactly as the Outcome found. Stays polling.
+- **Network has no API data at all.** Newly discovered constraint: the
+  api exposes no network throughput anywhere — no subscription field and
+  no query data (`type Metrics { id cpu memory temperature }`,
+  `type Network { id accessUrls }`). A live network-stats feature is
+  **impossible regardless of transport** until `unraid/api` adds the
+  field; out of scope for any future revisit.
+
+**Decision unchanged today: this ADR stays `Deprecated` and polling
+remains the only data path.** The maintainer chose to *record the
+evidence*, **not to implement now** — no code, schema, query or transport
+change accompanies this amendment. What has changed is the *basis* of the
+provisional reversal: the technical blocker for a **metrics-only
+(CPU/Mem/Temp) poll→subscription** revisit is **removed**, and that
+revisit is now pre-validated and low-risk rather than speculative. The
+Status line stays as-is (still Deprecated); the reversal's provisional
+basis is now evidence-backed, not hypothetical. Array and notifications
+remain blocked (server-side); network is permanently out of scope until
+the upstream API exposes it. A future scoped revisit, if undertaken,
+starts from these results — metrics first, array/notifications/network
+explicitly excluded.
+
 ## References
 
 - Amends ADR-0017 (domain-split lifecycle polling) — actions its
