@@ -1,6 +1,6 @@
 # ADR-0030: UI modernization & tech-debt roadmap (phased)
 
-- **Status**: Accepted — P1 device-accepted (2026-05-17, not promoted to stable); P2 device-accepted (2026-05-17, not promoted to stable)
+- **Status**: Accepted — P1 device-accepted (2026-05-17, not promoted to stable); P2 device-accepted (2026-05-17, not promoted to stable); P3 implemented, awaiting on-device acceptance
 - **Date**: 2026-05-17
 - **Tags**: ui, process, data, build
 
@@ -66,7 +66,7 @@ big-bang rewrite. Principles:
 |---|---|---|---|
 | P1 | Theme plumbing: custom M3 `Shapes` (map `rad`/`radField`/`radDialog`) + per-component `*Defaults.colors()` derived from `UnraidColors`; **harmonise** the scattered alphas to one value per semantic role | **Low** | Unblocks every later swap. Originally scoped "None / no gate" — see P1 implementation note: harmonising drift moves pixels, so P1 is now device-gated — device-accepted 2026-05-17 (provisional; stable promotion still maintainer-only) |
 | P2 | `UnraidCard` → M3 `Card` (flat/border via `CardDefaults`) | Low–Med | **Implemented 2026-05-17** — see P2 implementation note. Consumes the P1 foundation (`unraidCard*` helpers + `Shapes.medium`); targets **zero-visual** (device-gated) — device-accepted 2026-05-17 (provisional; stable promotion still maintainer-only). Highest reuse (8 call sites), low semantics |
-| P3 | `UnraidIconButton` → tonal `IconButton`; fold `UnraidButton`/`UnraidIconButton` duplication | Med | Biggest blast radius (11 screens); tint/circle maps cleanly |
+| P3 | `UnraidIconButton` → tonal `IconButton`; fold `UnraidButton`/`UnraidIconButton` duplication | Med | **Implemented 2026-05-17** — see P3 implementation note. Consumes the P1 foundation (`unraid*IconButtonColors` helpers); targets **zero-visual** (device-gated). Folds the duplicated tone→colour logic into the P1 `ComponentColors` helpers (single source of truth); the `Button`-family structural swap remains P5. Biggest blast radius (11 screens); tint/circle maps cleanly |
 | P4 | `UnraidProgress` → `LinearProgressIndicator` (keep `StackBar` bespoke — no M3 equivalent) | Med | Small footprint |
 | P5 | `UnraidButton` → `Button` family | High | Pill shape + tonal/disabled/luminance treatment diverges — device-accept |
 | P6 | `Pill` → `Badge`/chip (or retain) | Med | M3 chips force larger min-height/touch — device-accept |
@@ -146,6 +146,59 @@ held constant by the P1 foundation.
 
 Device-accepted 2026-05-17 (v0.1.30-beta5, PR #112); provisional, not
 promoted to stable.
+
+### P3 implementation note (2026-05-17)
+
+`UnraidIconButton` is now the real Material 3 `IconButton` /
+`FilledTonalIconButton`, not the hand-rolled `Box(...).background()`. The
+public signature is **unchanged** (`icon, onClick, contentDescription,
+modifier, size, tone, enabled`), so all 21 `UnraidIconButton(` call sites
+are untouched (pure foundation-consuming swap, no screen edits).
+
+The ADR's named "near-duplication" was the **duplicated tone→colour
+logic**: a file-local `onToneColor` in `Buttons.kt` plus inline
+`when (tone) { … }` derivations in both `UnraidButton` and
+`UnraidIconButton`. P3 collapses this to a single source of truth — the
+icon-button colours come exclusively from the P1
+`unraidTonalIconButtonColors` / `unraidPlainIconButtonColors` helpers, and
+`UnraidButton`'s on-accent legibility rule now consumes the shared
+`onTone` in `ComponentColors.kt` (its private copy deleted). The
+`Button`-family **structural** swap (pill `Row` → `Button`) stays out of
+scope — that remains P5; only the colour derivation moved.
+
+Zero-visual is load-bearing here — it is the device-gated acceptance
+criterion — and rests on:
+
+- **Signature unchanged.** No call site changes; the 21 icon-button and
+  33 button sites compile untouched.
+- **Colours via P1 helpers.** `unraidTonalIconButtonColors(tone)` is
+  `tone.base().copy(alpha = tonalFill)` for every tone; the bespoke
+  mapping was identical post-P1 (accent already used `accentDim`, which
+  *is* `accent.copy(alpha = tonalFill)`). `tone = null` →
+  `unraidPlainIconButtonColors()` = transparent container. No pixel shift.
+- **Container pinned to `size`, not M3 40 dp.** The M3 `IconButton`
+  defaults to a 40 dp container; it is forced to `Modifier.size(size)`
+  and clipped to `CircleShape`, so the rendered coloured circle is
+  exactly the previous `size` param.
+- **Touch target preserved.** The ≥48 dp target is still an outer `Box`
+  with `sizeIn(minWidth/minHeight = touchMin)` wrapping the IconButton
+  (audit P0 unchanged).
+- **a11y preserved.** `contentDescription` stays compiler-required and is
+  wired to the control's `semantics { contentDescription; onClick(label) }`
+  — the same announcement the previous `clickable(onClickLabel = …)`
+  produced; TalkBack still announces it.
+- **Disabled.** M3's `IconButton`/`FilledTonalIconButton` defaults dim
+  disabled content to the M3 0.38 alpha — equivalent to the previous
+  explicit `.alpha(0.38f)` on the icon.
+
+The **one** on-device verification point: ripple extent. The bespoke code
+used an *unbounded* ripple with `radius = touchMin / 2`; the M3
+IconButton uses its default ripple **bounded to the container circle**.
+Confirm there is no perceptible change in ripple extent on icon buttons
+on-device.
+
+This note is provisional. P3 is implemented and awaiting on-device
+acceptance; it is **not** promoted to stable.
 
 ## Consequences
 
