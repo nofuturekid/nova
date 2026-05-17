@@ -1,6 +1,6 @@
 # ADR-0030: UI modernization & tech-debt roadmap (phased)
 
-- **Status**: Accepted — P1 device-accepted (2026-05-17, not promoted to stable); P2 device-accepted (2026-05-17, not promoted to stable); P3 implemented, awaiting on-device acceptance
+- **Status**: Accepted — P1 device-accepted (2026-05-17, not promoted to stable); P2 device-accepted (2026-05-17, not promoted to stable); P3 device-accepted (2026-05-17, not promoted to stable)
 - **Date**: 2026-05-17
 - **Tags**: ui, process, data, build
 
@@ -66,7 +66,7 @@ big-bang rewrite. Principles:
 |---|---|---|---|
 | P1 | Theme plumbing: custom M3 `Shapes` (map `rad`/`radField`/`radDialog`) + per-component `*Defaults.colors()` derived from `UnraidColors`; **harmonise** the scattered alphas to one value per semantic role | **Low** | Unblocks every later swap. Originally scoped "None / no gate" — see P1 implementation note: harmonising drift moves pixels, so P1 is now device-gated — device-accepted 2026-05-17 (provisional; stable promotion still maintainer-only) |
 | P2 | `UnraidCard` → M3 `Card` (flat/border via `CardDefaults`) | Low–Med | **Implemented 2026-05-17** — see P2 implementation note. Consumes the P1 foundation (`unraidCard*` helpers + `Shapes.medium`); targets **zero-visual** (device-gated) — device-accepted 2026-05-17 (provisional; stable promotion still maintainer-only). Highest reuse (8 call sites), low semantics |
-| P3 | `UnraidIconButton` → tonal `IconButton`; fold `UnraidButton`/`UnraidIconButton` duplication | Med | **Implemented 2026-05-17** — see P3 implementation note. Consumes the P1 foundation (`unraid*IconButtonColors` helpers); targets **zero-visual** (device-gated). Folds the duplicated tone→colour logic into the P1 `ComponentColors` helpers (single source of truth); the `Button`-family structural swap remains P5. Biggest blast radius (11 screens); tint/circle maps cleanly |
+| P3 | `UnraidIconButton` → tonal `IconButton`; fold `UnraidButton`/`UnraidIconButton` duplication | Med | **Implemented 2026-05-17** — see P3 implementation note. Consumes the P1 foundation (`unraid*IconButtonColors` helpers); targets **zero-visual** (device-gated) — device-accepted 2026-05-17 (provisional; stable promotion still maintainer-only). Folds the duplicated tone→colour logic into the P1 `ComponentColors` helpers (single source of truth); the `Button`-family structural swap remains P5. Biggest blast radius (11 screens); tint/circle maps cleanly |
 | P4 | `UnraidProgress` → `LinearProgressIndicator` (keep `StackBar` bespoke — no M3 equivalent) | Med | Small footprint |
 | P5 | `UnraidButton` → `Button` family | High | Pill shape + tonal/disabled/luminance treatment diverges — device-accept |
 | P6 | `Pill` → `Badge`/chip (or retain) | Med | M3 chips force larger min-height/touch — device-accept |
@@ -197,8 +197,8 @@ IconButton uses its default ripple **bounded to the container circle**.
 Confirm there is no perceptible change in ripple extent on icon buttons
 on-device.
 
-This note is provisional. P3 is implemented and awaiting on-device
-acceptance; it is **not** promoted to stable.
+Device-accepted 2026-05-17 (v0.1.30-beta6, PR #115); provisional, not
+promoted to stable.
 
 ## Consequences
 
