@@ -19,6 +19,16 @@ Thanks for wanting to contribute. The workflow is intentionally lightweight.
 4. CI (`ci.yml`) runs automatically on the PR. It builds debug + signed release APKs in one shot (≈ 4 min on a cold cache). Wait for green.
 5. Merge when CI is green. Squash-merge is the default if there are many small commits; merge-commit is fine for cohesive ones.
 
+## Contribution flow (external contributors)
+
+External contributors submit PRs from a fork. CI on a fork PR proves
+**compile/lint only** — fork PRs get no secrets by design, so signed
+release/device steps don't run there. The maintainer then reviews, runs
+the beta and the on-device acceptance pass (ADR-0027 Tier 3 — a human
+judgement gate, not delegable), and merges/releases. So an appearance or
+UX change can't be self-accepted in a fork PR; flag it and the
+maintainer owns acceptance.
+
 You may merge your own PR after CI passes — no required reviews. Reviews are welcome but not blocking, so the project doesn't stall when only one person is around. If you want a review, ping in the PR thread.
 
 ## Cutting a release
