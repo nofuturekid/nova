@@ -41,21 +41,66 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        language: [actions, java-kotlin]
+        # Per-language `build-mode` via matrix include — `build-mode` is a
+        # per-language setting, so each entry carries its own.
+        #
+        # History of this file's two bugs:
+        #  1. It originally passed `language:` (singular) to init. That is
+        #     NOT a valid codeql-action input (valid key: `languages:`).
+        #     init ignored it, autodetected repo languages, and ran
+        #     autobuild for java-kotlin regardless of `build-mode: none`.
+        #  2. After fixing the key, `build-mode: none` for java-kotlin on
+        #     the pinned CodeQL bundle (2.25.4) STILL invoked the Gradle
+        #     autobuild and produced an empty Java DB → `database finalize`
+        #     aborted with "could not process any code" / exit 32. So
+        #     no-build is not viable for this Android project here.
+        #
+        # Fix: `actions` stays build-mode none (no build needed).
+        # java-kotlin uses build-mode manual with an explicit compile that
+        # mirrors how this repo builds (ci.yml build-debug / local-ci.sh:
+        # JDK 21 temurin, setup-gradle, Android SDK, generateApolloSources
+        # then assembleDebug) so CodeQL traces a real compilation.
+        include:
+          - language: actions
+            build-mode: none
+          - language: java-kotlin
+            build-mode: manual
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Set up JDK 21
+        if: matrix.language == 'java-kotlin'
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - name: Set up Gradle (build cache)
+        if: matrix.language == 'java-kotlin'
+        uses: gradle/actions/setup-gradle@v6
+        with:
+          cache-read-only: true
+
+      - name: Set up Android SDK
+        if: matrix.language == 'java-kotlin'
+        uses: android-actions/setup-android@v4
+        with:
+          log-accepted-android-sdk-licenses: false
+
       - name: Initialize CodeQL
         uses: github/codeql-action/init@v3
         with:
-          language: ${{ matrix.language }}
-          # build-mode: none for both languages. `actions` needs no build.
-          # java-kotlin: this is an Android/Gradle project, so a full
-          # autobuild would need the Android SDK and is slow/flaky;
-          # build-mode: none is supported for java-kotlin and keeps CodeQL
-          # light (tradeoff: dataflow without a compiled build).
-          build-mode: none
+          languages: ${{ matrix.language }}
+          build-mode: ${{ matrix.build-mode }}
+
+      # build-mode: manual — CodeQL traces this compilation for java-kotlin.
+      # Same tasks as ci.yml build-debug / local-ci.sh (generateApolloSources
+      # first so Apollo codegen failures surface crisply, then assembleDebug
+      # which compiles all app Kotlin/Java sources).
+      - name: Build (manual, for CodeQL trace)
+        if: matrix.language == 'java-kotlin'
+        run: ./gradlew :app:generateApolloSources :app:assembleDebug --stacktrace
 
       - name: Perform CodeQL Analysis
         uses: github/codeql-action/analyze@v3
