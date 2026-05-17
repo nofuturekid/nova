@@ -1,8 +1,20 @@
 # ADR-0011: `cancel-in-progress` only on PR branches, not main
 
-- **Status**: Accepted
+- **Status**: Mooted 2026-05-17 (superseded by ADR-0014)
 - **Date**: 2026-05-14
 - **Tags**: ci, release
+
+> **Mooted 2026-05-17 — superseded by ADR-0014**: ADR-0014 removed
+> `ci.yml`'s `push: branches: [main]` trigger entirely (triggers are now
+> `pull_request` + `workflow_dispatch` only). With no CI run that ever
+> carries a `refs/heads/main` ref, the prescribed
+> `cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}` carve-out
+> has nothing to protect — there is no main-ref run to cancel. The
+> conditional would be dead code referencing an impossible event, so
+> `ci.yml` correctly keeps unconditional `cancel-in-progress: true`
+> (ADR-0014 explicitly states this is now safe globally). The decision
+> body below is preserved unchanged for audit; it no longer governs the
+> file. See audit finding 5.
 
 ## Context
 

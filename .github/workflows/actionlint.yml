@@ -1,0 +1,38 @@
+name: actionlint
+
+# Advisory workflow-YAML linter. Closes audit finding 4: nothing validated
+# the workflow files themselves, which is how two CodeQL-config bugs and the
+# dead `else` branch in ci.yml shipped. actionlint catches YAML/expression/
+# shellcheck mistakes in `.github/workflows/**`.
+#
+# DELIBERATELY ADVISORY: this is NOT in branch-protection required checks —
+# `build` (ci.yml) stays the single required check (ADR-0003). Mirrors the
+# CodeQL-advisory posture (ADR-0022). Path-scoped so it only runs when a
+# workflow file actually changes.
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/**'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: actionlint-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  actionlint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Run actionlint
+        run: |
+          set -euo pipefail
+          # Official install script, pinned to a specific actionlint release
+          # (the repo convention is versioned pins; rhysd/actionlint ships no
+          # versioned composite action, so we pin the released binary).
+          bash <(curl -fsSL https://raw.githubusercontent.com/rhysd/actionlint/v1.7.7/scripts/download-actionlint.bash) 1.7.7
+          ./actionlint -color

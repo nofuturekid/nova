@@ -4,6 +4,15 @@ name: CodeQL
 # code-scanning/default-setup API) with an in-repo "advanced setup" so the
 # analysis is disciplined the same way ci.yml is (ADR-0019 spirit).
 #
+# NOTE on the zombie sidebar entry: the old GitHub default-setup CodeQL
+# workflow is disabled (`code-scanning/default-setup` API → `not-configured`)
+# and dormant — it has no trigger source and fires nothing. GitHub never
+# deletes the registration, so it still *appears* in the Actions sidebar as
+# "CodeQL (default setup)"; that entry is purely cosmetic. This advanced
+# workflow supersedes it and carries every scan. Nothing to fix in YAML
+# (audit finding 1) — documented here so it isn't mistaken for a live
+# duplicate scanner.
+#
 # Default setup ran on every push:main *and* every PR with NO concurrency
 # group: rapid squash-merges spun up N parallel main analyses, and even
 # docs-only commits got fully scanned. That is pure waste — the PR head is
@@ -78,7 +87,7 @@ jobs:
             build-mode: manual
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Set up JDK 21
         if: matrix.language == 'java-kotlin'
