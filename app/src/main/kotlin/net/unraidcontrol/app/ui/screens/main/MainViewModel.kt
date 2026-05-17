@@ -289,6 +289,7 @@ class MainViewModel @Inject constructor(
     fun deleteNotification(id: String, type: NotifType) =
         viewModelScope.launch { unraid.deleteNotification(id, type) }
     fun archiveAllNotifications()       = viewModelScope.launch { unraid.archiveAllNotifications() }
+    fun deleteAllArchivedNotifications() = viewModelScope.launch { unraid.deleteArchivedNotifications() }
 
     fun startParityCheck(correct: Boolean) = viewModelScope.launch { unraid.startParityCheck(correct) }
     fun pauseParityCheck()  = viewModelScope.launch { unraid.pauseParityCheck() }

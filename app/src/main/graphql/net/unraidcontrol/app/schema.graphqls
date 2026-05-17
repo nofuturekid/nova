@@ -133,6 +133,7 @@ type Mutation {
     unreadNotification(id: PrefixedID!): Notification!
     deleteNotification(id: PrefixedID!, type: NotificationType!): NotificationOverview!
     archiveAll(importance: NotificationImportance): NotificationOverview!
+    deleteArchivedNotifications: NotificationOverview!
     recalculateOverview: NotificationOverview!
 }
 

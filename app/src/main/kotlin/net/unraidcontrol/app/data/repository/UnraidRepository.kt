@@ -28,6 +28,7 @@ import net.unraidcontrol.app.data.model.ServerInfo
 import net.unraidcontrol.app.data.model.Vm
 import net.unraidcontrol.app.graphql.ArchiveAllNotificationsMutation
 import net.unraidcontrol.app.graphql.ArchiveNotificationMutation
+import net.unraidcontrol.app.graphql.DeleteArchivedNotificationsMutation
 import net.unraidcontrol.app.graphql.DeleteNotificationMutation
 import net.unraidcontrol.app.graphql.FetchContainerLogsQuery
 import net.unraidcontrol.app.graphql.GetNotificationListQuery
@@ -328,6 +329,10 @@ class UnraidRepository @Inject constructor(
     /** Bulk archive every unread notification. */
     suspend fun archiveAllNotifications() =
         runNotificationAction { it.mutation(ArchiveAllNotificationsMutation()).execute() }
+
+    /** Permanently delete every archived notification. */
+    suspend fun deleteArchivedNotifications() =
+        runNotificationAction { it.mutation(DeleteArchivedNotificationsMutation()).execute() }
 
     private suspend fun runNotificationAction(block: suspend (ApolloClient) -> Unit) {
         val c = activeClient() ?: return

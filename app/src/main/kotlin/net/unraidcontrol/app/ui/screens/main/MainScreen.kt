@@ -368,6 +368,15 @@ fun MainScreen(
             onArchive = { vm.archiveNotification(it) },
             onUnread = { vm.unreadNotification(it) },
             onArchiveAll = { vm.archiveAllNotifications() },
+            onDeleteAllArchivedRequest = {
+                confirm = ConfirmRequest(
+                    title = "Delete all archived?",
+                    body = "All archived notifications will be permanently deleted. This cannot be undone.",
+                    confirmLabel = "Delete all",
+                    tone = Tone.Danger,
+                    onConfirm = { vm.deleteAllArchivedNotifications(); confirm = null },
+                )
+            },
             onDeleteRequest = { n ->
                 confirm = ConfirmRequest(
                     title = "Delete notification?",

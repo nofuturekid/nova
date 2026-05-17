@@ -51,7 +51,8 @@ import net.unraidcontrol.app.ui.theme.UnraidTheme
  *
  * - Unread tab: full unread list (incl. INFO). Per-row Archive (= mark
  *   read) + Delete, plus a bulk "Archive all".
- * - Archived tab: per-row Unarchive (restore to unread) + Delete.
+ * - Archived tab: per-row Unarchive (restore to unread) + Delete, plus a
+ *   bulk "Delete all archived".
  *
  * State envelope is the live [DomainState] so Loading / Error surface like
  * every other domain. Actions are action→refetch (no optimistic local
@@ -69,6 +70,7 @@ fun NotificationsSheet(
     onArchive: (String) -> Unit,
     onUnread: (String) -> Unit,
     onArchiveAll: () -> Unit,
+    onDeleteAllArchivedRequest: () -> Unit,
     onDeleteRequest: (UnraidNotification) -> Unit,
 ) {
     val t = UnraidTheme.colors
@@ -153,6 +155,21 @@ fun NotificationsSheet(
                                 variant = BtnVariant.Text,
                                 tone = Tone.Accent,
                                 leadingIcon = { UC.Check(18.dp, t.accent) },
+                            )
+                        }
+                        Spacer(Modifier.height(6.dp))
+                    }
+                    if (tabIndex == 1 && archived.isNotEmpty()) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.End,
+                        ) {
+                            UnraidButton(
+                                onClick = onDeleteAllArchivedRequest,
+                                label = "Delete all archived",
+                                variant = BtnVariant.Text,
+                                tone = Tone.Danger,
+                                leadingIcon = { UC.Trash(18.dp, t.danger) },
                             )
                         }
                         Spacer(Modifier.height(6.dp))
