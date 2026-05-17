@@ -15,6 +15,10 @@ release version + date and opens a fresh `[Unreleased]`.
 
 ## [Unreleased]
 
+### Fixed
+- The notifications indicator in the top bar now shows a bell icon
+  instead of an information (ⓘ) symbol.
+
 ## [0.1.30] - 2026-05-17
 
 Stable promotion of the whole 0.1.30 cycle (beta1…beta7), device-verified.
