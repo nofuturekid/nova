@@ -51,6 +51,5 @@ body:
     attributes:
       label: Logs
       description: Relevant logcat / error text. Redact API keys and hostnames.
-      render: text
     validations:
       required: false
