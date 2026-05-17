@@ -69,6 +69,7 @@ import net.unraidcontrol.app.ui.screens.update.UpdateDialog
 import net.unraidcontrol.app.ui.theme.AccentSwatches
 import net.unraidcontrol.app.ui.theme.Density
 import net.unraidcontrol.app.ui.theme.ThemeMode
+import net.unraidcontrol.app.ui.theme.UnraidAlpha
 import net.unraidcontrol.app.ui.theme.UnraidTheme
 import javax.inject.Inject
 
@@ -416,7 +417,7 @@ private fun Toggle(value: Boolean, onChange: (Boolean) -> Unit) {
             .clip(RoundedCornerShape(13.dp))
             // Off-track uses t.text alpha so the contrast inverts with the theme:
             // light-grey dot on dark surface, dark-grey dot on light surface.
-            .background(if (value) t.accent else t.text.copy(alpha = 0.2f))
+            .background(if (value) t.accent else t.text.copy(alpha = UnraidAlpha.controlTrackOff))
             .clickable { onChange(!value) },
         contentAlignment = if (value) Alignment.CenterEnd else Alignment.CenterStart,
     ) {
@@ -441,7 +442,7 @@ private fun <T> Segmented(
     Row(
         modifier = Modifier
             .clip(RoundedCornerShape(10.dp))
-            .background(t.muted.copy(alpha = 0.10f))
+            .background(t.muted.copy(alpha = UnraidAlpha.softFill))
             .padding(2.dp),
     ) {
         options.forEach { opt ->

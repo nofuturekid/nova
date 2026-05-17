@@ -30,6 +30,7 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
+import net.unraidcontrol.app.ui.theme.UnraidAlpha
 import net.unraidcontrol.app.ui.theme.UnraidDims
 import net.unraidcontrol.app.ui.theme.UnraidTheme
 
@@ -61,7 +62,7 @@ fun UnraidField(
             modifier = Modifier
                 .fillMaxWidth()
                 .background(
-                    color = t.muted.copy(alpha = 0.08f),
+                    color = t.muted.copy(alpha = UnraidAlpha.softFill),
                     shape = RoundedCornerShape(UnraidDims.radField),
                 )
                 .border(1.dp, borderColor, RoundedCornerShape(UnraidDims.radField))

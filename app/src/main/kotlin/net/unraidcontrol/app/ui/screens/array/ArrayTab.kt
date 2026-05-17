@@ -42,6 +42,7 @@ import net.unraidcontrol.app.ui.screens.ErrorState
 import net.unraidcontrol.app.ui.screens.LoadingState
 import net.unraidcontrol.app.ui.screens.NoServerState
 import net.unraidcontrol.app.ui.theme.JetBrainsMono
+import net.unraidcontrol.app.ui.theme.UnraidAlpha
 import net.unraidcontrol.app.ui.theme.UnraidTheme
 
 @Composable
@@ -144,8 +145,8 @@ private fun ArrayContent(
                         Column(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .background(t.info.copy(alpha = 0.08f), RoundedCornerShape(12.dp))
-                                .border(1.dp, t.info.copy(alpha = 0.2f), RoundedCornerShape(12.dp))
+                                .background(t.info.copy(alpha = UnraidAlpha.softFill), RoundedCornerShape(12.dp))
+                                .border(1.dp, t.info.copy(alpha = UnraidAlpha.softBorder), RoundedCornerShape(12.dp))
                                 .padding(horizontal = 14.dp, vertical = 12.dp),
                         ) {
                             Row {
@@ -224,8 +225,8 @@ private fun ArrayContent(
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .background(t.danger.copy(alpha = 0.08f), RoundedCornerShape(12.dp))
-                                .border(1.dp, t.danger.copy(alpha = 0.2f), RoundedCornerShape(12.dp))
+                                .background(t.danger.copy(alpha = UnraidAlpha.softFill), RoundedCornerShape(12.dp))
+                                .border(1.dp, t.danger.copy(alpha = UnraidAlpha.softBorder), RoundedCornerShape(12.dp))
                                 .padding(horizontal = 14.dp, vertical = 12.dp),
                             horizontalArrangement = Arrangement.spacedBy(10.dp),
                         ) {
@@ -314,7 +315,7 @@ private fun DiskTile(disk: Disk, errored: Boolean) {
                     modifier = Modifier
                         .size(28.dp)
                         .clip(RoundedCornerShape(8.dp))
-                        .background(typeColor.copy(alpha = 0.13f)),
+                        .background(typeColor.copy(alpha = UnraidAlpha.tonalFill)),
                     contentAlignment = Alignment.Center,
                 ) { UC.Disk(15.dp, typeColor) }
                 Column(modifier = Modifier.weight(1f)) {
@@ -368,7 +369,7 @@ private fun DiskCard(disk: Disk, errored: Boolean) {
                     modifier = Modifier
                         .size(36.dp)
                         .clip(RoundedCornerShape(10.dp))
-                        .background(typeColor.copy(alpha = 0.13f)),
+                        .background(typeColor.copy(alpha = UnraidAlpha.tonalFill)),
                     contentAlignment = Alignment.Center,
                 ) { UC.Disk(18.dp, typeColor) }
                 Column(modifier = Modifier.weight(1f)) {

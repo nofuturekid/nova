@@ -43,6 +43,7 @@ import net.unraidcontrol.app.ui.components.UC
 import net.unraidcontrol.app.ui.components.UnraidButton
 import net.unraidcontrol.app.ui.components.UnraidField
 import net.unraidcontrol.app.ui.components.UnraidIconButton
+import net.unraidcontrol.app.ui.theme.UnraidAlpha
 import net.unraidcontrol.app.ui.theme.UnraidTheme
 import javax.inject.Inject
 
@@ -173,7 +174,7 @@ fun AddEditServerSheet(
                     modifier = Modifier
                         .width(36.dp)
                         .height(4.dp)
-                        .background(t.muted.copy(alpha = 0.40f), RoundedCornerShape(2.dp)),
+                        .background(t.muted.copy(alpha = UnraidAlpha.grabber), RoundedCornerShape(2.dp)),
                 )
             }
             Spacer(Modifier.height(14.dp))
@@ -274,13 +275,13 @@ fun AddEditServerSheet(
 private fun TestConnectionPanel(state: TestState, onTest: () -> Unit, message: String?) {
     val t = UnraidTheme.colors
     val bg = when (state) {
-        TestState.Ok   -> t.accent.copy(alpha = 0.08f)
-        TestState.Fail -> t.danger.copy(alpha = 0.08f)
-        else           -> t.muted.copy(alpha = 0.08f)
+        TestState.Ok   -> t.accent.copy(alpha = UnraidAlpha.softFill)
+        TestState.Fail -> t.danger.copy(alpha = UnraidAlpha.softFill)
+        else           -> t.muted.copy(alpha = UnraidAlpha.softFill)
     }
     val border = when (state) {
-        TestState.Ok   -> t.accent.copy(alpha = 0.30f)
-        TestState.Fail -> t.danger.copy(alpha = 0.30f)
+        TestState.Ok   -> t.accent.copy(alpha = UnraidAlpha.testStateBorder)
+        TestState.Fail -> t.danger.copy(alpha = UnraidAlpha.testStateBorder)
         else           -> t.border
     }
     Row(

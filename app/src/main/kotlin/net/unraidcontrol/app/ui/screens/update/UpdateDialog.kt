@@ -40,6 +40,7 @@ import net.unraidcontrol.app.ui.components.UnraidButton
 import net.unraidcontrol.app.ui.components.UnraidIconButton
 import net.unraidcontrol.app.ui.components.UnraidProgress
 import net.unraidcontrol.app.ui.theme.JetBrainsMono
+import net.unraidcontrol.app.ui.theme.UnraidAlpha
 import net.unraidcontrol.app.ui.theme.UnraidTheme
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -71,7 +72,7 @@ fun UpdateDialog(
                         .width(36.dp)
                         .height(4.dp)
                         .clip(RoundedCornerShape(2.dp))
-                        .background(t.muted.copy(alpha = 0.40f)),
+                        .background(t.muted.copy(alpha = UnraidAlpha.grabber)),
                 )
             }
             Spacer(Modifier.height(14.dp))
@@ -109,7 +110,7 @@ fun UpdateDialog(
                         .fillMaxWidth()
                         .heightConstrainedAtMost(220.dp)
                         .clip(RoundedCornerShape(10.dp))
-                        .background(t.muted.copy(alpha = 0.08f))
+                        .background(t.muted.copy(alpha = UnraidAlpha.softFill))
                         .padding(12.dp),
                 ) {
                     // Default Markdown typography maps headers to MaterialTheme

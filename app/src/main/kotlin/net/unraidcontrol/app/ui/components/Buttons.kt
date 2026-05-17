@@ -27,6 +27,7 @@ import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import net.unraidcontrol.app.ui.theme.UnraidAlpha
 import net.unraidcontrol.app.ui.theme.UnraidDims
 import net.unraidcontrol.app.ui.theme.UnraidTheme
 
@@ -63,14 +64,14 @@ fun UnraidButton(
         // alpha-dimming the whole button (keeps on-accent text readable).
         fg = t.muted
         when (variant) {
-            BtnVariant.Filled, BtnVariant.Tonal -> { bg = t.muted.copy(alpha = 0.14f); showBorder = false }
+            BtnVariant.Filled, BtnVariant.Tonal -> { bg = t.muted.copy(alpha = UnraidAlpha.disabledFill); showBorder = false }
             BtnVariant.Outline                  -> { bg = Color.Transparent;           showBorder = true  }
             BtnVariant.Text                     -> { bg = Color.Transparent;           showBorder = false }
         }
     } else {
         when (variant) {
             BtnVariant.Filled  -> { bg = toneColor;                       fg = onToneColor(toneColor); showBorder = false }
-            BtnVariant.Tonal   -> { bg = toneColor.copy(alpha = 0.16f);   fg = toneColor;              showBorder = false }
+            BtnVariant.Tonal   -> { bg = toneColor.copy(alpha = UnraidAlpha.tonalFill); fg = toneColor;              showBorder = false }
             BtnVariant.Outline -> { bg = Color.Transparent;               fg = t.text;                 showBorder = true  }
             BtnVariant.Text    -> { bg = Color.Transparent;               fg = toneColor;              showBorder = false }
         }
@@ -124,10 +125,10 @@ fun UnraidIconButton(
     val t = UnraidTheme.colors
     val bg: Color = when (tone) {
         Tone.Accent  -> t.accentDim
-        Tone.Danger  -> t.danger.copy(alpha = 0.14f)
-        Tone.Warn    -> t.warn.copy(alpha = 0.14f)
-        Tone.Info    -> t.info.copy(alpha = 0.14f)
-        Tone.Neutral -> t.muted.copy(alpha = 0.12f)
+        Tone.Danger  -> t.danger.copy(alpha = UnraidAlpha.tonalFill)
+        Tone.Warn    -> t.warn.copy(alpha = UnraidAlpha.tonalFill)
+        Tone.Info    -> t.info.copy(alpha = UnraidAlpha.tonalFill)
+        Tone.Neutral -> t.muted.copy(alpha = UnraidAlpha.tonalFill)
         null         -> Color.Transparent
     }
     val interaction = remember { MutableInteractionSource() }

@@ -32,6 +32,7 @@ import net.unraidcontrol.app.data.model.Notifications
 import net.unraidcontrol.app.data.model.UnraidNotification
 import net.unraidcontrol.app.ui.components.UC
 import net.unraidcontrol.app.ui.components.UnraidIconButton
+import net.unraidcontrol.app.ui.theme.UnraidAlpha
 import net.unraidcontrol.app.ui.theme.UnraidTheme
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -53,7 +54,7 @@ fun NotificationsSheet(
                         .width(36.dp)
                         .height(4.dp)
                         .clip(RoundedCornerShape(2.dp))
-                        .background(t.muted.copy(alpha = 0.40f)),
+                        .background(t.muted.copy(alpha = UnraidAlpha.grabber)),
                 )
             }
         },
@@ -114,7 +115,7 @@ private fun NotificationRow(n: UnraidNotification) {
         modifier = Modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(10.dp))
-            .background(accent.copy(alpha = 0.08f))
+            .background(accent.copy(alpha = UnraidAlpha.softFill))
             .padding(12.dp),
         horizontalArrangement = Arrangement.spacedBy(10.dp),
     ) {
