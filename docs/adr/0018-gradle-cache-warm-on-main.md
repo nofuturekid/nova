@@ -1,8 +1,14 @@
 # ADR-0018: Populate the Gradle build cache on push to main
 
-- **Status**: Accepted
+- **Status**: Reversed 2026-05-17 (no measurable CI speedup in practice)
 - **Date**: 2026-05-14
 - **Tags**: ci, performance
+
+> **Reversed 2026-05-17**: the warm-cache workflow produced no measurable
+> CI speedup in practice (maintainer assessment); the ci.yml
+> `cache-read-only` consumption of whatever cache exists is retained, but
+> the dedicated warmer (`.github/workflows/cache-warm.yml`) is dropped as
+> dead weight. The body below is preserved unchanged for audit.
 
 ## Context
 
