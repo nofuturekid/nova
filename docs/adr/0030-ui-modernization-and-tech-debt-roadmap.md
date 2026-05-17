@@ -1,6 +1,6 @@
 # ADR-0030: UI modernization & tech-debt roadmap (phased)
 
-- **Status**: Accepted — P1 device-accepted (2026-05-17, not promoted to stable); P2 device-accepted (2026-05-17, not promoted to stable); P3 device-accepted (2026-05-17, not promoted to stable); **P4–P7 + D1 + D2 implemented 2026-05-17 as ONE combined beta awaiting a single on-device acceptance** (per-phase gate waived — see Amendment 2026-05-17; not promoted to stable)
+- **Status**: Accepted — P1 device-accepted (2026-05-17, not promoted to stable); P2 device-accepted (2026-05-17, not promoted to stable); P3 device-accepted (2026-05-17, not promoted to stable); **P4–P7 + D1 + D2 combined-device-accepted (2026-05-17, not promoted to stable)** — implemented 2026-05-17 as ONE combined beta (v0.1.30-beta7), per-phase gate waived (see Amendment 2026-05-17)
 - **Date**: 2026-05-17
 - **Tags**: ui, process, data, build
 
@@ -67,10 +67,10 @@ big-bang rewrite. Principles:
 | P1 | Theme plumbing: custom M3 `Shapes` (map `rad`/`radField`/`radDialog`) + per-component `*Defaults.colors()` derived from `UnraidColors`; **harmonise** the scattered alphas to one value per semantic role | **Low** | Unblocks every later swap. Originally scoped "None / no gate" — see P1 implementation note: harmonising drift moves pixels, so P1 is now device-gated — device-accepted 2026-05-17 (provisional; stable promotion still maintainer-only) |
 | P2 | `UnraidCard` → M3 `Card` (flat/border via `CardDefaults`) | Low–Med | **Implemented 2026-05-17** — see P2 implementation note. Consumes the P1 foundation (`unraidCard*` helpers + `Shapes.medium`); targets **zero-visual** (device-gated) — device-accepted 2026-05-17 (provisional; stable promotion still maintainer-only). Highest reuse (8 call sites), low semantics |
 | P3 | `UnraidIconButton` → tonal `IconButton`; fold `UnraidButton`/`UnraidIconButton` duplication | Med | **Implemented 2026-05-17** — see P3 implementation note. Consumes the P1 foundation (`unraid*IconButtonColors` helpers); targets **zero-visual** (device-gated) — device-accepted 2026-05-17 (provisional; stable promotion still maintainer-only). Folds the duplicated tone→colour logic into the P1 `ComponentColors` helpers (single source of truth); the `Button`-family structural swap remains P5. Biggest blast radius (11 screens); tint/circle maps cleanly |
-| P4 | `UnraidProgress` → `LinearProgressIndicator` (keep `StackBar` bespoke — no M3 equivalent) | Med | **Implemented 2026-05-17** — combined beta per Amendment 2026-05-17. Thin wrapper over M3 `LinearProgressIndicator`; colours via the new P1 `unraidProgressColors` helper; height/corner pinned, M3 gap + stop-indicator suppressed, 500 ms tween preserved → zero-visual |
-| P5 | `UnraidButton` → `Button` family | High | **Implemented 2026-05-17** — combined beta per Amendment 2026-05-17. Filled/Tonal/Outline/Text → `Button`/`FilledTonalButton`/`OutlinedButton`/`TextButton`; colours EXCLUSIVELY via P1 helpers; pill/touch/padding preserved. Includes the deferred P3 `Tone.Neutral` decision: Neutral now renders muted (was wrongly accent) — INTENDED change at 4 Cancel/Later/Close call sites |
-| P6 | `Pill` → `Badge`/chip (or retain) | Med | **Implemented 2026-05-17** — combined beta per Amendment 2026-05-17. M3 `Badge`'s fixed min-size + 4 dp padding would shift the dense status rows (10 dp/4 dp padded pill + 6 dp dot), so per the ADR's "or retain" the bespoke rendering is RETAINED at all 15 call sites — zero-visual, no layout shift |
-| P7 | `ConfirmDialog` → `AlertDialog`; `UnraidField` → `OutlinedTextField` | High | **Implemented 2026-05-17** — combined beta per Amendment 2026-05-17. `ConfirmDialog` → M3 `AlertDialog`; `UnraidField` (4 call sites — ADR's "single" was wrong) → M3 `OutlinedTextField`, colours via P1 `unraidTextFieldColors`. M3-idiomatic appearance accepted over zero-visual (Rule 13) |
+| P4 | `UnraidProgress` → `LinearProgressIndicator` (keep `StackBar` bespoke — no M3 equivalent) | Med | **Implemented 2026-05-17** — combined beta per Amendment 2026-05-17. Thin wrapper over M3 `LinearProgressIndicator`; colours via the new P1 `unraidProgressColors` helper; height/corner pinned, M3 gap + stop-indicator suppressed, 500 ms tween preserved → zero-visual — device-accepted 2026-05-17 (combined beta v0.1.30-beta7, provisional; stable promotion still maintainer-only) |
+| P5 | `UnraidButton` → `Button` family | High | **Implemented 2026-05-17** — combined beta per Amendment 2026-05-17. Filled/Tonal/Outline/Text → `Button`/`FilledTonalButton`/`OutlinedButton`/`TextButton`; colours EXCLUSIVELY via P1 helpers; pill/touch/padding preserved. Includes the deferred P3 `Tone.Neutral` decision: Neutral now renders muted (was wrongly accent) — INTENDED change at 4 Cancel/Later/Close call sites — device-accepted 2026-05-17 (combined beta v0.1.30-beta7, provisional; stable promotion still maintainer-only) |
+| P6 | `Pill` → `Badge`/chip (or retain) | Med | **Implemented 2026-05-17** — combined beta per Amendment 2026-05-17. M3 `Badge`'s fixed min-size + 4 dp padding would shift the dense status rows (10 dp/4 dp padded pill + 6 dp dot), so per the ADR's "or retain" the bespoke rendering is RETAINED at all 15 call sites — zero-visual, no layout shift — device-accepted 2026-05-17 (combined beta v0.1.30-beta7, provisional; stable promotion still maintainer-only) |
+| P7 | `ConfirmDialog` → `AlertDialog`; `UnraidField` → `OutlinedTextField` | High | **Implemented 2026-05-17** — combined beta per Amendment 2026-05-17. `ConfirmDialog` → M3 `AlertDialog`; `UnraidField` (4 call sites — ADR's "single" was wrong) → M3 `OutlinedTextField`, colours via P1 `unraidTextFieldColors`. M3-idiomatic appearance accepted over zero-visual (Rule 13) — device-accepted 2026-05-17 (combined beta v0.1.30-beta7, provisional; stable promotion still maintainer-only) |
 
 ### Phases — cross-cutting non-UI debt (independent, no device gate)
 
@@ -280,6 +280,11 @@ accepting this combined beta:
   Confirm an install started from either screen shows the same progress
   on both. Unit-tested (`UpdateControllerTest`); also
   green via `./scripts/local-ci.sh`.
+
+Combined beta v0.1.30-beta7 device-accepted 2026-05-17 (PR #117);
+provisional, not promoted to stable. The maintainer accepted the single
+combined on-device pass covering P4–P7 + D1 + D2; the checklist above is
+retained as the record of what was verified.
 
 ## Consequences
 
