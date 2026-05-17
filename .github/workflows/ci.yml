@@ -80,7 +80,7 @@ jobs:
           fi
           CHANGED=$(git diff --name-only "$BASE" "$HEAD")
           echo "Changed files:"
-          echo "$CHANGED" | sed 's/^/  /'
+          echo "  ${CHANGED//$'\n'/$'\n'  }"
           # INVERTED allowlist (ADR-0029): enumerate ONLY the small, stable
           # set of build-affecting / shipping paths. Any changed file
           # matching this → full build; everything else (docs, scripts/,
@@ -103,7 +103,7 @@ jobs:
           BUILD_AFFECTING=$(echo "$CHANGED" | grep -E '^app/|^gradle/|^gradlew$|^gradlew\.bat$|^settings\.gradle\.kts$|^build\.gradle\.kts$|^gradle\.properties$|^\.github/workflows/' || true)
           if [ -n "$BUILD_AFFECTING" ]; then
             echo "Build-affecting files changed → full build:"
-            echo "$BUILD_AFFECTING" | sed 's/^/  build: /'
+            echo "  build: ${BUILD_AFFECTING//$'\n'/$'\n'  build: }"
             echo "code=true" >> "$GITHUB_OUTPUT"
           else
             echo "::notice::No build-affecting change — skipping APK build (ADR-0029)."
@@ -201,8 +201,8 @@ jobs:
         if: steps.keystore.outputs.available == 'true'
         run: |
           BT="$ANDROID_HOME/build-tools"
-          LATEST=$(ls "$BT" | sort -V | tail -1)
-          APK=$(ls app/build/outputs/apk/release/*.apk | head -1)
+          LATEST=$(find "$BT" -mindepth 1 -maxdepth 1 -printf '%f\n' | sort -V | tail -1)
+          APK=$(find app/build/outputs/apk/release -maxdepth 1 -name '*.apk' | sort | head -1)
           "$BT/$LATEST/apksigner" verify --verbose "$APK"
 
       - name: Upload release APK

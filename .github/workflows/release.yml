@@ -116,7 +116,7 @@ jobs:
         id: rename
         run: |
           TAG=${GITHUB_REF#refs/tags/}
-          APK=$(ls artifacts/apk/*.apk | head -1)
+          APK=$(find artifacts/apk -maxdepth 1 -name '*.apk' | sort | head -1)
           OUT="artifacts/apk/UnraidControl-${TAG}.apk"
           mv "$APK" "$OUT"
           echo "apk=$OUT" >> "$GITHUB_OUTPUT"
