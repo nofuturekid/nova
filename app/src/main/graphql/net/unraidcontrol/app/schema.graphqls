@@ -73,8 +73,10 @@ type NotificationOverview {
 }
 
 type NotificationCounts {
+    info: Int!
     warning: Int!
     alert: Int!
+    total: Int!
 }
 
 type Notification {

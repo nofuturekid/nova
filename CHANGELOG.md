@@ -15,6 +15,13 @@ release version + date and opens a fresh `[Unreleased]`.
 
 ## [Unreleased]
 
+## [0.1.31-beta4] - 2026-05-17
+
+### Fixed
+- The notifications bell badge now counts all unread notifications (it
+  previously omitted info-level ones, so the number didn't match the
+  list).
+
 ## [0.1.31-beta3] - 2026-05-17
 
 ### Fixed
@@ -80,7 +87,8 @@ accessibility and visual-consistency pass.
   every poll/refresh (lower overhead, no behaviour change).
 - Internal Android Gradle Plugin cleanup with no user-facing effect.
 
-[Unreleased]: https://github.com/nofuturekid/UnraidControl/compare/v0.1.31-beta3...HEAD
+[Unreleased]: https://github.com/nofuturekid/UnraidControl/compare/v0.1.31-beta4...HEAD
+[0.1.31-beta4]: https://github.com/nofuturekid/UnraidControl/releases/tag/v0.1.31-beta4
 [0.1.31-beta3]: https://github.com/nofuturekid/UnraidControl/releases/tag/v0.1.31-beta3
 [0.1.31-beta2]: https://github.com/nofuturekid/UnraidControl/releases/tag/v0.1.31-beta2
 [0.1.31-beta1]: https://github.com/nofuturekid/UnraidControl/releases/tag/v0.1.31-beta1
