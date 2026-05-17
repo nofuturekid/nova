@@ -1,0 +1,56 @@
+name: Bug report
+description: Something in the app misbehaves
+labels: [bug]
+body:
+  - type: input
+    id: app-version
+    attributes:
+      label: App version
+      description: Settings → About, or the prerelease tag you installed.
+      placeholder: v0.1.30-beta7
+    validations:
+      required: true
+  - type: input
+    id: unraid-version
+    attributes:
+      label: Unraid server version
+      placeholder: "7.0.1"
+    validations:
+      required: true
+  - type: input
+    id: device
+    attributes:
+      label: Device + Android version
+      placeholder: Pixel 7, Android 15
+    validations:
+      required: true
+  - type: textarea
+    id: repro
+    attributes:
+      label: Steps to reproduce
+      placeholder: |
+        1. Open …
+        2. Tap …
+        3. …
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behaviour
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual behaviour
+    validations:
+      required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs
+      description: Relevant logcat / error text. Redact API keys and hostnames.
+      render: text
+    validations:
+      required: false
