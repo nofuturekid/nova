@@ -69,3 +69,10 @@ arbitrary values. When choosing or harmonising a value, use the published
 M3 token where a semantic role maps. This guides design decisions; it
 does not remove the maintainer's on-device acceptance gate (ADR-0027
 Tier 3).
+
+## Rule 14 — Delegate the execution tail
+Once the design/architecture decision is made, delegate the ENTIRE
+execution tail to sub-agents: code fan-out, docs/ADR, version bump,
+changelog, CI, branch/commit/PR, release. Keep only the judgment-heavy
+decision and core judgment-heavy code. Main-thread hands-on execution of
+the process tail is a defect — dispatch a sub-agent and stay overwatch/verify.

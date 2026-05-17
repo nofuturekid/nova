@@ -5,5 +5,17 @@
       "Bash(docker build:*)",
       "Bash(docker run:*)"
     ]
+  },
+  "hooks": {
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "echo 'CLAUDE.md Rule 14: if a design/architecture decision is already made, the ENTIRE execution tail (code fan-out, docs/ADR, version bump, changelog, CI, branch/PR, release) MUST be delegated to sub-agents. Main-thread hands-on execution of the process tail is a defect — dispatch a sub-agent and stay overwatch.'"
+          }
+        ]
+      }
+    ]
   }
 }
