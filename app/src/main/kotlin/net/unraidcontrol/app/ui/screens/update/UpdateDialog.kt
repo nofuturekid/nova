@@ -93,7 +93,7 @@ fun UpdateDialog(
                         style = MaterialTheme.typography.bodySmall.copy(fontFamily = JetBrainsMono),
                     )
                 }
-                UnraidIconButton(icon = { UC.X(20.dp, t.text) }, onClick = onDismiss)
+                UnraidIconButton(icon = { UC.X(20.dp, t.text) }, onClick = onDismiss, contentDescription = "Close")
             }
 
             if (info.releaseNotes.isNotBlank()) {

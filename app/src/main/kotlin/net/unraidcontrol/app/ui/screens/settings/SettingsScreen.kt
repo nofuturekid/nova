@@ -215,7 +215,7 @@ fun SettingsScreen(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(8.dp),
         ) {
-            UnraidIconButton(icon = { UC.ChevL(20.dp, t.text) }, onClick = onBack)
+            UnraidIconButton(icon = { UC.ChevL(20.dp, t.text) }, onClick = onBack, contentDescription = "Back")
             Text("Settings", color = t.text, style = MaterialTheme.typography.titleLarge)
         }
 

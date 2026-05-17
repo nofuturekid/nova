@@ -221,7 +221,7 @@ private fun SearchBox(value: String, onChange: (String) -> Unit) {
             modifier = Modifier.weight(1f),
             singleLine = true,
             cursorBrush = SolidColor(t.accent),
-            textStyle = TextStyle(color = t.text, fontSize = 14.sp),
+            textStyle = MaterialTheme.typography.bodyMedium.copy(color = t.text),
             decorationBox = { inner ->
                 Box {
                     if (value.isEmpty()) {
@@ -282,14 +282,14 @@ private fun ContainerRow(
             Row {
                 when (c.status) {
                     ContainerStatus.Running -> {
-                        UnraidIconButton(icon = { UC.Restart(16.dp, t.text) }, onClick = { onRestart(c) }, size = 34.dp)
-                        UnraidIconButton(icon = { UC.Stop(14.dp, t.danger) }, onClick = { onStop(c) }, size = 34.dp, tone = Tone.Danger)
+                        UnraidIconButton(icon = { UC.Restart(16.dp, t.text) }, onClick = { onRestart(c) }, size = 34.dp, contentDescription = "Restart ${c.name}")
+                        UnraidIconButton(icon = { UC.Stop(14.dp, t.danger) }, onClick = { onStop(c) }, size = 34.dp, tone = Tone.Danger, contentDescription = "Stop ${c.name}")
                     }
                     ContainerStatus.Paused -> {
-                        UnraidIconButton(icon = { UC.Play(16.dp, t.accent) }, onClick = { onStart(c) }, size = 34.dp, tone = Tone.Accent)
+                        UnraidIconButton(icon = { UC.Play(16.dp, t.accent) }, onClick = { onStart(c) }, size = 34.dp, tone = Tone.Accent, contentDescription = "Resume ${c.name}")
                     }
                     ContainerStatus.Exited -> {
-                        UnraidIconButton(icon = { UC.Play(16.dp, t.accent) }, onClick = { onStart(c) }, size = 34.dp, tone = Tone.Accent)
+                        UnraidIconButton(icon = { UC.Play(16.dp, t.accent) }, onClick = { onStart(c) }, size = 34.dp, tone = Tone.Accent, contentDescription = "Start ${c.name}")
                     }
                 }
             }

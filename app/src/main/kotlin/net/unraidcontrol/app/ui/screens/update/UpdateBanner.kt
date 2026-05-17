@@ -67,6 +67,7 @@ fun UpdateBanner(
             icon = { UC.X(16.dp, t.muted) },
             onClick = onDismiss,
             size = 32.dp,
+            contentDescription = "Dismiss update",
         )
     }
 }
