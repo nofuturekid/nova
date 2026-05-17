@@ -12,6 +12,13 @@ name: CodeQL
 # a new SHA (same rationale ci.yml states for skipping push:main, lines
 # ~3-7). So: PR + a weekly baseline only, paths-ignore for non-code, and
 # concurrency cancel-in-progress — mirrors ci.yml.
+#
+# paths-ignore also excludes non-code `.github/` config (issue templates,
+# CODEOWNERS, dependabot) — same rationale as above: these files cannot
+# affect CodeQL findings, so scanning them is pure waste. NOTE: this is
+# deliberately NOT a blanket `.github/**` ignore — CodeQL's `actions`
+# language legitimately analyzes workflow files, so workflow changes must
+# still trigger analysis.
 on:
   pull_request:
     paths-ignore:
@@ -19,6 +26,10 @@ on:
       - 'docs/**'
       - '.claude/**'
       - 'LICENSE'
+      - '.github/ISSUE_TEMPLATE/**'
+      - '.github/CODEOWNERS'
+      - '.github/dependabot.yml'
+      - '.gitignore'
   schedule:
     - cron: '27 4 * * 1'   # weekly baseline scan (Mondays 04:27 UTC)
   workflow_dispatch:
