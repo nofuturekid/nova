@@ -5,6 +5,25 @@
 - **Tags**: ci, process
 - **Supersedes**: [ADR-0009](./0009-docs-only-ci-bypass.md) (docs-only CI bypass via deny-list)
 
+## Amendment 2026-05-17 — only `ci.yml` among workflows is build-affecting
+
+The original allowlist entry `^\.github/workflows/` treated **every**
+workflow file as build-affecting. That was too broad: PR #132 only
+renamed the `actionlint` workflow's display name (a `.github/workflows/`
+edit that cannot change whether the app compiles) yet forced a full
+`build-debug` (~4m42s) **and** `build-release` (~4m40s) — ~9 min of
+Android builds for nothing.
+
+Narrowed to `^\.github/workflows/ci\.yml$`. Rationale: a change to
+`ci.yml` should still be validated by a real build (it defines the build
+gate itself), but `actionlint.yml`, `codeql.yml`, `release.yml`, and
+`dependency-submission.yml` changes cannot affect whether the app
+compiles — they now fall through to the docs-like "skip APK build" path,
+exactly like a docs change. All other allowlist alternatives (`^app/`,
+`^gradle/`, `^gradlew$`, `^gradlew\.bat$`, `^settings\.gradle\.kts$`,
+`^build\.gradle\.kts$`, `^gradle\.properties$`) are unchanged. The
+`release.yml` backstop (ADR-0004) and same-PR convention still apply.
+
 ## Context
 
 ADR-0009 added a fast path: `ci.yml`'s `setup` job diffs the change and,
