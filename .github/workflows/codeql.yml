@@ -41,7 +41,22 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        language: [actions, java-kotlin]
+        # Per-language `build-mode` via matrix include — `build-mode` is a
+        # per-language setting, so each entry carries its own. (The previous
+        # shape used `language:` — NOT a valid codeql-action input; the
+        # valid key is `languages:`. The typo made init ignore it, fall
+        # back to repo language autodetection, and run autobuild for
+        # java-kotlin regardless of `build-mode: none` → Gradle autobuild +
+        # `database finalize` saw no compiled source → fatal exit 32.)
+        include:
+          - language: actions
+            build-mode: none
+          - language: java-kotlin
+            # Android/Gradle project: a full autobuild needs the Android
+            # SDK and is slow/flaky. build-mode: none is supported for
+            # java-kotlin (CodeQL >= 2.16 / codeql-action v3) and keeps
+            # CodeQL light (tradeoff: dataflow without a compiled build).
+            build-mode: none
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -49,13 +64,8 @@ jobs:
       - name: Initialize CodeQL
         uses: github/codeql-action/init@v3
         with:
-          language: ${{ matrix.language }}
-          # build-mode: none for both languages. `actions` needs no build.
-          # java-kotlin: this is an Android/Gradle project, so a full
-          # autobuild would need the Android SDK and is slow/flaky;
-          # build-mode: none is supported for java-kotlin and keeps CodeQL
-          # light (tradeoff: dataflow without a compiled build).
-          build-mode: none
+          languages: ${{ matrix.language }}
+          build-mode: ${{ matrix.build-mode }}
 
       - name: Perform CodeQL Analysis
         uses: github/codeql-action/analyze@v3
