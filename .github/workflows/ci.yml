@@ -12,8 +12,11 @@ name: CI
 # Job structure (ADR-0019): `setup` runs first and gates everything else.
 # It builds only when a *build-affecting* path changed — an inverted
 # allowlist (ADR-0029, supersedes ADR-0009's docs deny-list). `build-debug`
-# and `build-release` run in parallel — independent compilations sharing
-# the Gradle build cache warmed by cache-warm.yml (ADR-0018). `build` is a
+# and `build-release` run in parallel — independent compilations. Each sets
+# up its own Gradle cache via `gradle/actions/setup-gradle` (whatever cache
+# that action maintains; `cache-read-only` on PRs so untrusted fork PRs
+# can't write it — ADR-0018 was Reversed 2026-05-17 and its dedicated
+# cache-warm.yml deleted, so nothing actively warms the cache). `build` is a
 # tiny aggregator that branch protection requires as the single status check.
 on:
   pull_request:
@@ -25,6 +28,10 @@ on:
 permissions:
   contents: read
 
+# Unconditional cancel-in-progress is correct here: ADR-0011's
+# `${{ github.ref != 'refs/heads/main' }}` carve-out is mooted by ADR-0014
+# (ci.yml no longer runs on push:main, so there is never a main-ref run to
+# protect). See ADR-0011's 2026-05-17 superseded note for the reconciliation.
 concurrency:
   group: ci-${{ github.ref }}
   cancel-in-progress: true
@@ -58,8 +65,13 @@ jobs:
             BASE="${{ github.event.pull_request.base.sha }}"
             HEAD="${{ github.event.pull_request.head.sha }}"
           else
-            BASE="${{ github.event.before }}"
-            HEAD="${{ github.sha }}"
+            # Unreachable: ci.yml triggers are pull_request + workflow_dispatch
+            # only (no push:main — ADR-0014). workflow_dispatch is fully
+            # handled above. Any other event_name reaching here means the
+            # trigger set changed without updating this logic — fail loud
+            # (Rule 12) rather than silently diffing against an empty BASE.
+            echo "::error::Unexpected event '${{ github.event_name }}' in setup diff — ci.yml triggers changed without updating this step (ADR-0014)."
+            exit 1
           fi
           if [ -z "$BASE" ] || [ "$BASE" = "0000000000000000000000000000000000000000" ]; then
             echo "No diff base (force-push / new branch) → full build."
@@ -223,16 +235,42 @@ jobs:
       - name: Aggregate result
         env:
           DOCS_ONLY: ${{ needs.setup.outputs.code != 'true' }}
+          SETUP_RESULT: ${{ needs.setup.result }}
           DEBUG_RESULT: ${{ needs.build-debug.result }}
           RELEASE_RESULT: ${{ needs.build-release.result }}
         run: |
+          # `setup` must always have succeeded — it computes the gate output
+          # this whole job reads. A failed/cancelled setup is never a pass.
+          if [ "$SETUP_RESULT" != "success" ]; then
+            echo "::error::setup did not succeed (result=$SETUP_RESULT)."
+            exit 1
+          fi
+
           if [ "$DOCS_ONLY" = "true" ]; then
             echo "::notice::No build-affecting change — APK build skipped (ADR-0029). No version bump required."
             exit 0
           fi
-          if [ "$DEBUG_RESULT" = "success" ] && [ "$RELEASE_RESULT" = "success" ]; then
-            echo "Both build jobs succeeded."
+
+          # Build-affecting change → debug MUST succeed (it never needs
+          # secrets, so a fork PR debug build is just as valid as ours).
+          if [ "$DEBUG_RESULT" != "success" ]; then
+            echo "::error::Debug build did not succeed (result=$DEBUG_RESULT)."
+            exit 1
+          fi
+
+          # Fork/no-keystore contract (explicit, not emergent — finding 3):
+          # build-release signs + uploads the release APK only when
+          # KEYSTORE_B64 is present. On a fork PR the secret is unavailable,
+          # the sign/upload steps are skipped, and the job ends `success`
+          # with no release artifact — that is the INTENDED state for fork
+          # PRs (release.yml backstops the real ship via the merge-commit
+          # CI run, ADR-0004/0014). So `skipped` is a legitimate pass here
+          # in addition to `success`; only a genuine failure/cancel of
+          # build-release blocks the gate. Same-repo PRs (keystore present)
+          # always produce `success`, so their behaviour is unchanged.
+          if [ "$RELEASE_RESULT" = "success" ] || [ "$RELEASE_RESULT" = "skipped" ]; then
+            echo "Gate passed — debug=$DEBUG_RESULT release=$RELEASE_RESULT (skipped = fork/no-keystore, intended)."
             exit 0
           fi
-          echo "::error::Build failure — debug=$DEBUG_RESULT release=$RELEASE_RESULT"
+          echo "::error::Release build did not pass — release=$RELEASE_RESULT (expected success, or skipped on a fork PR)."
           exit 1

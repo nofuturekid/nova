@@ -20,6 +20,15 @@ permissions:
   contents: write
   actions: read
 
+# Serialise releases per tag and never cancel an in-flight one: a release
+# job that has started publishing must finish (it writes a user-visible
+# GitHub Release). Two `v*` tags pushed close together queue rather than
+# race the Release API. Matches the repo convention of every other workflow
+# having a concurrency block (audit finding 8).
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
 jobs:
   release:
     runs-on: ubuntu-latest
