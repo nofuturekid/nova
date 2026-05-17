@@ -1,0 +1,6 @@
+# The local-CI image bakes only the toolchain; the project is bind-mounted
+# at run time and never COPYd. Keep the build context tiny — exclude
+# everything heavy. (Only docker/Dockerfile + scripts/ are needed to build.)
+*
+!docker/Dockerfile
+!scripts/local-ci.sh
