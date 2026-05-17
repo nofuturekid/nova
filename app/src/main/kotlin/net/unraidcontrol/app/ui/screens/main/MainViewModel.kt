@@ -161,6 +161,12 @@ class MainViewModel @Inject constructor(
     private val _installState = MutableStateFlow<InstallState>(InstallState.Idle)
     val installState: StateFlow<InstallState> = _installState.asStateFlow()
 
+    /** True while an install this ViewModel started is in flight.
+     *  InstallStatusReceiver.events is process-global and also collected by
+     *  SettingsViewModel; without this guard an install started from the
+     *  other screen would drive our state too (ADR-0012). */
+    private var ownsInstall = false
+
     val dismissedUpdateTag: StateFlow<String?> = settings.dismissedUpdateTag
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
 
@@ -193,10 +199,11 @@ class MainViewModel @Inject constructor(
 
         viewModelScope.launch {
             InstallStatusReceiver.events.collect { event ->
+                if (!ownsInstall) return@collect
                 _installState.value = when (event) {
                     is InstallEvent.UserConfirmShown -> InstallState.Installing
-                    is InstallEvent.Success          -> InstallState.Idle
-                    is InstallEvent.Failed           -> InstallState.Failed(event.message)
+                    is InstallEvent.Success          -> { ownsInstall = false; InstallState.Idle }
+                    is InstallEvent.Failed           -> { ownsInstall = false; InstallState.Failed(event.message) }
                 }
             }
         }
@@ -214,6 +221,7 @@ class MainViewModel @Inject constructor(
     }
 
     fun installUpdate(info: UpdateInfo) = viewModelScope.launch {
+        ownsInstall = true
         _installState.value = InstallState.Downloading(0f)
         try {
             val apk = installer.download(info.downloadUrl) { progress ->
@@ -223,9 +231,12 @@ class MainViewModel @Inject constructor(
             try {
                 installer.install(apk)
             } catch (e: UpdateInstaller.NeedsPermissionException) {
+                // No session committed → no broadcast will arrive.
+                ownsInstall = false
                 _installState.value = InstallState.NeedsPermission(e.intent)
             }
         } catch (e: Exception) {
+            ownsInstall = false
             _installState.value = InstallState.Failed(e.message ?: "Update failed")
         }
     }
