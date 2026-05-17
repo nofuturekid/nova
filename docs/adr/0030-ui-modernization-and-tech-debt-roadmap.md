@@ -1,0 +1,136 @@
+# ADR-0030: UI modernization & tech-debt roadmap (phased)
+
+- **Status**: Proposed
+- **Date**: 2026-05-17
+- **Tags**: ui, process, data, build
+
+## Context
+
+The UI is **deliberately bespoke** — `UnraidButton`, `UnraidIconButton`,
+`UnraidCard`, `UnraidField`, `ConfirmDialog`, `Pill`, `UnraidProgress`
+are hand-built on Compose primitives and themed through a custom
+`UnraidColors`/`DensityTokens`/`Tone` CompositionLocal system, not the
+Jetpack Material 3 components. A design audit (shipped as the
+accessibility/consistency pass in PR #103 / v0.1.30-beta2) closed the
+*guideline* gaps (contentDescription, 48 dp targets, ripple, NavigationBar)
+**without** changing the visual identity, and explicitly deferred the
+deeper question: should the bespoke layer be migrated to real M3
+components, and is the accumulated structural debt worth paying down?
+
+Several debts surfaced over recent work and are individually small but
+share a root (the bespoke component/token layer):
+
+- Bespoke-vs-M3 across the whole interactive surface (the audit's
+  systemic finding).
+- `UnraidButton`/`UnraidIconButton` near-duplication; scattered,
+  un-tokenised colour alphas (`0.08…0.20`) for semantically identical
+  surfaces (audit P2, only partially tokenised so far).
+- `app/build.gradle.kts` `srcDir(...)` AGP-9 deprecation warning
+  (surfaced during the PR #101 local-CI acceptance run; ties to the
+  ADR-0023 AGP-10 cleanup).
+- The ADR-0012 install-pipeline duplication across `MainViewModel` /
+  `SettingsViewModel` (the `ownsInstall` guard added more parallel
+  logic; ADR-0012's own revisit trigger is the singleton extraction).
+
+The hard constraint shaping all of this: **this UI is not
+visually/functionally verifiable by CI or the local-CI container**
+(no emulator; instrumented/visual testing is explicitly out of scope —
+see `docs/local-build.md`). Any change that alters appearance can only
+be accepted by the maintainer on-device (ADR-0027 Tier 3).
+
+(Note: the pervasive per-call `ApolloClient` leak is **not** in this
+roadmap — ADR-0028's factory cache already closed it comprehensively at
+the chokepoint.)
+
+## Decision
+
+Adopt **one phased roadmap** (this ADR) for UI modernization *and* the
+shared-root tech debt, rather than a separate "cleanup refactor" or a
+big-bang rewrite. Principles:
+
+- **No big-bang.** Each phase is independently shippable, ordered
+  low-risk/high-value → high-divergence.
+- **Per-phase gate.** Every phase that changes appearance is its own
+  beta + on-device acceptance by the maintainer (ADR-0027 Tier 3); the
+  agent may drive build/CI/merge/beta-bump/tag autonomously but **not**
+  the visual sign-off or any stable promotion.
+- **Foundation first.** A zero-visual-change theming phase de-risks
+  every later component swap.
+- This ADR **supersedes nothing**; it is a living index. Each phase
+  links back here; phases may spawn their own ADR if a phase makes a
+  non-obvious trade-off.
+
+### Phases — UI / M3 (visual risk per the scope survey)
+
+| # | Phase | Visual risk | Rationale |
+|---|---|---|---|
+| P1 | Theme plumbing: custom M3 `Shapes` (map `rad`/`radField`/`radDialog`) + per-component `*Defaults.colors()` derived from `UnraidColors`; tokenise the scattered alphas | **None** | Unblocks every later swap; no appearance change → no device gate |
+| P2 | `UnraidCard` → M3 `Card` (flat/border via `CardDefaults`) | Low–Med | Highest reuse (7 screens), low semantics |
+| P3 | `UnraidIconButton` → tonal `IconButton`; fold `UnraidButton`/`UnraidIconButton` duplication | Med | Biggest blast radius (11 screens); tint/circle maps cleanly |
+| P4 | `UnraidProgress` → `LinearProgressIndicator` (keep `StackBar` bespoke — no M3 equivalent) | Med | Small footprint |
+| P5 | `UnraidButton` → `Button` family | High | Pill shape + tonal/disabled/luminance treatment diverges — device-accept |
+| P6 | `Pill` → `Badge`/chip (or retain) | Med | M3 chips force larger min-height/touch — device-accept |
+| P7 | `ConfirmDialog` → `AlertDialog`; `UnraidField` → `OutlinedTextField` | High | Single call site each, highest design divergence — device-accept |
+
+### Phases — cross-cutting non-UI debt (independent, no device gate)
+
+| # | Phase | Note |
+|---|---|---|
+| D1 | Resolve `app/build.gradle.kts` `srcDir(...)` AGP-9 deprecation (`directories` set) | Pairs with the ADR-0023 AGP-10 cleanup |
+| D2 | ADR-0012 install-pipeline: extract `@Singleton UpdateController`, drop the `MainViewModel`/`SettingsViewModel` duplication + `ownsInstall` guards | Actions ADR-0012's documented revisit trigger |
+
+## Consequences
+
+**Positive**
+- One coherent, reviewable roadmap instead of scattered ad-hoc refactors;
+  debt is named and ordered, not silently growing.
+- Foundation-first means most component swaps become low-risk colour/shape
+  plumbing, not rewrites.
+- Each phase is small enough to revert cleanly.
+
+**Negative / trade-offs**
+- Long-lived multi-phase initiative; partial state (some M3, some
+  bespoke) persists between phases — acceptable, each phase is
+  self-consistent.
+- The visual phases bottleneck on maintainer device-acceptance; the
+  agent cannot fully autonomously complete them (by design, ADR-0027).
+- `Tone`/`Tone.colors()` must survive as the shared colour source
+  through the whole migration; it is a cross-phase dependency, not
+  itself replaced.
+
+**Trigger to revisit**
+- If a foundation phase (P1) cannot preserve appearance, the
+  cost/benefit of full M3 changes — reconsider retaining bespoke with
+  only the audit's a11y retrofit (already shipped).
+- If M3/Compose ships a theming path that maps custom palettes without
+  per-component `Defaults` plumbing, P1 simplifies.
+- If the app stays single-maintainer indefinitely, D2 (ADR-0012
+  singleton) may never reach its third-caller trigger — keep it parked,
+  don't force it.
+
+## Alternatives considered
+
+- **Big-bang rewrite to M3.** Rejected: unverifiable without device/
+  emulator; a single PR changing the whole look is unreviewable and
+  unrevertable in practice.
+- **Status quo (a11y retrofit only, keep bespoke forever).** Defensible
+  — #103 already meets Google guidelines. Rejected as the *default*
+  because the bespoke layer is the shared root of recurring drift
+  (token/dedup/duplication); paying it down compounds.
+- **Separate "cleanup refactor" PR-stack parallel to M3 migration.**
+  Rejected: same files, same root; two roadmaps would conflict and
+  double the review surface. One sequenced roadmap is cheaper.
+
+## References
+
+- Supersedes nothing. Living index; phases reference back here.
+- ADR-0027 (tiered autonomy — the per-phase device-acceptance gate).
+- ADR-0012 (install duplication — phase D2 actions its revisit trigger).
+- ADR-0023 (AGP-9 toolchain — phase D1 pairs with its AGP-10 cleanup).
+- ADR-0028 (Apollo client cache — the one debt explicitly *out* of this
+  roadmap, already closed).
+- ADR-0029 (CI build-skip inversion — why this docs-only ADR PR skips
+  the APK build).
+- PR #103 / v0.1.30-beta2 — the shipped a11y/consistency pass this
+  roadmap continues from; the bespoke→M3 scope survey informing the
+  phase order.
