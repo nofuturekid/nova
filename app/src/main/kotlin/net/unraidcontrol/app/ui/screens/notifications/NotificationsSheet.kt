@@ -104,7 +104,7 @@ fun NotificationsSheet(
                     if (data != null) {
                         Spacer(Modifier.height(2.dp))
                         Text(
-                            text = "${data.unreadAlert} alerts · ${data.unreadWarning} warnings",
+                            text = "${data.unreadAlert} alerts · ${data.unreadWarning} warnings · ${data.unreadInfo} info",
                             color = t.muted,
                             style = MaterialTheme.typography.bodySmall,
                         )

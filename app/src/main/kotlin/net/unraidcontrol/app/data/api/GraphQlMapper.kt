@@ -155,6 +155,8 @@ fun GetNotificationsQuery.Data.toNotifications(): Notifications {
     return Notifications(
         unreadWarning = unread.warning,
         unreadAlert = unread.alert,
+        unreadInfo = unread.info,
+        unreadTotal = unread.total,
         items = notifications.warningsAndAlerts.map { n ->
             UnraidNotification(
                 id = n.id,
@@ -183,6 +185,8 @@ fun GetNotificationListQuery.Data.toNotifications(): Notifications {
     return Notifications(
         unreadWarning = unread.warning,
         unreadAlert = unread.alert,
+        unreadInfo = unread.info,
+        unreadTotal = unread.total,
         items = unreadList.filter { it.importance != NotifImportance.Info },
         unread = unreadList,
         archived = archivedList,

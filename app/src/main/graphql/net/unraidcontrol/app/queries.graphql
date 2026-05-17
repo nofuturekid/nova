@@ -67,7 +67,7 @@ query GetVms {
 
 query GetNotifications {
     notifications {
-        overview { unread { warning alert } }
+        overview { unread { info warning alert total } }
         warningsAndAlerts {
             id
             title
@@ -105,7 +105,7 @@ fragment NotificationFields on Notification {
 # silently truncated; offset 0 = first page (no UI pagination today).
 query GetNotificationList {
     notifications {
-        overview { unread { warning alert } }
+        overview { unread { info warning alert total } }
         unread: list(filter: { type: UNREAD, offset: 0, limit: 200 }) {
             ...NotificationFields
         }

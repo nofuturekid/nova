@@ -116,17 +116,19 @@ data class UnraidNotification(
  * [items] is the deduped unread warning/alert list that drives the bell's
  * own quick view; it is intentionally unchanged so existing call sites keep
  * working. [unread]/[archived] are the full lists (incl. INFO) for the
- * sheet's segmented view. [badgeCount] semantics (unread warning+alert) are
- * unchanged.
+ * sheet's segmented view. [badgeCount] is the total unread count
+ * ([unreadTotal], incl. INFO) so it matches the Unread tab the user sees.
  */
 data class Notifications(
     val unreadWarning: Int,
     val unreadAlert: Int,
+    val unreadInfo: Int = 0,
+    val unreadTotal: Int = 0,
     val items: List<UnraidNotification>,
     val unread: List<UnraidNotification> = emptyList(),
     val archived: List<UnraidNotification> = emptyList(),
 ) {
-    val badgeCount: Int get() = unreadWarning + unreadAlert
+    val badgeCount: Int get() = unreadTotal
 }
 
 /** Static server identity + hardware spec. Polled rarely (info changes only between reboots). */
