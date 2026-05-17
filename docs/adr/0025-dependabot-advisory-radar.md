@@ -44,6 +44,18 @@ via `.github/dependabot.yml`:
 This is infra+docs only — no app code, no `versionCode`/beta bump
 (consistent with how ADR-0018/0022 CI/infra changes were handled).
 
+**Addendum (2026-05-17): Gradle dependency submission.**
+`GITHUB_DEPENDENCY_GRAPH_ENABLED` was `false`, so only top-level deps
+were visible — the transitive Gradle graph was invisible to Insights
+and Dependabot alerts. Added a `dependency-submission.yml` workflow
+(`gradle/actions/dependency-submission`, push:main + dispatch only,
+least-privilege `contents: write`) that submits the resolved graph for
+the default branch. This is visibility-only and stays within the
+advisory posture above: it does not add dependency-review, does not
+gate PRs, and does not make bumps blocking or autonomous — the
+low-noise Dependabot config and beta/device verification gate are
+unchanged.
+
 ## Consequences
 
 **Positive**
