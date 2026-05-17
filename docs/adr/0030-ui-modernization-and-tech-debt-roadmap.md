@@ -1,6 +1,6 @@
 # ADR-0030: UI modernization & tech-debt roadmap (phased)
 
-- **Status**: Accepted — P1 implemented, awaiting on-device acceptance
+- **Status**: Accepted — P1 device-accepted (2026-05-17, not promoted to stable); P2 implemented, awaiting on-device acceptance
 - **Date**: 2026-05-17
 - **Tags**: ui, process, data, build
 
@@ -64,8 +64,8 @@ big-bang rewrite. Principles:
 
 | # | Phase | Visual risk | Rationale |
 |---|---|---|---|
-| P1 | Theme plumbing: custom M3 `Shapes` (map `rad`/`radField`/`radDialog`) + per-component `*Defaults.colors()` derived from `UnraidColors`; **harmonise** the scattered alphas to one value per semantic role | **Low** | Unblocks every later swap. Originally scoped "None / no gate" — see P1 implementation note: harmonising drift moves pixels, so P1 is now device-gated |
-| P2 | `UnraidCard` → M3 `Card` (flat/border via `CardDefaults`) | Low–Med | Highest reuse (7 screens), low semantics |
+| P1 | Theme plumbing: custom M3 `Shapes` (map `rad`/`radField`/`radDialog`) + per-component `*Defaults.colors()` derived from `UnraidColors`; **harmonise** the scattered alphas to one value per semantic role | **Low** | Unblocks every later swap. Originally scoped "None / no gate" — see P1 implementation note: harmonising drift moves pixels, so P1 is now device-gated — device-accepted 2026-05-17 (provisional; stable promotion still maintainer-only) |
+| P2 | `UnraidCard` → M3 `Card` (flat/border via `CardDefaults`) | Low–Med | **Implemented 2026-05-17** — see P2 implementation note. Consumes the P1 foundation (`unraidCard*` helpers + `Shapes.medium`); targets **zero-visual** (device-gated). Highest reuse (8 call sites), low semantics |
 | P3 | `UnraidIconButton` → tonal `IconButton`; fold `UnraidButton`/`UnraidIconButton` duplication | Med | Biggest blast radius (11 screens); tint/circle maps cleanly |
 | P4 | `UnraidProgress` → `LinearProgressIndicator` (keep `StackBar` bespoke — no M3 equivalent) | Med | Small footprint |
 | P5 | `UnraidButton` → `Button` family | High | Pill shape + tonal/disabled/luminance treatment diverges — device-accept |
@@ -115,6 +115,34 @@ changed).
 
 New foundation: `theme/Alpha.kt` (`UnraidAlpha`), `theme/Shapes.kt`
 (`unraidShapes`), `components/ComponentColors.kt` (`unraid*Colors()`).
+
+### P2 implementation note (2026-05-17)
+
+`UnraidCard` is now the real Material 3 `Card`, not the hand-rolled
+`Surface`. The public signature is **unchanged**, so all 8 call sites are
+untouched (pure foundation-consuming swap, no screen edits).
+
+Zero-visual is load-bearing here — it is the device-gated acceptance
+criterion — and rests on three points:
+
+- **Shape:** left to `CardDefaults.shape` deliberately, *not* passed
+  explicitly. P1 wired `MaterialTheme.shapes.medium =
+  RoundedCornerShape(tokens.rad)`, and `CardDefaults.shape` resolves to
+  `Shapes.medium`, so the default *is* the previous explicit radius. This
+  is precisely the P1 plumbing being consumed.
+- **Elevation:** forced to 0 in **every** state
+  (default/pressed/focused/hovered/dragged/disabled). A filled M3 `Card`
+  otherwise draws both a drop shadow *and* a tonal-elevation tint,
+  neither of which the old flat `Surface` had — pinning elevation to 0 is
+  what keeps the swap visually inert.
+- **Colours/border:** routed through the P1 `unraidCard*` helpers
+  (`unraidCardColors(container=)` / `unraidCardBorder(color=)`), which
+  preserve the per-call `background`/`borderColor` overrides the old API
+  exposed (extended with optional override params for exactly this).
+
+The only thing to verify on-device is the **absence of any new
+shadow/tint on cards** vs. the previous flat surface; everything else is
+held constant by the P1 foundation.
 
 ## Consequences
 

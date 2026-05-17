@@ -15,6 +15,13 @@ release version + date and opens a fresh `[Unreleased]`.
 
 ## [Unreleased]
 
+## [0.1.30-beta5] - 2026-05-17
+
+### Changed
+- Cards across the app are now built on the standard Material 3 card
+  component instead of a custom one. This is an internal modernisation
+  with no intended visual change.
+
 ## [0.1.30-beta4] - 2026-05-17
 
 ### Changed
