@@ -15,8 +15,8 @@ android {
         applicationId = "net.unraidcontrol.app"
         minSdk = 26
         targetSdk = 36
-        versionCode = 72
-        versionName = "0.1.31-beta1"
+        versionCode = 73
+        versionName = "0.1.31-beta2"
 
         vectorDrawables { useSupportLibrary = true }
     }

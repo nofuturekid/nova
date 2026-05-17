@@ -94,13 +94,22 @@ fragment NotificationFields on Notification {
     formattedTimestamp
 }
 
+# `NotificationFilter.type`, `.offset` and `.limit` are all REQUIRED on
+# the live Unraid server (verified by read-only introspection 2026-05-17;
+# the vendored subset previously declared offset/limit nullable, so this
+# operation compiled but failed live with GRAPHQL_VALIDATION_FAILED).
+# Inline constants rather than query variables: the only call site
+# (UnraidRepository) constructs GetNotificationListQuery() with no args,
+# so keeping the generated constructor argument-free avoids a needless
+# call-site change. limit 200 is generous so notifications aren't
+# silently truncated; offset 0 = first page (no UI pagination today).
 query GetNotificationList {
     notifications {
         overview { unread { warning alert } }
-        unread: list(filter: { type: UNREAD }) {
+        unread: list(filter: { type: UNREAD, offset: 0, limit: 200 }) {
             ...NotificationFields
         }
-        archived: list(filter: { type: ARCHIVE }) {
+        archived: list(filter: { type: ARCHIVE, offset: 0, limit: 200 }) {
             ...NotificationFields
         }
     }
