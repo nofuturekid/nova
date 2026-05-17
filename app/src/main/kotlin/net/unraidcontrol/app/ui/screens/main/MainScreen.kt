@@ -553,11 +553,19 @@ private fun TabBar(active: MainTab, onChange: (MainTab) -> Unit) {
                     onClick = { onChange(tab) },
                     colors = itemColors,
                     icon = {
+                        // UC.* pass tint=Color.Unspecified, which disables
+                        // Icon tinting entirely (it does NOT fall back to
+                        // LocalContentColor), so NavigationBarItem's icon
+                        // colour never reaches them — they render near-black
+                        // and vanish on the dark nav background. Pass the
+                        // selected/unselected tint explicitly, mirroring
+                        // itemColors.
+                        val tint = if (tab == active) t.accent else t.muted
                         when (tab) {
-                            MainTab.Overview -> UC.Dashboard(20.dp)
-                            MainTab.Array    -> UC.Disk(20.dp)
-                            MainTab.Docker   -> UC.Docker(20.dp)
-                            MainTab.Vms      -> UC.Vm(20.dp)
+                            MainTab.Overview -> UC.Dashboard(20.dp, tint)
+                            MainTab.Array    -> UC.Disk(20.dp, tint)
+                            MainTab.Docker   -> UC.Docker(20.dp, tint)
+                            MainTab.Vms      -> UC.Vm(20.dp, tint)
                         }
                     },
                     label = {
