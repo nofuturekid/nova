@@ -47,14 +47,19 @@ type Notifications {
     warningsAndAlerts: [Notification!]!
     # Full list, filtered by type (UNREAD / ARCHIVE). Drives the sheet's
     # two segments. Includes INFO entries (the bell list does not).
-    list(filter: NotificationFilter): [Notification!]!
+    list(filter: NotificationFilter!): [Notification!]!
 }
 
+# Verified by read-only introspection of the live server 2026-05-17:
+# `type`, `offset` and `limit` are all REQUIRED (Int! / NotificationType!)
+# on the real Unraid server. The earlier subset declared them nullable,
+# which Apollo codegen accepted but the live server rejected with
+# GRAPHQL_VALIDATION_FAILED — notifications never loaded (v0.1.31-beta2).
 input NotificationFilter {
     importance: NotificationImportance
-    type: NotificationType
-    offset: Int
-    limit: Int
+    type: NotificationType!
+    offset: Int!
+    limit: Int!
 }
 
 # Live enum is exactly { UNREAD, ARCHIVE } — note ARCHIVE, not ARCHIVED.
@@ -79,7 +84,7 @@ type Notification {
     description: String!
     importance: NotificationImportance!
     link: String
-    type: NotificationType
+    type: NotificationType!
     timestamp: String
     formattedTimestamp: String
 }
@@ -122,8 +127,8 @@ type Mutation {
     #    item's current type. archiveAll's importance arg is nullable
     #    (null = all). All overview-returning mutations let the bell
     #    badge recompute without a separate query. ──────────────────────
-    archiveNotification(id: PrefixedID!): Notification
-    unreadNotification(id: PrefixedID!): Notification
+    archiveNotification(id: PrefixedID!): Notification!
+    unreadNotification(id: PrefixedID!): Notification!
     deleteNotification(id: PrefixedID!, type: NotificationType!): NotificationOverview!
     archiveAll(importance: NotificationImportance): NotificationOverview!
     recalculateOverview: NotificationOverview!
