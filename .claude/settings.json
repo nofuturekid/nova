@@ -1,0 +1,9 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(./scripts/local-ci.sh:*)",
+      "Bash(docker build:*)",
+      "Bash(docker run:*)"
+    ]
+  }
+}
