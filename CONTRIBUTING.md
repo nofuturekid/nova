@@ -92,6 +92,21 @@ Major decisions live as ADRs under [`docs/adr/`](docs/adr/). Read those first if
 
 ## Local builds
 
+### Pre-push: run CI locally (recommended)
+
+Before pushing, run the exact CI checks in a pinned container — "green
+locally ⇒ green in CI", zero toolchain on the host:
+
+```bash
+./scripts/local-ci.sh
+```
+
+See [`docs/local-build.md`](docs/local-build.md) for the cache model and
+design. CI round-trips are expensive here; this catches
+compile/lint/codegen failures before they reach CI.
+
+### Host builds
+
 Daily debug builds (no keystore needed):
 
 ```bash
