@@ -28,6 +28,19 @@ name: CodeQL
 # deliberately NOT a blanket `.github/**` ignore — CodeQL's `actions`
 # language legitimately analyzes workflow files, so workflow changes must
 # still trigger analysis.
+#
+# PR-vs-scheduled scope split: CodeQL is advisory/non-required (only the
+# ci.yml `build` job gates merges). The heavy java-kotlin scan compiles the
+# app (generateApolloSources + assembleDebug) — that was a redundant 3rd
+# full compile on every PR, on top of ci.yml's build-debug + build-release
+# (ADR-0019). So on `pull_request` we analyze ONLY the `actions` language
+# (build-mode none, no Gradle/Android build — fast). The full code scan
+# (`actions` + `java-kotlin` with the manual compile) still runs on the
+# weekly `schedule` baseline and on-demand via `workflow_dispatch`. Net:
+# PRs are back to 2 builds (ci.yml debug ‖ release), full security coverage
+# preserved weekly + on demand. The language list is event-driven via the
+# `config` job below (a static matrix `include` cannot compose with a
+# dynamically-sized language list, so build-mode is derived inline in init).
 on:
   pull_request:
     paths-ignore:
@@ -55,14 +68,36 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  # Event-driven language list: PRs scan only `actions` (fast, no build);
+  # the weekly schedule and manual dispatch scan both languages (the
+  # java-kotlin entry triggers the manual Gradle/Android compile below).
+  config:
+    name: Resolve scan scope
+    runs-on: ubuntu-latest
+    outputs:
+      langs: ${{ steps.scope.outputs.langs }}
+    steps:
+      - name: Determine languages for this event
+        id: scope
+        run: |
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            echo 'langs=["actions"]' >> "$GITHUB_OUTPUT"
+          else
+            echo 'langs=["actions","java-kotlin"]' >> "$GITHUB_OUTPUT"
+          fi
+
   analyze:
     name: Analyze (${{ matrix.language }})
+    needs: config
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
       matrix:
-        # Per-language `build-mode` via matrix include — `build-mode` is a
-        # per-language setting, so each entry carries its own.
+        # Dynamic language list from the `config` job (event-driven). A
+        # static matrix `include` cannot carry per-language `build-mode`
+        # here because the language set is sized at runtime, so build-mode
+        # is derived inline in the init step (java-kotlin → manual, else
+        # none).
         #
         # History of this file's two bugs:
         #  1. It originally passed `language:` (singular) to init. That is
@@ -80,11 +115,7 @@ jobs:
         # mirrors how this repo builds (ci.yml build-debug / local-ci.sh:
         # JDK 21 temurin, setup-gradle, Android SDK, generateApolloSources
         # then assembleDebug) so CodeQL traces a real compilation.
-        include:
-          - language: actions
-            build-mode: none
-          - language: java-kotlin
-            build-mode: manual
+        language: ${{ fromJSON(needs.config.outputs.langs) }}
     steps:
       - name: Checkout
         uses: actions/checkout@v6
@@ -112,7 +143,7 @@ jobs:
         uses: github/codeql-action/init@v3
         with:
           languages: ${{ matrix.language }}
-          build-mode: ${{ matrix.build-mode }}
+          build-mode: ${{ matrix.language == 'java-kotlin' && 'manual' || 'none' }}
 
       # build-mode: manual — CodeQL traces this compilation for java-kotlin.
       # Same tasks as ci.yml build-debug / local-ci.sh (generateApolloSources
