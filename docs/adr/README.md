@@ -65,3 +65,4 @@ ADRs live under `docs/` so the CI docs-only bypass applies — pure-ADR PRs comp
 | [0028](./0028-cache-apollo-clients-in-factory.md) | Cache Apollo clients per (server, variant) in the factory | Proposed |
 | [0029](./0029-invert-ci-build-skip-filter.md) | Invert the CI build-skip filter to a build-affecting allowlist | Proposed |
 | [0030](./0030-ui-modernization-and-tech-debt-roadmap.md) | UI modernization & tech-debt roadmap (phased) | Proposed |
+| [0031](./0031-curated-changelog.md) | Curated CHANGELOG.md drives release notes | Proposed |
