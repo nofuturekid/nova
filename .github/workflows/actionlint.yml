@@ -1,4 +1,4 @@
-name: actionlint
+name: Action Lint
 
 # Advisory workflow-YAML linter. Closes audit finding 4: nothing validated
 # the workflow files themselves, which is how two CodeQL-config bugs and the
