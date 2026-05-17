@@ -33,4 +33,5 @@ mutation DeleteNotification( $id: PrefixedID!, $type: NotificationType!) {
     deleteNotification(id: $id, type: $type) { unread { warning alert } }
 }
 mutation ArchiveAllNotifications { archiveAll { unread { warning alert } } }
+mutation DeleteArchivedNotifications { deleteArchivedNotifications { unread { info warning alert total } } }
 mutation RecalculateNotificationOverview { recalculateOverview { unread { warning alert } } }

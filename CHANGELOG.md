@@ -15,6 +15,12 @@ release version + date and opens a fresh `[Unreleased]`.
 
 ## [Unreleased]
 
+## [0.1.31-beta5] - 2026-05-17
+
+### Added
+- You can now delete all archived notifications at once from the Archived
+  tab.
+
 ## [0.1.31-beta4] - 2026-05-17
 
 ### Fixed
@@ -87,7 +93,8 @@ accessibility and visual-consistency pass.
   every poll/refresh (lower overhead, no behaviour change).
 - Internal Android Gradle Plugin cleanup with no user-facing effect.
 
-[Unreleased]: https://github.com/nofuturekid/UnraidControl/compare/v0.1.31-beta4...HEAD
+[Unreleased]: https://github.com/nofuturekid/UnraidControl/compare/v0.1.31-beta5...HEAD
+[0.1.31-beta5]: https://github.com/nofuturekid/UnraidControl/releases/tag/v0.1.31-beta5
 [0.1.31-beta4]: https://github.com/nofuturekid/UnraidControl/releases/tag/v0.1.31-beta4
 [0.1.31-beta3]: https://github.com/nofuturekid/UnraidControl/releases/tag/v0.1.31-beta3
 [0.1.31-beta2]: https://github.com/nofuturekid/UnraidControl/releases/tag/v0.1.31-beta2
