@@ -374,7 +374,7 @@ fun MainScreen(
                     body = "\"${n.title}\" will be permanently deleted.",
                     confirmLabel = "Delete",
                     tone = Tone.Danger,
-                    onConfirm = { vm.deleteNotification(n.id, n.type ?: NotifType.Unread) },
+                    onConfirm = { vm.deleteNotification(n.id, n.type ?: NotifType.Unread); confirm = null },
                 )
             },
         )
