@@ -50,17 +50,17 @@ private fun Tone.base(): Color {
 // --- Card (P2) -----------------------------------------------------------
 
 @Composable
-fun unraidCardColors(): CardColors {
+fun unraidCardColors(container: Color? = null): CardColors {
     val t = UnraidTheme.colors
     return CardDefaults.cardColors(
-        containerColor = t.surface,
+        containerColor = container ?: t.surface,
         contentColor = t.text,
     )
 }
 
 @Composable
-fun unraidCardBorder(): BorderStroke =
-    BorderStroke(1.dp, UnraidTheme.colors.border)
+fun unraidCardBorder(color: Color? = null): BorderStroke =
+    BorderStroke(1.dp, color ?: UnraidTheme.colors.border)
 
 // --- Button family (P5 / P3) --------------------------------------------
 
