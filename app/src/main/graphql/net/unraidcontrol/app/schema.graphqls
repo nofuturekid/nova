@@ -5,6 +5,11 @@
 # UnraidControl app actually consumes are declared — the live server may
 # expose dozens more.
 #
+# This subset is NOT read-only-only: it intentionally declares the
+# notification mutations (archive / unread / delete / archiveAll) the
+# in-app Notifications sheet uses, alongside the existing array/docker/vm/
+# parity mutations. See docs/adr/0032-notifications-actions.md.
+#
 # When the live server reports "Cannot query field X", check the diff
 # between this file and the introspection result and add/rename fields here.
 # The UI layer is decoupled via domain models in data/model/Models.kt, so
@@ -35,12 +40,27 @@ type Query {
 # ── Notifications ────────────────────────────────────────────────────
 # Subset of the live Unraid `Notifications` type (verified against
 # unraid/api generated-schema.graphql, May 2026). Only the fields the
-# bell indicator + sheet consume; the live type exposes more
-# (list/filter/archive/link/formattedTimestamp/...).
+# bell indicator + sheet consume; the live type exposes more.
 type Notifications {
     overview: NotificationOverview!
-    # Deduplicated unread warnings + alerts, latest first.
+    # Deduplicated unread warnings + alerts, latest first. Drives the bell.
     warningsAndAlerts: [Notification!]!
+    # Full list, filtered by type (UNREAD / ARCHIVE). Drives the sheet's
+    # two segments. Includes INFO entries (the bell list does not).
+    list(filter: NotificationFilter): [Notification!]!
+}
+
+input NotificationFilter {
+    importance: NotificationImportance
+    type: NotificationType
+    offset: Int
+    limit: Int
+}
+
+# Live enum is exactly { UNREAD, ARCHIVE } — note ARCHIVE, not ARCHIVED.
+enum NotificationType {
+    UNREAD
+    ARCHIVE
 }
 
 type NotificationOverview {
@@ -58,7 +78,10 @@ type Notification {
     subject: String!
     description: String!
     importance: NotificationImportance!
+    link: String
+    type: NotificationType
     timestamp: String
+    formattedTimestamp: String
 }
 
 enum NotificationImportance {
@@ -91,6 +114,19 @@ type Mutation {
     vm: VmMutations!
     array: ArrayMutations!
     parityCheck: ParityCheckMutations!
+
+    # ── Notification mutations (top-level on the live server, verified
+    #    by read-only introspection 2026-05-17). Only the ones the sheet
+    #    invokes. archiveNotification = "mark read"; unreadNotification
+    #    restores an archived item to unread. deleteNotification needs the
+    #    item's current type. archiveAll's importance arg is nullable
+    #    (null = all). All overview-returning mutations let the bell
+    #    badge recompute without a separate query. ──────────────────────
+    archiveNotification(id: PrefixedID!): Notification
+    unreadNotification(id: PrefixedID!): Notification
+    deleteNotification(id: PrefixedID!, type: NotificationType!): NotificationOverview!
+    archiveAll(importance: NotificationImportance): NotificationOverview!
+    recalculateOverview: NotificationOverview!
 }
 
 # ── Info ─────────────────────────────────────────────────────────────

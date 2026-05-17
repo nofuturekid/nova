@@ -21,6 +21,7 @@ import net.unraidcontrol.app.data.local.LayoutMode
 import net.unraidcontrol.app.data.model.AppSettings
 import net.unraidcontrol.app.data.model.ArrayInfo
 import net.unraidcontrol.app.data.model.ConnectionMode
+import net.unraidcontrol.app.data.model.NotifType
 import net.unraidcontrol.app.data.model.Container
 import net.unraidcontrol.app.data.model.InstallState
 import net.unraidcontrol.app.data.model.LiveMetrics
@@ -278,6 +279,16 @@ class MainViewModel @Inject constructor(
     fun resumeVm(id: String)           = viewModelScope.launch { unraid.resumeVm(id) }
     fun rebootVm(id: String)           = viewModelScope.launch { unraid.rebootVm(id) }
     fun resetVm(id: String)            = viewModelScope.launch { unraid.resetVm(id) }
+
+    // ── Notification actions ──────────────────────────────────────────
+    // The repository nudges the notifications stream after each action, so
+    // notificationsState (and the bell badge derived from it) refreshes
+    // automatically — no local state mutation needed here.
+    fun archiveNotification(id: String) = viewModelScope.launch { unraid.archiveNotification(id) }
+    fun unreadNotification(id: String)  = viewModelScope.launch { unraid.unreadNotification(id) }
+    fun deleteNotification(id: String, type: NotifType) =
+        viewModelScope.launch { unraid.deleteNotification(id, type) }
+    fun archiveAllNotifications()       = viewModelScope.launch { unraid.archiveAllNotifications() }
 
     fun startParityCheck(correct: Boolean) = viewModelScope.launch { unraid.startParityCheck(correct) }
     fun pauseParityCheck()  = viewModelScope.launch { unraid.pauseParityCheck() }

@@ -10,6 +10,7 @@ import net.unraidcontrol.app.data.model.DiskStatus
 import net.unraidcontrol.app.data.model.DiskType
 import net.unraidcontrol.app.data.model.LiveMetrics
 import net.unraidcontrol.app.data.model.NotifImportance
+import net.unraidcontrol.app.data.model.NotifType
 import net.unraidcontrol.app.data.model.Notifications
 import net.unraidcontrol.app.data.model.ParityCheck
 import net.unraidcontrol.app.data.model.ServerInfo
@@ -19,14 +20,17 @@ import net.unraidcontrol.app.data.model.VmState
 import net.unraidcontrol.app.graphql.GetArrayQuery
 import net.unraidcontrol.app.graphql.GetDockerContainersQuery
 import net.unraidcontrol.app.graphql.GetMetricsQuery
+import net.unraidcontrol.app.graphql.GetNotificationListQuery
 import net.unraidcontrol.app.graphql.GetNotificationsQuery
 import net.unraidcontrol.app.graphql.GetServerInfoQuery
 import net.unraidcontrol.app.graphql.GetVmsQuery
+import net.unraidcontrol.app.graphql.fragment.NotificationFields
 import net.unraidcontrol.app.graphql.type.ArrayDiskStatus
 import net.unraidcontrol.app.graphql.type.ArrayDiskType
 import net.unraidcontrol.app.graphql.type.ArrayState as GArrayState
 import net.unraidcontrol.app.graphql.type.ContainerState as GContainerState
 import net.unraidcontrol.app.graphql.type.NotificationImportance as GNotifImportance
+import net.unraidcontrol.app.graphql.type.NotificationType as GNotifType
 import net.unraidcontrol.app.graphql.type.VmState as GVmState
 
 /**
@@ -158,10 +162,48 @@ fun GetNotificationsQuery.Data.toNotifications(): Notifications {
                 subject = n.subject,
                 description = n.description,
                 importance = n.importance.toDomain(),
+                type = null,
+                link = null,
                 timestamp = n.timestamp,
+                formattedTimestamp = null,
             )
         },
     )
+}
+
+/**
+ * Full two-segment list for the sheet. `items` mirrors the unread
+ * warnings+alerts so the bell's quick view stays correct even if only this
+ * query is in flight; `unread`/`archived` carry the full lists (incl. INFO).
+ */
+fun GetNotificationListQuery.Data.toNotifications(): Notifications {
+    val unread = notifications.overview.unread
+    val unreadList = notifications.unread.map { it.notificationFields.toDomain() }
+    val archivedList = notifications.archived.map { it.notificationFields.toDomain() }
+    return Notifications(
+        unreadWarning = unread.warning,
+        unreadAlert = unread.alert,
+        items = unreadList.filter { it.importance != NotifImportance.Info },
+        unread = unreadList,
+        archived = archivedList,
+    )
+}
+
+private fun NotificationFields.toDomain(): UnraidNotification = UnraidNotification(
+    id = id,
+    title = title,
+    subject = subject,
+    description = description,
+    importance = importance.toDomain(),
+    type = type?.toDomain(),
+    link = link,
+    timestamp = timestamp,
+    formattedTimestamp = formattedTimestamp,
+)
+
+private fun GNotifType.toDomain(): NotifType = when (this) {
+    GNotifType.ARCHIVE -> NotifType.Archive
+    else               -> NotifType.Unread // UNREAD + UNKNOWN__
 }
 
 // ── Helpers ──────────────────────────────────────────────────────────

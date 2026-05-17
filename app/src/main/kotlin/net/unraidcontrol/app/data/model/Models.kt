@@ -93,20 +93,38 @@ data class Vm(
 
 enum class NotifImportance { Info, Warning, Alert }
 
+/** Live server's NotificationType. Null when the server omits it. */
+enum class NotifType { Unread, Archive }
+
 data class UnraidNotification(
     val id: String,
     val title: String,
     val subject: String,
     val description: String,
     val importance: NotifImportance,
+    val type: NotifType?,
+    val link: String?,
     val timestamp: String?,
+    /** Server-formatted, human-readable time. Prefer over [timestamp]. */
+    val formattedTimestamp: String?,
 )
 
-/** Unread warning+alert count for the bell badge + the deduped list for the sheet. */
+/**
+ * Unread warning+alert count for the bell badge plus the sheet's two
+ * segments.
+ *
+ * [items] is the deduped unread warning/alert list that drives the bell's
+ * own quick view; it is intentionally unchanged so existing call sites keep
+ * working. [unread]/[archived] are the full lists (incl. INFO) for the
+ * sheet's segmented view. [badgeCount] semantics (unread warning+alert) are
+ * unchanged.
+ */
 data class Notifications(
     val unreadWarning: Int,
     val unreadAlert: Int,
     val items: List<UnraidNotification>,
+    val unread: List<UnraidNotification> = emptyList(),
+    val archived: List<UnraidNotification> = emptyList(),
 ) {
     val badgeCount: Int get() = unreadWarning + unreadAlert
 }

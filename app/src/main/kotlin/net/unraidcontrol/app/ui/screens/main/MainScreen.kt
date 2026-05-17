@@ -52,7 +52,7 @@ import net.unraidcontrol.app.data.model.ArrayState
 import net.unraidcontrol.app.data.model.Container
 import net.unraidcontrol.app.data.model.ConnectionMode
 import net.unraidcontrol.app.data.model.InstallState
-import net.unraidcontrol.app.data.model.Notifications
+import net.unraidcontrol.app.data.model.NotifType
 import net.unraidcontrol.app.data.model.Server
 import net.unraidcontrol.app.data.model.UpdateState
 import net.unraidcontrol.app.data.model.Vm
@@ -363,9 +363,20 @@ fun MainScreen(
 
     if (showNotifications) {
         NotificationsSheet(
-            data = (notificationsState as? DomainState.Content)?.value
-                ?: Notifications(0, 0, emptyList()),
+            state = notificationsState,
             onDismiss = { showNotifications = false },
+            onArchive = { vm.archiveNotification(it) },
+            onUnread = { vm.unreadNotification(it) },
+            onArchiveAll = { vm.archiveAllNotifications() },
+            onDeleteRequest = { n ->
+                confirm = ConfirmRequest(
+                    title = "Delete notification?",
+                    body = "\"${n.title}\" will be permanently deleted.",
+                    confirmLabel = "Delete",
+                    tone = Tone.Danger,
+                    onConfirm = { vm.deleteNotification(n.id, n.type ?: NotifType.Unread) },
+                )
+            },
         )
     }
 

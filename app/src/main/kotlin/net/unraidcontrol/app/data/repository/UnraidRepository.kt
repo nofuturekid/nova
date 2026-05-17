@@ -5,10 +5,12 @@ import com.apollographql.apollo.api.Query
 import com.apollographql.apollo.exception.ApolloException
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.withTimeoutOrNull
 import net.unraidcontrol.app.data.api.ApolloClientFactory
 import net.unraidcontrol.app.data.api.toArrayInfo
 import net.unraidcontrol.app.data.api.toContainers
@@ -24,8 +26,13 @@ import net.unraidcontrol.app.data.model.LogLine
 import net.unraidcontrol.app.data.model.Notifications
 import net.unraidcontrol.app.data.model.ServerInfo
 import net.unraidcontrol.app.data.model.Vm
+import net.unraidcontrol.app.graphql.ArchiveAllNotificationsMutation
+import net.unraidcontrol.app.graphql.ArchiveNotificationMutation
+import net.unraidcontrol.app.graphql.DeleteNotificationMutation
 import net.unraidcontrol.app.graphql.FetchContainerLogsQuery
-import net.unraidcontrol.app.graphql.GetNotificationsQuery
+import net.unraidcontrol.app.graphql.GetNotificationListQuery
+import net.unraidcontrol.app.graphql.RecalculateNotificationOverviewMutation
+import net.unraidcontrol.app.graphql.UnreadNotificationMutation
 import net.unraidcontrol.app.graphql.ForceStopVmMutation
 import net.unraidcontrol.app.graphql.GetArrayQuery
 import net.unraidcontrol.app.graphql.GetDockerContainersQuery
@@ -50,6 +57,8 @@ import net.unraidcontrol.app.graphql.StopContainerMutation
 import net.unraidcontrol.app.graphql.UpdateAllContainersMutation
 import net.unraidcontrol.app.graphql.UpdateContainerMutation
 import net.unraidcontrol.app.graphql.StopVmMutation
+import net.unraidcontrol.app.graphql.type.NotificationType as GNotifType
+import net.unraidcontrol.app.data.model.NotifType
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -105,9 +114,18 @@ class UnraidRepository @Inject constructor(
             fetch(client, GetVmsQuery()) { data -> data.toVms() }.withBaseUrl(baseUrl)
         }
 
+    /**
+     * Emitting here makes the notifications poll loop re-fetch immediately
+     * instead of waiting out the (60 s) interval. A notification action
+     * (archive / unread / delete / archive-all) fires it after the mutation
+     * so the sheet AND the bell badge reflect the change within ~a frame.
+     * extraBufferCapacity keeps the non-suspending `tryEmit` lossless.
+     */
+    private val notificationsNudge = MutableSharedFlow<Unit>(extraBufferCapacity = 1)
+
     fun notificationsStream(intervalMs: Long = POLL_NOTIFICATIONS_MS): Flow<DomainState<Notifications>> =
-        domainStream(intervalMs) { client, baseUrl ->
-            fetch(client, GetNotificationsQuery()) { data -> data.toNotifications() }.withBaseUrl(baseUrl)
+        domainStream(intervalMs, notificationsNudge) { client, baseUrl ->
+            fetch(client, GetNotificationListQuery()) { data -> data.toNotifications() }.withBaseUrl(baseUrl)
         }
 
     /**
@@ -120,6 +138,7 @@ class UnraidRepository @Inject constructor(
      */
     private fun <T> domainStream(
         intervalMs: Long,
+        nudge: Flow<Unit>? = null,
         fetch: suspend (ApolloClient, String) -> DomainState<T>,
     ): Flow<DomainState<T>> = servers.activeWithKey
         .distinctUntilChanged()
@@ -153,7 +172,13 @@ class UnraidRepository @Inject constructor(
                         }
                         else -> emit(result)
                     }
-                    delay(intervalMs)
+                    // Sleep the poll interval, but cut it short if a nudge
+                    // arrives (post-action fast refresh). No nudge → plain delay.
+                    if (nudge == null) {
+                        delay(intervalMs)
+                    } else {
+                        withTimeoutOrNull(intervalMs) { nudge.first() }
+                    }
                 }
             }
         }
@@ -276,6 +301,40 @@ class UnraidRepository @Inject constructor(
     suspend fun pauseParityCheck()  { activeClient()?.mutation(PauseParityCheckMutation())?.execute() }
     suspend fun resumeParityCheck() { activeClient()?.mutation(ResumeParityCheckMutation())?.execute() }
     suspend fun cancelParityCheck() { activeClient()?.mutation(CancelParityCheckMutation())?.execute() }
+
+    // ── Notification actions ──────────────────────────────────────────
+    //
+    // Each mutation is followed by a `recalculateOverview` (so the server's
+    // unread counts are authoritative) and a nudge so the polling stream
+    // re-fetches the list + overview immediately — the sheet and bell badge
+    // converge on the server's truth within ~a frame (action→refetch; no
+    // optimistic local mutation, which keeps the badge provably correct).
+
+    /** Archive = mark read. Removes it from the Unread segment. */
+    suspend fun archiveNotification(id: String) =
+        runNotificationAction { it.mutation(ArchiveNotificationMutation(id)).execute() }
+
+    /** Restore an archived notification back to Unread. */
+    suspend fun unreadNotification(id: String) =
+        runNotificationAction { it.mutation(UnreadNotificationMutation(id)).execute() }
+
+    /** Permanently delete. [type] is the item's current segment. */
+    suspend fun deleteNotification(id: String, type: NotifType) =
+        runNotificationAction {
+            val g = if (type == NotifType.Archive) GNotifType.ARCHIVE else GNotifType.UNREAD
+            it.mutation(DeleteNotificationMutation(id, g)).execute()
+        }
+
+    /** Bulk archive every unread notification. */
+    suspend fun archiveAllNotifications() =
+        runNotificationAction { it.mutation(ArchiveAllNotificationsMutation()).execute() }
+
+    private suspend fun runNotificationAction(block: suspend (ApolloClient) -> Unit) {
+        val c = activeClient() ?: return
+        block(c)
+        runCatching { c.mutation(RecalculateNotificationOverviewMutation()).execute() }
+        notificationsNudge.tryEmit(Unit)
+    }
 
     /**
      * Fetches the last [tail] log lines for the given container. Returns an
