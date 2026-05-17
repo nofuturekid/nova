@@ -1,6 +1,6 @@
 # ADR-0030: UI modernization & tech-debt roadmap (phased)
 
-- **Status**: Accepted — P1 device-accepted (2026-05-17, not promoted to stable); P2 implemented, awaiting on-device acceptance
+- **Status**: Accepted — P1 device-accepted (2026-05-17, not promoted to stable); P2 device-accepted (2026-05-17, not promoted to stable)
 - **Date**: 2026-05-17
 - **Tags**: ui, process, data, build
 
@@ -65,7 +65,7 @@ big-bang rewrite. Principles:
 | # | Phase | Visual risk | Rationale |
 |---|---|---|---|
 | P1 | Theme plumbing: custom M3 `Shapes` (map `rad`/`radField`/`radDialog`) + per-component `*Defaults.colors()` derived from `UnraidColors`; **harmonise** the scattered alphas to one value per semantic role | **Low** | Unblocks every later swap. Originally scoped "None / no gate" — see P1 implementation note: harmonising drift moves pixels, so P1 is now device-gated — device-accepted 2026-05-17 (provisional; stable promotion still maintainer-only) |
-| P2 | `UnraidCard` → M3 `Card` (flat/border via `CardDefaults`) | Low–Med | **Implemented 2026-05-17** — see P2 implementation note. Consumes the P1 foundation (`unraidCard*` helpers + `Shapes.medium`); targets **zero-visual** (device-gated). Highest reuse (8 call sites), low semantics |
+| P2 | `UnraidCard` → M3 `Card` (flat/border via `CardDefaults`) | Low–Med | **Implemented 2026-05-17** — see P2 implementation note. Consumes the P1 foundation (`unraidCard*` helpers + `Shapes.medium`); targets **zero-visual** (device-gated) — device-accepted 2026-05-17 (provisional; stable promotion still maintainer-only). Highest reuse (8 call sites), low semantics |
 | P3 | `UnraidIconButton` → tonal `IconButton`; fold `UnraidButton`/`UnraidIconButton` duplication | Med | Biggest blast radius (11 screens); tint/circle maps cleanly |
 | P4 | `UnraidProgress` → `LinearProgressIndicator` (keep `StackBar` bespoke — no M3 equivalent) | Med | Small footprint |
 | P5 | `UnraidButton` → `Button` family | High | Pill shape + tonal/disabled/luminance treatment diverges — device-accept |
@@ -143,6 +143,9 @@ criterion — and rests on three points:
 The only thing to verify on-device is the **absence of any new
 shadow/tint on cards** vs. the previous flat surface; everything else is
 held constant by the P1 foundation.
+
+Device-accepted 2026-05-17 (v0.1.30-beta5, PR #112); provisional, not
+promoted to stable.
 
 ## Consequences
 
