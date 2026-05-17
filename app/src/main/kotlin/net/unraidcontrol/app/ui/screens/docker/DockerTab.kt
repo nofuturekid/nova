@@ -54,6 +54,7 @@ import net.unraidcontrol.app.ui.components.UnraidIconButton
 import net.unraidcontrol.app.ui.screens.ErrorState
 import net.unraidcontrol.app.ui.screens.LoadingState
 import net.unraidcontrol.app.ui.screens.NoServerState
+import net.unraidcontrol.app.ui.theme.UnraidAlpha
 import net.unraidcontrol.app.ui.theme.UnraidTheme
 
 @Composable
@@ -177,8 +178,8 @@ private fun UpdateAllBanner(count: Int, onTap: () -> Unit) {
         modifier = Modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(12.dp))
-            .background(t.info.copy(alpha = 0.10f))
-            .border(1.dp, t.info.copy(alpha = 0.20f), RoundedCornerShape(12.dp))
+            .background(t.info.copy(alpha = UnraidAlpha.softFill))
+            .border(1.dp, t.info.copy(alpha = UnraidAlpha.softBorder), RoundedCornerShape(12.dp))
             .clickable(onClick = onTap)
             .padding(horizontal = 14.dp, vertical = 12.dp),
         verticalAlignment = Alignment.CenterVertically,
@@ -208,7 +209,7 @@ private fun SearchBox(value: String, onChange: (String) -> Unit) {
         modifier = Modifier
             .fillMaxWidth()
             .clip(CircleShape)
-            .background(t.muted.copy(alpha = 0.08f))
+            .background(t.muted.copy(alpha = UnraidAlpha.softFill))
             .border(1.dp, t.border, CircleShape)
             .padding(horizontal = 14.dp, vertical = 10.dp),
         verticalAlignment = Alignment.CenterVertically,

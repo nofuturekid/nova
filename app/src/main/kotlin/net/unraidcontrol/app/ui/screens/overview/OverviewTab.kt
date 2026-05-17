@@ -47,6 +47,7 @@ import net.unraidcontrol.app.ui.screens.ErrorState
 import net.unraidcontrol.app.ui.screens.LoadingState
 import net.unraidcontrol.app.ui.screens.NoServerState
 import net.unraidcontrol.app.ui.theme.JetBrainsMono
+import net.unraidcontrol.app.ui.theme.UnraidAlpha
 import net.unraidcontrol.app.ui.theme.UnraidTheme
 
 /**
@@ -193,7 +194,7 @@ private fun OverviewContent(
                     StackBar(
                         segments = listOf(
                             StackSegment(arrUsedTb.toFloat(), t.accent),
-                            StackSegment((arrTotalTb - arrUsedTb).coerceAtLeast(0.0).toFloat(), t.muted.copy(alpha = 0.20f)),
+                            StackSegment((arrTotalTb - arrUsedTb).coerceAtLeast(0.0).toFloat(), t.muted.copy(alpha = UnraidAlpha.track)),
                         ),
                     )
                     Spacer(Modifier.height(8.dp))
@@ -210,8 +211,8 @@ private fun OverviewContent(
                         Column(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .background(t.info.copy(alpha = 0.08f), RoundedCornerShape(10.dp))
-                                .border(1.dp, t.info.copy(alpha = 0.16f), RoundedCornerShape(10.dp))
+                                .background(t.info.copy(alpha = UnraidAlpha.softFill), RoundedCornerShape(10.dp))
+                                .border(1.dp, t.info.copy(alpha = UnraidAlpha.softBorder), RoundedCornerShape(10.dp))
                                 .padding(horizontal = 12.dp, vertical = 10.dp),
                         ) {
                             Row {

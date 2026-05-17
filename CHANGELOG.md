@@ -15,6 +15,16 @@ release version + date and opens a fresh `[Unreleased]`.
 
 ## [Unreleased]
 
+## [0.1.30-beta4] - 2026-05-17
+
+### Changed
+- Visual consistency: tinted element backgrounds — status pills, info
+  panels, disabled buttons, progress tracks, disk-type chips — now use
+  one consistent opacity per element type across every screen, aligned
+  to Material 3, instead of drifting slightly from screen to screen.
+  Some surfaces are marginally lighter or stronger as a result; the
+  change is deliberate and uniform.
+
 ## [0.1.30-beta3] - 2026-05-17
 
 ### Fixed

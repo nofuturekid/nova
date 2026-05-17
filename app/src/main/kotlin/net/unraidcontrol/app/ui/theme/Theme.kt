@@ -85,6 +85,7 @@ fun UnraidTheme(
         MaterialTheme(
             colorScheme = m3,
             typography = UnraidTypography,
+            shapes = unraidShapes(tokens),
             content = { ThemedRoot(content) },
         )
     }

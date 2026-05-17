@@ -32,6 +32,7 @@ import net.unraidcontrol.app.ui.components.Tone
 import net.unraidcontrol.app.ui.components.UC
 import net.unraidcontrol.app.ui.components.UnraidButton
 import net.unraidcontrol.app.ui.components.UnraidIconButton
+import net.unraidcontrol.app.ui.theme.UnraidAlpha
 import net.unraidcontrol.app.ui.theme.UnraidTheme
 
 /**
@@ -71,7 +72,7 @@ fun VmDetailSheet(
                         .width(36.dp)
                         .height(4.dp)
                         .clip(RoundedCornerShape(2.dp))
-                        .background(t.muted.copy(alpha = 0.40f)),
+                        .background(t.muted.copy(alpha = UnraidAlpha.grabber)),
                 )
             }
         },

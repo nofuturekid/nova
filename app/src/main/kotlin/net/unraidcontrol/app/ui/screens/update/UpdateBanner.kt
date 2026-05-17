@@ -23,6 +23,7 @@ import net.unraidcontrol.app.ui.components.Pill
 import net.unraidcontrol.app.ui.components.Tone
 import net.unraidcontrol.app.ui.components.UC
 import net.unraidcontrol.app.ui.components.UnraidIconButton
+import net.unraidcontrol.app.ui.theme.UnraidAlpha
 import net.unraidcontrol.app.ui.theme.UnraidTheme
 
 @Composable
@@ -39,8 +40,8 @@ fun UpdateBanner(
             .clip(RoundedCornerShape(12.dp))
             // Stronger than accentDim + an accent outline so the update
             // banner actually stands out on the dark dashboard.
-            .background(t.accent.copy(alpha = 0.20f))
-            .border(1.dp, t.accent.copy(alpha = 0.45f), RoundedCornerShape(12.dp))
+            .background(t.accent.copy(alpha = UnraidAlpha.emphasisFill))
+            .border(1.dp, t.accent.copy(alpha = UnraidAlpha.emphasisBorder), RoundedCornerShape(12.dp))
             .clickable(onClick = onTap)
             .padding(start = 14.dp, end = 4.dp, top = 10.dp, bottom = 10.dp),
         verticalAlignment = Alignment.CenterVertically,

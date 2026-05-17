@@ -55,6 +55,7 @@ import net.unraidcontrol.app.ui.components.UnraidButton
 import net.unraidcontrol.app.ui.components.UnraidCard
 import net.unraidcontrol.app.ui.components.UnraidIconButton
 import net.unraidcontrol.app.ui.theme.JetBrainsMono
+import net.unraidcontrol.app.ui.theme.UnraidAlpha
 import net.unraidcontrol.app.ui.theme.UnraidTheme
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -127,7 +128,7 @@ fun ContainerDetailSheet(
                         .width(36.dp)
                         .height(4.dp)
                         .clip(RoundedCornerShape(2.dp))
-                        .background(t.muted.copy(alpha = 0.40f)),
+                        .background(t.muted.copy(alpha = UnraidAlpha.grabber)),
                 )
             }
         },
@@ -188,7 +189,7 @@ fun ContainerDetailSheet(
                     modifier = Modifier
                         .fillMaxWidth()
                         .clip(RoundedCornerShape(10.dp))
-                        .background(t.info.copy(alpha = 0.10f))
+                        .background(t.info.copy(alpha = UnraidAlpha.softFill))
                         .padding(horizontal = 14.dp, vertical = 12.dp),
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(10.dp),
@@ -283,7 +284,7 @@ fun ContainerDetailSheet(
                 modifier = Modifier
                     .fillMaxWidth()
                     .clip(RoundedCornerShape(12.dp))
-                    .background(t.muted.copy(alpha = 0.10f))
+                    .background(t.muted.copy(alpha = UnraidAlpha.softFill))
                     .padding(4.dp),
                 horizontalArrangement = Arrangement.spacedBy(4.dp),
             ) {

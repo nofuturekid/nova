@@ -46,6 +46,7 @@ import net.unraidcontrol.app.ui.components.UC
 import net.unraidcontrol.app.ui.components.UnraidCard
 import net.unraidcontrol.app.ui.components.UnraidIconButton
 import net.unraidcontrol.app.ui.theme.JetBrainsMono
+import net.unraidcontrol.app.ui.theme.UnraidAlpha
 import net.unraidcontrol.app.ui.theme.UnraidTheme
 import javax.inject.Inject
 
@@ -115,7 +116,7 @@ fun ServerListScreen(
                         scope.launch { vm.pick(s.id) }
                         onBack()
                     },
-                    background = if (active) t.accent.copy(alpha = 0.04f) else t.surface,
+                    background = if (active) t.accent.copy(alpha = UnraidAlpha.selectedRowFill) else t.surface,
                     borderColor = if (active) t.accent else t.border,
                     padding = 14.dp,
                 ) {
@@ -124,7 +125,7 @@ fun ServerListScreen(
                             modifier = Modifier
                                 .size(40.dp)
                                 .clip(RoundedCornerShape(12.dp))
-                                .background(if (active) t.accentDim else t.muted.copy(alpha = 0.12f)),
+                                .background(if (active) t.accentDim else t.muted.copy(alpha = UnraidAlpha.tonalFill)),
                             contentAlignment = Alignment.Center,
                         ) {
                             UC.Server(20.dp, if (active) t.accent else t.muted)

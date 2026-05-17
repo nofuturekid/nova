@@ -17,6 +17,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import net.unraidcontrol.app.ui.theme.UnraidAlpha
 import net.unraidcontrol.app.ui.theme.UnraidTheme
 
 @Composable
@@ -36,7 +37,7 @@ fun UnraidProgress(
             .fillMaxWidth()
             .height(height)
             .clip(shape)
-            .background(track ?: t.muted.copy(alpha = 0.18f)),
+            .background(track ?: t.muted.copy(alpha = UnraidAlpha.track)),
     ) {
         Box(
             modifier = Modifier
@@ -63,7 +64,7 @@ fun StackBar(
             .fillMaxWidth()
             .height(height)
             .clip(shape)
-            .background(t.muted.copy(alpha = 0.18f)),
+            .background(t.muted.copy(alpha = UnraidAlpha.track)),
     ) {
         segments.forEach { s ->
             Box(
