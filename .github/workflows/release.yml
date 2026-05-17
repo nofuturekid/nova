@@ -124,12 +124,40 @@ jobs:
             echo "value=false" >> "$GITHUB_OUTPUT"
           fi
 
+      # Slice the CHANGELOG.md section matching this tag into the release
+      # body (ADR-0031). Non-fatal: a missing/empty section just warns and
+      # the release still publishes with the appended auto notes. The tag
+      # name comes from GITHUB_REF (maintainer-pushed, not untrusted input)
+      # and is read via an env var, quoted.
+      - name: Extract changelog section
+        id: changelog
+        env:
+          REF: ${{ github.ref }}
+        run: |
+          set -e
+          TAG="${REF#refs/tags/}"
+          VER="${TAG#v}"
+          awk -v ver="$VER" '
+            $0 ~ ("^## \\[" ver "\\]") {found=1; next}
+            found && /^## \[/ {exit}
+            found {print}
+          ' CHANGELOG.md > changelog_section.md || true
+          # strip leading/trailing blank lines
+          sed -i -e '/./,$!d' changelog_section.md
+          if [ ! -s changelog_section.md ]; then
+            echo "::warning::No CHANGELOG.md section for $VER — publishing with auto notes only."
+          else
+            echo "Changelog section for $VER:"
+            sed 's/^/  /' changelog_section.md
+          fi
+
       - name: Publish GitHub Release
         uses: softprops/action-gh-release@v3
         with:
           files: |
             ${{ steps.rename.outputs.apk }}
             artifacts/mapping/mapping.txt
+          body_path: changelog_section.md
           generate_release_notes: true
           fail_on_unmatched_files: false
           prerelease: ${{ steps.prerelease.outputs.value == 'true' }}

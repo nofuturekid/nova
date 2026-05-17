@@ -1,6 +1,6 @@
 # ADR-0010: Release cleanup keeps tags (never `--cleanup-tag`)
 
-- **Status**: Accepted
+- **Status**: Accepted (release-notes content amended by [ADR-0031](./0031-curated-changelog.md); the tag-keeping + compare-link rationale here is unchanged)
 - **Date**: 2026-05-14
 - **Tags**: release, process
 
