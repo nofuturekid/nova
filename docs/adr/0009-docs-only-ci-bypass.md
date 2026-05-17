@@ -1,6 +1,6 @@
 # ADR-0009: Docs-only CI bypass via path diff + step gating
 
-- **Status**: Accepted
+- **Status**: Superseded by [ADR-0029](./0029-invert-ci-build-skip-filter.md)
 - **Date**: 2026-05-14
 - **Tags**: ci
 

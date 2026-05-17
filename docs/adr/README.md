@@ -43,7 +43,7 @@ ADRs live under `docs/` so the CI docs-only bypass applies — pure-ADR PRs comp
 | [0006](./0006-pragmatic-beta-first-release-policy.md) | Pragmatic risk-categorised beta-first release policy | Accepted |
 | [0007](./0007-apollo-json-scalar-anyadapter.md) | Apollo JSON scalar via built-in `AnyAdapter` | Accepted |
 | [0008](./0008-in-app-updater-packageinstaller.md) | In-app updater via `REQUEST_INSTALL_PACKAGES` + `PackageInstaller` | Accepted |
-| [0009](./0009-docs-only-ci-bypass.md) | Docs-only CI bypass via path diff + step gating | Accepted |
+| [0009](./0009-docs-only-ci-bypass.md) | Docs-only CI bypass via path diff + step gating | Superseded by ADR-0029 |
 | [0010](./0010-release-cleanup-keeps-tags.md) | Release cleanup keeps tags (never `--cleanup-tag`) | Accepted |
 | [0011](./0011-cancel-in-progress-only-on-pr-branches.md) | `cancel-in-progress` only on PR branches, not main | Accepted |
 | [0012](./0012-install-from-settings-duplicate-vs-singleton.md) | Install-from-Settings duplicates install pipeline (vs. singleton refactor) | Accepted |
@@ -63,3 +63,4 @@ ADRs live under `docs/` so the CI docs-only bypass applies — pure-ADR PRs comp
 | [0026](./0026-graphql-subscriptions-hybrid.md) | GraphQL subscriptions for select domains (hybrid with polling) | Deprecated (provisional; revisit per ADR-0027) |
 | [0027](./0027-agent-autonomy-and-access-model.md) | Agent autonomy & access model (tiered) | Proposed |
 | [0028](./0028-cache-apollo-clients-in-factory.md) | Cache Apollo clients per (server, variant) in the factory | Proposed |
+| [0029](./0029-invert-ci-build-skip-filter.md) | Invert the CI build-skip filter to a build-affecting allowlist | Proposed |

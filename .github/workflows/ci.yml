@@ -9,11 +9,12 @@ name: CI
 # release.yml resolves the artifact via the PR# embedded in the merge
 # commit's message; see ADR-0014.
 #
-# Job structure (ADR-0019): `setup` runs first to detect docs-only changes
-# and gate everything else. `build-debug` and `build-release` run in
-# parallel — independent compilations sharing the Gradle build cache
-# warmed by cache-warm.yml (ADR-0018). `build` is a tiny aggregator that
-# branch protection requires as the single status check.
+# Job structure (ADR-0019): `setup` runs first and gates everything else.
+# It builds only when a *build-affecting* path changed — an inverted
+# allowlist (ADR-0029, supersedes ADR-0009's docs deny-list). `build-debug`
+# and `build-release` run in parallel — independent compilations sharing
+# the Gradle build cache warmed by cache-warm.yml (ADR-0018). `build` is a
+# tiny aggregator that branch protection requires as the single status check.
 on:
   pull_request:
   workflow_dispatch:
@@ -38,13 +39,13 @@ jobs:
         with:
           fetch-depth: 0   # need history so docs-only diff works on PRs and pushes
 
-      # Skip the heavy Android build when only documentation changed. The
-      # aggregator `build` job picks this up via the `setup.outputs.code`
-      # output, so branch protection's single required check stays SUCCESS
-      # without spinning up the parallel compile jobs. Falls back to a full
-      # build whenever we can't reliably diff (force-push, new branch,
-      # manual dispatch).
-      - name: Detect docs-only change
+      # Build only when a build-affecting path changed (ADR-0029, an
+      # inverted allowlist that supersedes ADR-0009's docs deny-list).
+      # The aggregator `build` job reads `setup.outputs.code`, so branch
+      # protection's single required check stays SUCCESS without spinning
+      # up the parallel compile jobs. Falls back to a full build whenever
+      # we can't reliably diff (force-push, new branch, manual dispatch).
+      - name: Detect build-affecting change
         id: filter
         run: |
           set -e
@@ -68,24 +69,33 @@ jobs:
           CHANGED=$(git diff --name-only "$BASE" "$HEAD")
           echo "Changed files:"
           echo "$CHANGED" | sed 's/^/  /'
-          # Whitelist: anything matching this regex is treated as non-shipping
-          # (docs + AI assistant context). Everything else (code, gradle,
-          # workflows, manifest, resources, …) forces a full build.
+          # INVERTED allowlist (ADR-0029): enumerate ONLY the small, stable
+          # set of build-affecting / shipping paths. Any changed file
+          # matching this → full build; everything else (docs, scripts/,
+          # docker/, tooling, editor/AI config, …) → skip the APK build.
           #
-          #   *.md                       — README, CLAUDE.md, AGENTS.md, GEMINI.md, …
-          #   LICENSE                    — legal text
-          #   docs/                      — long-form docs (future-proof, dir doesn't exist yet)
-          #   .gitattributes, .editorconfig — repo hygiene
-          #   .claude/, .cursor/, .continue/, .aider*, .windsurfrules, .cursorrules, …
-          #                              — AI assistant config (Claude Code, Cursor, Continue, Aider, Windsurf)
-          #   .github/instructions/      — Copilot path-specific instructions
-          NON_DOCS=$(echo "$CHANGED" | grep -vE '\.md$|^LICENSE$|^docs/|^\.gitattributes$|^\.editorconfig$|^\.(claude|cursor|continue|aider|windsurf|sourcegraph|codeium)|^\.github/instructions/' || true)
-          if [ -z "$NON_DOCS" ]; then
-            echo "::notice::Docs-only change — skipping APK build."
-            echo "code=false" >> "$GITHUB_OUTPUT"
-          else
-            echo "Non-docs files changed → full build."
+          # We maintain this short list instead of an ever-growing
+          # non-shipping deny-list. Safety net: release.yml fails loudly if
+          # a tagged commit has no successful CI build, so a mis-skip can
+          # never silently ship (ADR-0004). CONVENTION: introducing a new
+          # buildable module/path REQUIRES adding it here in the SAME PR
+          # (same discipline ADR-0003 uses for the `build` job name).
+          #
+          #   ^app/                  app source, res, manifest, app/build.gradle.kts, proguard
+          #   ^gradle/               version catalog (libs.versions.toml) + wrapper
+          #   ^gradlew, ^gradlew.bat wrapper launchers
+          #   ^settings.gradle.kts   module graph
+          #   ^build.gradle.kts      root build script
+          #   ^gradle.properties     build flags (KSP, caching, jvmargs, …)
+          #   ^.github/workflows/    the CI/release pipeline shape itself
+          BUILD_AFFECTING=$(echo "$CHANGED" | grep -E '^app/|^gradle/|^gradlew$|^gradlew\.bat$|^settings\.gradle\.kts$|^build\.gradle\.kts$|^gradle\.properties$|^\.github/workflows/' || true)
+          if [ -n "$BUILD_AFFECTING" ]; then
+            echo "Build-affecting files changed → full build:"
+            echo "$BUILD_AFFECTING" | sed 's/^/  build: /'
             echo "code=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "::notice::No build-affecting change — skipping APK build (ADR-0029)."
+            echo "code=false" >> "$GITHUB_OUTPUT"
           fi
 
   build-debug:
@@ -217,7 +227,7 @@ jobs:
           RELEASE_RESULT: ${{ needs.build-release.result }}
         run: |
           if [ "$DOCS_ONLY" = "true" ]; then
-            echo "::notice::Docs-only change — APK build skipped. No version bump required."
+            echo "::notice::No build-affecting change — APK build skipped (ADR-0029). No version bump required."
             exit 0
           fi
           if [ "$DEBUG_RESULT" = "success" ] && [ "$RELEASE_RESULT" = "success" ]; then
