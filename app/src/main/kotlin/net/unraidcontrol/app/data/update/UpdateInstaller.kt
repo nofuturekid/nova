@@ -33,13 +33,13 @@ import javax.inject.Singleton
 @Singleton
 class UpdateInstaller @Inject constructor(
     @param:ApplicationContext private val context: Context,
-) {
+) : ApkInstaller {
     private val http: OkHttpClient = OkHttpClient.Builder()
         .connectTimeout(15, TimeUnit.SECONDS)
         .readTimeout(60, TimeUnit.SECONDS)
         .build()
 
-    suspend fun download(url: String, onProgress: (Float) -> Unit): File =
+    override suspend fun download(url: String, onProgress: (Float) -> Unit): File =
         withContext(Dispatchers.IO) {
             val req = Request.Builder().url(url).build()
             http.newCall(req).execute().use { resp ->
@@ -68,10 +68,10 @@ class UpdateInstaller @Inject constructor(
             }
         }
 
-    fun install(apk: File) {
+    override fun install(apk: File) {
         val pm = context.packageManager
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O && !pm.canRequestPackageInstalls()) {
-            throw NeedsPermissionException(unknownAppSourcesIntent())
+            throw ApkInstaller.NeedsPermissionException(unknownAppSourcesIntent())
         }
         val installer = pm.packageInstaller
         val params = PackageInstaller.SessionParams(PackageInstaller.SessionParams.MODE_FULL_INSTALL).apply {
@@ -97,8 +97,4 @@ class UpdateInstaller @Inject constructor(
     }
 
     private fun updatesDir(): File = File(context.cacheDir, "updates")
-
-    class NeedsPermissionException(val intent: Intent) : RuntimeException(
-        "User must enable 'install unknown apps' first.",
-    )
 }

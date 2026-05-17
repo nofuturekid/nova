@@ -1,6 +1,6 @@
 # ADR-0012: Install-from-Settings duplicates install pipeline (vs. singleton refactor)
 
-- **Status**: Accepted
+- **Status**: Superseded by the singleton extraction — see "Revisit (actioned, ADR-0030 D2)" below
 - **Date**: 2026-05-14
 - **Tags**: ui, data
 
@@ -42,6 +42,45 @@ We chose the local fix over the singleton refactor because:
 - A **third** caller of the install pipeline. At that point the duplication is no longer "occasional" and the singleton refactor pays off.
 - Observed bug where the two ViewModels' install states actually diverge in a user-visible way (e.g. one shows "Failed" while the other thinks idle).
 - An install ever needs cross-screen orchestration that requires a single source of truth.
+
+## Revisit (actioned, ADR-0030 D2)
+
+The "trigger to revisit" condition was met: ADR-0030's tech-debt sweep
+treats the duplicated install pipeline as a third pressure point (two
+copies + a roadmap commitment to de-duplicate). The mechanical singleton
+extraction promised under "Alternatives considered" has now been done:
+
+- New `@Singleton UpdateController` (`data/update/UpdateController.kt`)
+  owns the one `installState`, the `InstallStatusReceiver.events`
+  collector, `installUpdate(info)`, and `resetInstall()`. Its broadcast
+  collector runs on a process-lifetime scope (a `SupervisorJob` on
+  `Dispatchers.Default`), correct because the install is process-global
+  and outlives any screen.
+- `MainViewModel` and the Settings `SettingsViewModel` both inject
+  `UpdateController` and forward `installState` / `installUpdate` /
+  `resetInstall`. Their public API to the composables is unchanged, so
+  no screen code changed.
+- An `ApkInstaller` interface was extracted (`UpdateInstaller` implements
+  it, bound via `di/UpdateModule.kt`'s `@Binds`) purely so the
+  controller's state machine is unit-testable without Android's
+  `PackageInstaller`. Unit tests in
+  `app/src/test/.../UpdateControllerTest.kt` cover
+  Downloading→Installing→Success, the system-failure path, the
+  NeedsPermission path, download-failure→reset, and the single-shared-
+  state semantics.
+
+**Intended behaviour change — no longer per-screen isolation.** The old
+design gave each ViewModel its own `_installState` plus an `ownsInstall`
+guard so a ViewModel only reflected an install *it* started (the
+`InstallStatusReceiver.events` flow is process-global; the guard filtered
+out the other screen's install). With a single shared owner that
+isolation is structurally gone and is **deliberately not preserved**: an
+install in flight is now reflected on **both** the Overview and Settings
+screens regardless of which screen started it. This is the correct model
+— there is exactly one install at a time and one source of truth for it —
+and it directly resolves the "two ViewModels' install states diverge"
+risk this ADR called out as a revisit trigger. The `ownsInstall` flags
+were removed; do not reintroduce per-screen filtering.
 
 ## Alternatives considered
 

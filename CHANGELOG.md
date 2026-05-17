@@ -15,6 +15,20 @@ release version + date and opens a fresh `[Unreleased]`.
 
 ## [Unreleased]
 
+## [0.1.30-beta7] - 2026-05-17
+
+### Changed
+- Progress bars, buttons, dialogs and text fields across the app are now
+  rebuilt on the standard Material 3 components instead of custom ones.
+  Progress bars, dialogs and text fields are an internal modernisation
+  with no intended visual change.
+- Cancel, Later and Close buttons are now shown in a neutral colour
+  instead of the accent colour. This is an intended change so that these
+  dismissive actions no longer compete visually with the primary action.
+- Install progress is now shown on both the Overview and Settings
+  screens (previously only one of them updated while installing).
+- Internal Android Gradle Plugin cleanup with no user-facing effect.
+
 ## [0.1.30-beta6] - 2026-05-17
 
 ### Changed

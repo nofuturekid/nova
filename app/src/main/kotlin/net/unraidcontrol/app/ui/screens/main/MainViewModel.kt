@@ -34,9 +34,7 @@ import net.unraidcontrol.app.data.repository.DomainState
 import net.unraidcontrol.app.data.repository.ServerRepository
 import net.unraidcontrol.app.data.repository.SettingsRepository
 import net.unraidcontrol.app.data.repository.UnraidRepository
-import net.unraidcontrol.app.data.update.InstallEvent
-import net.unraidcontrol.app.data.update.InstallStatusReceiver
-import net.unraidcontrol.app.data.update.UpdateInstaller
+import net.unraidcontrol.app.data.update.UpdateController
 import net.unraidcontrol.app.data.update.UpdateRepository
 import javax.inject.Inject
 
@@ -56,7 +54,7 @@ class MainViewModel @Inject constructor(
     private val unraid: UnraidRepository,
     private val settings: SettingsRepository,
     private val updates: UpdateRepository,
-    private val installer: UpdateInstaller,
+    private val updateController: UpdateController,
 ) : ViewModel() {
 
     // ── Server identity + settings (cheap, always on) ─────────────────
@@ -158,14 +156,13 @@ class MainViewModel @Inject constructor(
     private val _updateState = MutableStateFlow<UpdateState>(UpdateState.Checking)
     val updateState: StateFlow<UpdateState> = _updateState.asStateFlow()
 
-    private val _installState = MutableStateFlow<InstallState>(InstallState.Idle)
-    val installState: StateFlow<InstallState> = _installState.asStateFlow()
-
-    /** True while an install this ViewModel started is in flight.
-     *  InstallStatusReceiver.events is process-global and also collected by
-     *  SettingsViewModel; without this guard an install started from the
-     *  other screen would drive our state too (ADR-0012). */
-    private var ownsInstall = false
+    // Install pipeline is owned by the @Singleton UpdateController
+    // (ADR-0012 revisit / ADR-0030 D2). This ViewModel forwards the one
+    // shared install state; the public API to the composables is
+    // unchanged. There is intentionally no `ownsInstall` guard any more:
+    // a single shared state means both screens reflect the one in-flight
+    // install regardless of which screen started it.
+    val installState: StateFlow<InstallState> = updateController.installState
 
     val dismissedUpdateTag: StateFlow<String?> = settings.dismissedUpdateTag
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
@@ -196,17 +193,6 @@ class MainViewModel @Inject constructor(
                 }
             }
         }
-
-        viewModelScope.launch {
-            InstallStatusReceiver.events.collect { event ->
-                if (!ownsInstall) return@collect
-                _installState.value = when (event) {
-                    is InstallEvent.UserConfirmShown -> InstallState.Installing
-                    is InstallEvent.Success          -> { ownsInstall = false; InstallState.Idle }
-                    is InstallEvent.Failed           -> { ownsInstall = false; InstallState.Failed(event.message) }
-                }
-            }
-        }
     }
 
     fun checkForUpdate() = viewModelScope.launch {
@@ -220,34 +206,13 @@ class MainViewModel @Inject constructor(
         settings.setDismissedUpdateTag(tag)
     }
 
-    fun installUpdate(info: UpdateInfo) = viewModelScope.launch {
-        ownsInstall = true
-        _installState.value = InstallState.Downloading(0f)
-        try {
-            val apk = installer.download(info.downloadUrl) { progress ->
-                _installState.value = InstallState.Downloading(progress)
-            }
-            _installState.value = InstallState.Installing
-            try {
-                installer.install(apk)
-            } catch (e: UpdateInstaller.NeedsPermissionException) {
-                // No session committed → no broadcast will arrive.
-                ownsInstall = false
-                _installState.value = InstallState.NeedsPermission(e.intent)
-            }
-        } catch (e: Exception) {
-            ownsInstall = false
-            _installState.value = InstallState.Failed(e.message ?: "Update failed")
-        }
-    }
+    fun installUpdate(info: UpdateInfo) = updateController.installUpdate(info)
 
-    fun resetInstall() {
-        _installState.value = InstallState.Idle
-    }
+    fun resetInstall() = updateController.resetInstall()
 
     fun launchPermissionIntent(state: InstallState.NeedsPermission, launch: (Intent) -> Unit) {
         launch(state.intent)
-        _installState.value = InstallState.Idle
+        updateController.resetInstall()
     }
 
     fun toggleConnection() = viewModelScope.launch {

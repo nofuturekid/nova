@@ -1,6 +1,6 @@
 # ADR-0030: UI modernization & tech-debt roadmap (phased)
 
-- **Status**: Accepted — P1 device-accepted (2026-05-17, not promoted to stable); P2 device-accepted (2026-05-17, not promoted to stable); P3 device-accepted (2026-05-17, not promoted to stable)
+- **Status**: Accepted — P1 device-accepted (2026-05-17, not promoted to stable); P2 device-accepted (2026-05-17, not promoted to stable); P3 device-accepted (2026-05-17, not promoted to stable); **P4–P7 + D1 + D2 implemented 2026-05-17 as ONE combined beta awaiting a single on-device acceptance** (per-phase gate waived — see Amendment 2026-05-17; not promoted to stable)
 - **Date**: 2026-05-17
 - **Tags**: ui, process, data, build
 
@@ -67,17 +67,17 @@ big-bang rewrite. Principles:
 | P1 | Theme plumbing: custom M3 `Shapes` (map `rad`/`radField`/`radDialog`) + per-component `*Defaults.colors()` derived from `UnraidColors`; **harmonise** the scattered alphas to one value per semantic role | **Low** | Unblocks every later swap. Originally scoped "None / no gate" — see P1 implementation note: harmonising drift moves pixels, so P1 is now device-gated — device-accepted 2026-05-17 (provisional; stable promotion still maintainer-only) |
 | P2 | `UnraidCard` → M3 `Card` (flat/border via `CardDefaults`) | Low–Med | **Implemented 2026-05-17** — see P2 implementation note. Consumes the P1 foundation (`unraidCard*` helpers + `Shapes.medium`); targets **zero-visual** (device-gated) — device-accepted 2026-05-17 (provisional; stable promotion still maintainer-only). Highest reuse (8 call sites), low semantics |
 | P3 | `UnraidIconButton` → tonal `IconButton`; fold `UnraidButton`/`UnraidIconButton` duplication | Med | **Implemented 2026-05-17** — see P3 implementation note. Consumes the P1 foundation (`unraid*IconButtonColors` helpers); targets **zero-visual** (device-gated) — device-accepted 2026-05-17 (provisional; stable promotion still maintainer-only). Folds the duplicated tone→colour logic into the P1 `ComponentColors` helpers (single source of truth); the `Button`-family structural swap remains P5. Biggest blast radius (11 screens); tint/circle maps cleanly |
-| P4 | `UnraidProgress` → `LinearProgressIndicator` (keep `StackBar` bespoke — no M3 equivalent) | Med | Small footprint |
-| P5 | `UnraidButton` → `Button` family | High | Pill shape + tonal/disabled/luminance treatment diverges — device-accept |
-| P6 | `Pill` → `Badge`/chip (or retain) | Med | M3 chips force larger min-height/touch — device-accept |
-| P7 | `ConfirmDialog` → `AlertDialog`; `UnraidField` → `OutlinedTextField` | High | Single call site each, highest design divergence — device-accept |
+| P4 | `UnraidProgress` → `LinearProgressIndicator` (keep `StackBar` bespoke — no M3 equivalent) | Med | **Implemented 2026-05-17** — combined beta per Amendment 2026-05-17. Thin wrapper over M3 `LinearProgressIndicator`; colours via the new P1 `unraidProgressColors` helper; height/corner pinned, M3 gap + stop-indicator suppressed, 500 ms tween preserved → zero-visual |
+| P5 | `UnraidButton` → `Button` family | High | **Implemented 2026-05-17** — combined beta per Amendment 2026-05-17. Filled/Tonal/Outline/Text → `Button`/`FilledTonalButton`/`OutlinedButton`/`TextButton`; colours EXCLUSIVELY via P1 helpers; pill/touch/padding preserved. Includes the deferred P3 `Tone.Neutral` decision: Neutral now renders muted (was wrongly accent) — INTENDED change at 4 Cancel/Later/Close call sites |
+| P6 | `Pill` → `Badge`/chip (or retain) | Med | **Implemented 2026-05-17** — combined beta per Amendment 2026-05-17. M3 `Badge`'s fixed min-size + 4 dp padding would shift the dense status rows (10 dp/4 dp padded pill + 6 dp dot), so per the ADR's "or retain" the bespoke rendering is RETAINED at all 15 call sites — zero-visual, no layout shift |
+| P7 | `ConfirmDialog` → `AlertDialog`; `UnraidField` → `OutlinedTextField` | High | **Implemented 2026-05-17** — combined beta per Amendment 2026-05-17. `ConfirmDialog` → M3 `AlertDialog`; `UnraidField` (4 call sites — ADR's "single" was wrong) → M3 `OutlinedTextField`, colours via P1 `unraidTextFieldColors`. M3-idiomatic appearance accepted over zero-visual (Rule 13) |
 
 ### Phases — cross-cutting non-UI debt (independent, no device gate)
 
 | # | Phase | Note |
 |---|---|---|
 | D1 | Resolve `app/build.gradle.kts` `srcDir(...)` AGP-9 deprecation (`directories` set) | Pairs with the ADR-0023 AGP-10 cleanup |
-| D2 | ADR-0012 install-pipeline: extract `@Singleton UpdateController`, drop the `MainViewModel`/`SettingsViewModel` duplication + `ownsInstall` guards | Actions ADR-0012's documented revisit trigger |
+| D2 | ADR-0012 install-pipeline: extract `@Singleton UpdateController`, drop the `MainViewModel`/`SettingsViewModel` duplication + `ownsInstall` guards | **Implemented 2026-05-17** — combined beta per Amendment 2026-05-17. `UpdateController` owns the one `installState`/collector/`installUpdate`/`resetInstall`; both ViewModels forward it, public API unchanged; `ApkInstaller` interface + `UpdateModule` `@Binds` added for unit-testability; unit tests added. **Intended behaviour change:** install progress now reflected on both screens regardless of origin (per-screen `ownsInstall` isolation removed) — see ADR-0012 revisit + checklist below. Actions ADR-0012's documented revisit trigger |
 
 ### P1 implementation note (2026-05-17)
 
@@ -199,6 +199,87 @@ on-device.
 
 Device-accepted 2026-05-17 (v0.1.30-beta6, PR #115); provisional, not
 promoted to stable.
+
+## Amendment 2026-05-17 — combined release of remainder (maintainer override)
+
+The maintainer **consciously overrode** this ADR's "No big-bang" /
+per-phase device-acceptance core principle for the **remaining** phases.
+The decision, recorded here for traceability:
+
+- **Scope of the override.** P4, P5, P6, P7 **and** D1 (plus D2, done
+  separately but riding the **same** beta) are implemented together and
+  shipped as **ONE combined device-gated beta**, not five independently
+  gated betas.
+- **Per-phase granularity waived.** The "each phase independently
+  shippable / independently device-accepted" guarantee is explicitly
+  waived for this remainder. There is **one** combined on-device
+  acceptance covering P4–P7 + D1 together (see checklist below), not a
+  gate per phase.
+- **Tier-3 human-only acceptance is NOT waived.** The on-device
+  acceptance itself still happens and remains a human-only gate
+  (ADR-0027 Tier 3). What changed is its *granularity* (one combined
+  pass), not its existence.
+- **Stable promotion still maintainer-only.** This combined beta is
+  provisional. Promotion to stable remains exclusively the maintainer's
+  decision and is unaffected by this amendment.
+- **Regression-attribution risk explicitly accepted.** Combining the
+  remaining phases into one beta means a regression surfaced on-device
+  cannot be attributed to a single phase from the gate alone; bisection
+  may be required. The maintainer accepts this trade-off in exchange for
+  collapsing five gates into one.
+
+### Combined acceptance checklist (P4–P7 + D1 + D2, 2026-05-17)
+
+On-device verification points the maintainer must check before
+accepting this combined beta:
+
+- **P5 — Cancel / Later / Close buttons change from accent-coloured to
+  neutral/muted (INTENDED, semantically correct).** This is the
+  deferred P3 `Tone.Neutral` decision: the old `else → accent` lumped
+  `Tone.Accent` and `Tone.Neutral` together (a latent bug). The P1
+  helpers map `Tone.Neutral → muted`. Affected call sites (4): the
+  Cancel button in `AddEditServerSheet.kt` and `ConfirmDialog.kt`, and
+  the Later/Close buttons in `UpdateDialog.kt` (×2). Confirm the muted
+  rendering reads correctly. All other tone/variant combinations are
+  bit-identical (zero-visual) via the P1 helpers.
+- **P7 — `ConfirmDialog` adopts the M3 `AlertDialog` idiom (INTENDED,
+  Rule 13).** Expect: standard M3 confirm/dismiss button row, M3 dialog
+  elevation + scrim, M3 title/text typography slots. Preserved: theme
+  surface colour, `radDialog` corner, the tone icon-chip. Confirm
+  layout/elevation read as intended.
+- **P7 — `UnraidField` adopts the M3 `OutlinedTextField` idiom
+  (INTENDED, Rule 13).** Expect: floating/animating label, M3 outline
+  focus motion, M3 supporting-text/error slot. Colours route through the
+  P1 `unraidTextFieldColors` helper (same softFill container +
+  accent/border/danger roles). 4 call sites (all in
+  `AddEditServerSheet.kt`) — the ADR table's "single call site" was
+  wrong. Confirm label motion + outline focus read as intended.
+- **P4 — `UnraidProgress` → M3 `LinearProgressIndicator`: expected
+  zero-visual.** Height/corner pinned to the bespoke geometry, M3
+  inter-segment gap + trailing stop-indicator suppressed, the 500 ms
+  `tween` value animation preserved. No residual pixel diff found in
+  review; confirm no visible change at the 5 call sites (array sync /
+  rebuild bars, overview, update install).
+- **P6 — `Pill`: bespoke RETAINED, expected zero-visual.** M3 `Badge`'s
+  fixed min-size + 4 dp internal padding would shrink the 10 dp/4 dp
+  padded pill and shift the dense status rows, so per the ADR's "or
+  retain" all 15 call sites keep the bespoke rendering unchanged.
+  Confirm no layout shift in Docker / VM / array / overview status rows.
+- **D1 — AGP-9 srcDir deprecation: no behaviour change.** The deprecated
+  `android.sourceSets["main"].kotlin.srcDir(...)` accessor was removed;
+  under AGP 9 built-in Kotlin `src/main/kotlin` is already a default
+  source directory, so the registration was redundant. Verified green
+  via `./scripts/local-ci.sh`; nothing to verify on-device.
+- **D2: install progress now shown on both Overview and Settings
+  regardless of origin screen (intended per ADR-0012).** ADR-0012's
+  duplicate install pipeline was extracted to a `@Singleton
+  UpdateController`; both ViewModels forward its single shared
+  `installState`. The old per-screen `ownsInstall` isolation is
+  deliberately gone (one install, one source of truth — see ADR-0012
+  "Revisit (actioned, ADR-0030 D2)"). Public composable API unchanged.
+  Confirm an install started from either screen shows the same progress
+  on both. Unit-tested (`UpdateControllerTest`); also
+  green via `./scripts/local-ci.sh`.
 
 ## Consequences
 
