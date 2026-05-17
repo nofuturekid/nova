@@ -24,12 +24,13 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
-import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
+import net.unraidcontrol.app.ui.theme.UnraidDims
 import net.unraidcontrol.app.ui.theme.UnraidTheme
 
 @Composable
@@ -61,9 +62,9 @@ fun UnraidField(
                 .fillMaxWidth()
                 .background(
                     color = t.muted.copy(alpha = 0.08f),
-                    shape = RoundedCornerShape(14.dp),
+                    shape = RoundedCornerShape(UnraidDims.radField),
                 )
-                .border(1.dp, borderColor, RoundedCornerShape(14.dp))
+                .border(1.dp, borderColor, RoundedCornerShape(UnraidDims.radField))
                 .padding(horizontal = 14.dp, vertical = 10.dp),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(10.dp),
@@ -79,11 +80,13 @@ fun UnraidField(
                 BasicTextField(
                     value = value,
                     onValueChange = onChange,
-                    modifier = Modifier.fillMaxWidth(),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .semantics { contentDescription = label },
                     interactionSource = interaction,
                     singleLine = true,
                     cursorBrush = SolidColor(t.accent),
-                    textStyle = TextStyle(color = t.text, fontSize = 15.sp),
+                    textStyle = MaterialTheme.typography.bodyLarge.copy(color = t.text),
                     visualTransformation = if (obscured) PasswordVisualTransformation() else visualTransformation,
                     keyboardOptions = KeyboardOptions(keyboardType = keyboardType),
                     decorationBox = { inner ->

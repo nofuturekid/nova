@@ -184,7 +184,7 @@ fun AddEditServerSheet(
                     style = MaterialTheme.typography.titleLarge,
                     modifier = Modifier.weight(1f),
                 )
-                UnraidIconButton(icon = { UC.X(20.dp, t.text) }, onClick = onDismiss)
+                UnraidIconButton(icon = { UC.X(20.dp, t.text) }, onClick = onDismiss, contentDescription = "Close")
             }
             Spacer(Modifier.height(12.dp))
 
@@ -224,6 +224,7 @@ fun AddEditServerSheet(
                         icon = { if (state.showKey) UC.EyeOff(18.dp, t.muted) else UC.Eye(18.dp, t.muted) },
                         onClick = vm::toggleKeyVisible,
                         size = 32.dp,
+                        contentDescription = if (state.showKey) "Hide API key" else "Show API key",
                     )
                 },
             )

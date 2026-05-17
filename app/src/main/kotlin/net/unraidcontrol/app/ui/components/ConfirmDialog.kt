@@ -25,6 +25,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
+import net.unraidcontrol.app.ui.theme.UnraidDims
 import net.unraidcontrol.app.ui.theme.UnraidTheme
 
 data class ConfirmRequest(
@@ -52,7 +53,7 @@ fun ConfirmDialog(
                 .widthIn(max = 360.dp)
                 .fillMaxWidth()
                 .padding(horizontal = 24.dp)
-                .clip(RoundedCornerShape(22.dp))
+                .clip(RoundedCornerShape(UnraidDims.radDialog))
                 .background(t.surface2)
                 .padding(top = 24.dp, start = 22.dp, end = 22.dp, bottom = 16.dp),
         ) {

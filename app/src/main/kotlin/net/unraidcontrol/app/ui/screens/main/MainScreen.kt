@@ -15,16 +15,23 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.sizeIn
 import androidx.compose.foundation.layout.systemBars
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.NavigationBar
+import androidx.compose.material3.NavigationBarItem
+import androidx.compose.material3.NavigationBarItemDefaults
 import androidx.compose.material3.Text
+import androidx.compose.material3.ripple
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.material3.pulltorefresh.rememberPullToRefreshState
+import androidx.compose.ui.semantics.Role
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -67,6 +74,7 @@ import net.unraidcontrol.app.ui.screens.update.UpdateDialog
 import net.unraidcontrol.app.ui.screens.vms.VmDetailSheet
 import net.unraidcontrol.app.ui.screens.vms.VmsTab
 import net.unraidcontrol.app.ui.theme.JetBrainsMono
+import net.unraidcontrol.app.ui.theme.UnraidDims
 import net.unraidcontrol.app.ui.theme.UnraidTheme
 
 enum class MainTab(val id: String, val label: String) {
@@ -429,7 +437,14 @@ private fun TopBar(
             Row(
                 modifier = Modifier
                     .clip(CircleShape)
-                    .clickable(onClick = onOpenServerList)
+                    .clickable(
+                        onClick = onOpenServerList,
+                        role = Role.Button,
+                        onClickLabel = "Switch server",
+                        interactionSource = remember { MutableInteractionSource() },
+                        indication = ripple(),
+                    )
+                    .sizeIn(minHeight = UnraidDims.touchMin)
                     .padding(start = 6.dp, top = 6.dp, end = 12.dp, bottom = 6.dp),
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(10.dp),
@@ -460,11 +475,29 @@ private fun TopBar(
                 }
             }
             Spacer(Modifier.weight(1f))
-            Box(modifier = Modifier.clickable(onClick = onToggleConnection)) {
+            Box(
+                modifier = Modifier
+                    .clip(CircleShape)
+                    .clickable(
+                        onClick = onToggleConnection,
+                        role = Role.Button,
+                        onClickLabel = "Switch connection, currently $connLabel",
+                        interactionSource = remember { MutableInteractionSource() },
+                        indication = ripple(),
+                    )
+                    .sizeIn(minHeight = UnraidDims.touchMin),
+                contentAlignment = Alignment.Center,
+            ) {
                 Pill(label = connLabel, tone = connTone, dot = true)
             }
             Box {
-                UnraidIconButton(icon = { UC.Bell(20.dp, t.text) }, onClick = onOpenNotifications)
+                UnraidIconButton(
+                    icon = { UC.Bell(20.dp, t.text) },
+                    onClick = onOpenNotifications,
+                    contentDescription = if (notificationBadge > 0)
+                        "Notifications, $notificationBadge unread"
+                    else "Notifications",
+                )
                 if (notificationBadge > 0) {
                     Box(
                         modifier = Modifier
@@ -483,7 +516,11 @@ private fun TopBar(
                     }
                 }
             }
-            UnraidIconButton(icon = { UC.Settings(20.dp, t.text) }, onClick = onMenu)
+            UnraidIconButton(
+                icon = { UC.Settings(20.dp, t.text) },
+                onClick = onMenu,
+                contentDescription = "Settings",
+            )
         }
         HorizontalDivider(color = t.border, thickness = 1.dp)
     }
@@ -494,44 +531,42 @@ private fun TabBar(active: MainTab, onChange: (MainTab) -> Unit) {
     val t = UnraidTheme.colors
     Column {
         HorizontalDivider(color = t.border, thickness = 1.dp)
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .background(t.bg)
-                .padding(start = 8.dp, end = 8.dp, top = 6.dp, bottom = 8.dp),
+        // M3 NavigationBar: built-in selected-state semantics ("tab, x of 4,
+        // selected"), 48dp targets, ripple, active indicator. Parent Column
+        // already consumes systemBars, so zero the bar's own insets to avoid
+        // double bottom padding.
+        NavigationBar(
+            containerColor = t.bg,
+            tonalElevation = 0.dp,
+            windowInsets = androidx.compose.foundation.layout.WindowInsets(0.dp, 0.dp, 0.dp, 0.dp),
         ) {
+            val itemColors = NavigationBarItemDefaults.colors(
+                selectedIconColor = t.accent,
+                selectedTextColor = t.text,
+                indicatorColor = t.accentDim,
+                unselectedIconColor = t.muted,
+                unselectedTextColor = t.muted,
+            )
             MainTab.values().forEach { tab ->
-                val isActive = tab == active
-                val tint = if (isActive) t.accent else t.muted
-                val labelColor = if (isActive) t.text else t.muted
-                Column(
-                    modifier = Modifier
-                        .weight(1f)
-                        .clip(RoundedCornerShape(12.dp))
-                        .clickable { onChange(tab) }
-                        .padding(top = 6.dp, bottom = 4.dp),
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.spacedBy(3.dp),
-                ) {
-                    Box(
-                        modifier = Modifier
-                            .clip(CircleShape)
-                            .background(if (isActive) t.accentDim else Color.Transparent)
-                            .padding(horizontal = 18.dp, vertical = 4.dp),
-                    ) {
+                NavigationBarItem(
+                    selected = tab == active,
+                    onClick = { onChange(tab) },
+                    colors = itemColors,
+                    icon = {
                         when (tab) {
-                            MainTab.Overview -> UC.Dashboard(20.dp, tint)
-                            MainTab.Array    -> UC.Disk(20.dp, tint)
-                            MainTab.Docker   -> UC.Docker(20.dp, tint)
-                            MainTab.Vms      -> UC.Vm(20.dp, tint)
+                            MainTab.Overview -> UC.Dashboard(20.dp)
+                            MainTab.Array    -> UC.Disk(20.dp)
+                            MainTab.Docker   -> UC.Docker(20.dp)
+                            MainTab.Vms      -> UC.Vm(20.dp)
                         }
-                    }
-                    Text(
-                        text = tab.label,
-                        color = labelColor,
-                        style = MaterialTheme.typography.labelSmall,
-                    )
-                }
+                    },
+                    label = {
+                        Text(
+                            text = tab.label,
+                            style = MaterialTheme.typography.labelSmall,
+                        )
+                    },
+                )
             }
         }
     }

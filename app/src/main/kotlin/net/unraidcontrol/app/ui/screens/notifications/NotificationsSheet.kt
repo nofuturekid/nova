@@ -74,7 +74,7 @@ fun NotificationsSheet(
                         style = MaterialTheme.typography.bodySmall,
                     )
                 }
-                UnraidIconButton(icon = { UC.X(20.dp, t.text) }, onClick = onDismiss)
+                UnraidIconButton(icon = { UC.X(20.dp, t.text) }, onClick = onDismiss, contentDescription = "Close")
             }
             Spacer(Modifier.height(18.dp))
 

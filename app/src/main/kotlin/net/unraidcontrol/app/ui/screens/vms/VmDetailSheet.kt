@@ -88,7 +88,7 @@ fun VmDetailSheet(
                     Spacer(Modifier.height(6.dp))
                     Pill(label = vm.state.name.lowercase(), tone = tone, dot = true)
                 }
-                UnraidIconButton(icon = { UC.X(20.dp, t.text) }, onClick = onDismiss)
+                UnraidIconButton(icon = { UC.X(20.dp, t.text) }, onClick = onDismiss, contentDescription = "Close")
             }
 
             Spacer(Modifier.height(18.dp))

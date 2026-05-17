@@ -240,18 +240,21 @@ private fun VmCard(
                     onClick = { onPause(vm) },
                     size = 36.dp,
                     tone = Tone.Warn,
+                    contentDescription = "Pause ${vm.name}",
                 )
                 VmState.Paused -> UnraidIconButton(
                     icon = { UC.Play(16.dp, t.accent) },
                     onClick = { onResume(vm) },
                     size = 36.dp,
                     tone = Tone.Accent,
+                    contentDescription = "Resume ${vm.name}",
                 )
                 VmState.Stopped -> UnraidIconButton(
                     icon = { UC.Play(16.dp, t.accent) },
                     onClick = { onStart(vm) },
                     size = 36.dp,
                     tone = Tone.Accent,
+                    contentDescription = "Start ${vm.name}",
                 )
             }
         }

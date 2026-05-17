@@ -90,14 +90,14 @@ fun ServerListScreen(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(8.dp),
         ) {
-            UnraidIconButton(icon = { UC.ChevL(20.dp, t.text) }, onClick = onBack)
+            UnraidIconButton(icon = { UC.ChevL(20.dp, t.text) }, onClick = onBack, contentDescription = "Back")
             Text(
                 text = "Servers",
                 color = t.text,
                 style = MaterialTheme.typography.titleLarge,
                 modifier = Modifier.weight(1f),
             )
-            UnraidIconButton(icon = { UC.Plus(20.dp, t.accent) }, onClick = onAdd, tone = Tone.Accent)
+            UnraidIconButton(icon = { UC.Plus(20.dp, t.accent) }, onClick = onAdd, tone = Tone.Accent, contentDescription = "Add server")
         }
 
         val d = UnraidTheme.tokens
@@ -145,6 +145,7 @@ fun ServerListScreen(
                             icon = { UC.Edit(16.dp, t.muted) },
                             onClick = { onEdit(s) },
                             size = 32.dp,
+                            contentDescription = "Edit ${s.name}",
                         )
                     }
                 }

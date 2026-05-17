@@ -174,7 +174,7 @@ fun ContainerDetailSheet(
                         }
                     }
                 }
-                UnraidIconButton(icon = { UC.X(20.dp, t.text) }, onClick = onDismiss)
+                UnraidIconButton(icon = { UC.X(20.dp, t.text) }, onClick = onDismiss, contentDescription = "Close")
             }
             Spacer(Modifier.height(18.dp))
 
@@ -501,7 +501,7 @@ private fun PortsTabContent(c: Container) {
                         Text(" → ", color = t.muted, style = MaterialTheme.typography.bodyMedium.copy(fontFamily = JetBrainsMono))
                         Text(ctn, color = t.text, style = MaterialTheme.typography.bodyMedium.copy(fontFamily = JetBrainsMono))
                     }
-                    UnraidIconButton(icon = { UC.Link(16.dp, t.muted) }, onClick = {}, size = 32.dp)
+                    UnraidIconButton(icon = { UC.Link(16.dp, t.muted) }, onClick = {}, size = 32.dp, contentDescription = "Open port $host")
                 }
             }
         }
