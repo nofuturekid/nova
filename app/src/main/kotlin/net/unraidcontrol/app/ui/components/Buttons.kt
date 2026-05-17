@@ -1,41 +1,56 @@
 package net.unraidcontrol.app.ui.components
 
-import androidx.compose.foundation.BorderStroke
-import androidx.compose.foundation.background
-import androidx.compose.foundation.border
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.interaction.MutableInteractionSource
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.sizeIn
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.material3.Button
+import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.FilledTonalIconButton
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
-import androidx.compose.material3.ripple
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.onClick
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
-import net.unraidcontrol.app.ui.theme.UnraidAlpha
 import net.unraidcontrol.app.ui.theme.UnraidDims
 import net.unraidcontrol.app.ui.theme.UnraidTheme
 
 enum class BtnVariant { Filled, Tonal, Outline, Text }
 
+/**
+ * Material 3 Button family (ADR-0030 P5), signature unchanged so all 33
+ * call sites compile untouched.
+ *
+ *  - `Filled` → [Button], `Tonal` → [FilledTonalButton],
+ *    `Outline` → [OutlinedButton], `Text` → [TextButton];
+ *  - pill [CircleShape], `sizeIn(minHeight = UnraidDims.touchMin)`,
+ *    `fullWidth`, `leadingIcon`, `enabled` and the `labelLarge` label are
+ *    all preserved; content padding is pinned to the former bespoke
+ *    18 dp × 10 dp so geometry is unchanged;
+ *  - colours come EXCLUSIVELY from the P1 helpers
+ *    ([unraidFilledButtonColors] / [unraidTonalButtonColors] /
+ *    [unraidOutlinedButtonColors] / [unraidTextButtonColors]); the
+ *    file-local `onTone`/luminance hand-rolling is gone.
+ *
+ * INTENDED visual change (ADR-0030 P3 decision, recorded here): the old
+ * `else → accent` lumped [Tone.Accent] and [Tone.Neutral] together — a
+ * latent bug. The helpers map `Tone.Neutral → muted`, so the four
+ * `Tone.Neutral` Text call sites (Cancel / Later / Close) now render
+ * neutral/muted instead of accent-coloured. Everything else is
+ * bit-identical (zero-visual). See the ADR-0030 combined acceptance
+ * checklist.
+ */
 @Composable
 fun UnraidButton(
     onClick: () -> Unit,
@@ -47,61 +62,57 @@ fun UnraidButton(
     enabled: Boolean = true,
     leadingIcon: (@Composable () -> Unit)? = null,
 ) {
-    val t = UnraidTheme.colors
-    // Tone→colour: kept as the bespoke mapping (Accent/Neutral both →
-    // accent for the Button family — see ADR-0030 P3 note). Only the
-    // on-accent legibility rule is folded into the single source of
-    // truth (`onTone` in ComponentColors.kt) — the duplicated copy the
-    // ADR named is removed; the Button structural swap stays P5.
-    val toneColor: Color = when (tone) {
-        Tone.Danger -> t.danger
-        Tone.Warn   -> t.warn
-        Tone.Info   -> t.info
-        else        -> t.accent
-    }
-    val bg: Color
-    val fg: Color
-    val showBorder: Boolean
-    if (!enabled) {
-        // Disabled: derive a theme-correct muted style instead of
-        // alpha-dimming the whole button (keeps on-accent text readable).
-        fg = t.muted
-        when (variant) {
-            BtnVariant.Filled, BtnVariant.Tonal -> { bg = t.muted.copy(alpha = UnraidAlpha.disabledFill); showBorder = false }
-            BtnVariant.Outline                  -> { bg = Color.Transparent;           showBorder = true  }
-            BtnVariant.Text                     -> { bg = Color.Transparent;           showBorder = false }
-        }
-    } else {
-        when (variant) {
-            BtnVariant.Filled  -> { bg = toneColor;                       fg = onTone(toneColor); showBorder = false }
-            BtnVariant.Tonal   -> { bg = toneColor.copy(alpha = UnraidAlpha.tonalFill); fg = toneColor;              showBorder = false }
-            BtnVariant.Outline -> { bg = Color.Transparent;               fg = t.text;                 showBorder = true  }
-            BtnVariant.Text    -> { bg = Color.Transparent;               fg = toneColor;              showBorder = false }
-        }
-    }
-    val interaction = remember { MutableInteractionSource() }
-    val base = modifier
+    val btnModifier = modifier
         .then(if (fullWidth) Modifier.fillMaxWidth() else Modifier)
-        .clip(CircleShape)
-        .background(bg)
-        .let { if (showBorder) it.border(BorderStroke(1.dp, t.border), CircleShape) else it }
-        .clickable(
-            enabled = enabled,
-            onClick = onClick,
-            role = Role.Button,
-            interactionSource = interaction,
-            indication = ripple(color = fg),
-        )
         .sizeIn(minHeight = UnraidDims.touchMin)
-        .padding(horizontal = 18.dp, vertical = 10.dp)
+    val contentPadding = PaddingValues(horizontal = 18.dp, vertical = 10.dp)
 
-    Row(
-        modifier = base,
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.CenterHorizontally),
-    ) {
-        if (leadingIcon != null) Box { leadingIcon() }
-        Text(label, color = fg, style = MaterialTheme.typography.labelLarge)
+    val content: @Composable androidx.compose.foundation.layout.RowScope.() -> Unit = {
+        if (leadingIcon != null) {
+            Box { leadingIcon() }
+            androidx.compose.foundation.layout.Spacer(Modifier.size(8.dp))
+        }
+        Text(label, style = MaterialTheme.typography.labelLarge)
+    }
+
+    when (variant) {
+        BtnVariant.Filled -> Button(
+            onClick = onClick,
+            modifier = btnModifier,
+            enabled = enabled,
+            shape = CircleShape,
+            colors = unraidFilledButtonColors(tone),
+            contentPadding = contentPadding,
+            content = content,
+        )
+        BtnVariant.Tonal -> FilledTonalButton(
+            onClick = onClick,
+            modifier = btnModifier,
+            enabled = enabled,
+            shape = CircleShape,
+            colors = unraidTonalButtonColors(tone),
+            contentPadding = contentPadding,
+            content = content,
+        )
+        BtnVariant.Outline -> OutlinedButton(
+            onClick = onClick,
+            modifier = btnModifier,
+            enabled = enabled,
+            shape = CircleShape,
+            colors = unraidOutlinedButtonColors(),
+            border = androidx.compose.foundation.BorderStroke(1.dp, UnraidTheme.colors.border),
+            contentPadding = contentPadding,
+            content = content,
+        )
+        BtnVariant.Text -> TextButton(
+            onClick = onClick,
+            modifier = btnModifier,
+            enabled = enabled,
+            shape = CircleShape,
+            colors = unraidTextButtonColors(tone),
+            contentPadding = contentPadding,
+            content = content,
+        )
     }
 }
 

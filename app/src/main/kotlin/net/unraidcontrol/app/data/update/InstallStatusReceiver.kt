@@ -42,6 +42,15 @@ class InstallStatusReceiver : BroadcastReceiver() {
         private val _events = MutableSharedFlow<InstallEvent>(extraBufferCapacity = 8)
         /** Read-only stream consumers (e.g. MainViewModel) listen on. */
         val events: kotlinx.coroutines.flow.SharedFlow<InstallEvent> = _events.asSharedFlow()
+
+        /**
+         * Test-only seam: emit an [InstallEvent] as if the system
+         * PackageInstaller broadcast had arrived. Lets UpdateController's
+         * broadcast-driven transitions be unit-tested without a real
+         * install session (ADR-0030 D2). Not used by production code;
+         * named `*ForTest` to mark intent (no annotation dep added).
+         */
+        fun emitForTest(event: InstallEvent): Boolean = _events.tryEmit(event)
     }
 }
 

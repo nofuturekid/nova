@@ -15,8 +15,8 @@ android {
         applicationId = "net.unraidcontrol.app"
         minSdk = 26
         targetSdk = 36
-        versionCode = 69
-        versionName = "0.1.30-beta6"
+        versionCode = 70
+        versionName = "0.1.30-beta7"
 
         vectorDrawables { useSupportLibrary = true }
     }
@@ -63,7 +63,14 @@ android {
         targetCompatibility = JavaVersion.VERSION_17
     }
 
-    sourceSets["main"].kotlin.srcDir("src/main/kotlin")
+    // ADR-0030 D1 — AGP-9 srcDir deprecation.
+    // The deprecated `android.sourceSets["main"].kotlin.srcDir(...)` DSL
+    // accessor is removed: under AGP 9 built-in Kotlin (this module uses
+    // the built-in Kotlin support — top-level `kotlin {}`, no separate
+    // kotlin-android plugin) `src/main/kotlin` is ALREADY a default
+    // Kotlin source directory, so the explicit registration was
+    // redundant. Dropping it is the non-deprecated form and is a no-op
+    // for the compiled sources (verified green via ./scripts/local-ci.sh).
 
     buildFeatures {
         compose = true
@@ -150,4 +157,7 @@ dependencies {
 
     implementation(libs.kotlinx.coroutines.android)
     implementation(libs.kotlinx.serialization.json)
+
+    testImplementation(libs.junit)
+    testImplementation(libs.kotlinx.coroutines.test)
 }

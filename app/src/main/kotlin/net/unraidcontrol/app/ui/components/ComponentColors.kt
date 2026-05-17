@@ -131,6 +131,21 @@ fun unraidPlainIconButtonColors(): IconButtonColors {
     )
 }
 
+// --- Linear progress (P4) -----------------------------------------------
+
+/** Resolved (indicator, track) pair for [UnraidProgress] → M3
+ *  `LinearProgressIndicator`. Mirrors the bespoke mapping exactly:
+ *  indicator defaults to `accent`, track to `muted @ UnraidAlpha.track`;
+ *  an explicit override (bespoke `color`/`track` param) wins. */
+@Composable
+fun unraidProgressColors(
+    color: Color? = null,
+    track: Color? = null,
+): Pair<Color, Color> {
+    val t = UnraidTheme.colors
+    return (color ?: t.accent) to (track ?: t.muted.copy(alpha = UnraidAlpha.track))
+}
+
 // --- Text field (P7) ----------------------------------------------------
 
 @Composable
