@@ -62,3 +62,4 @@ ADRs live under `docs/` so the CI docs-only bypass applies — pure-ADR PRs comp
 | [0025](./0025-dependabot-advisory-radar.md) | Dependabot as a low-noise advisory radar (no auto-merge) | Accepted |
 | [0026](./0026-graphql-subscriptions-hybrid.md) | GraphQL subscriptions for select domains (hybrid with polling) | Deprecated (provisional; revisit per ADR-0027) |
 | [0027](./0027-agent-autonomy-and-access-model.md) | Agent autonomy & access model (tiered) | Proposed |
+| [0028](./0028-cache-apollo-clients-in-factory.md) | Cache Apollo clients per (server, variant) in the factory | Proposed |

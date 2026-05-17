@@ -125,7 +125,9 @@ private fun OverviewContent(
     }
     val netSeries = remember { mutableStateOf(List(40) { 0f }) }
 
-    LaunchedEffect(metrics, memTotalGb) {
+    // Key on metrics only: a 60 s info poll can change memTotalGb without a
+    // new metrics sample — keying on it too injected a spurious sparkline tick.
+    LaunchedEffect(metrics) {
         cpuSeries.value = cpuSeries.value.drop(1) + cpuPercent.toFloat()
         val pct = if (memTotalGb > 0) ((memUsedGb / memTotalGb) * 100).toFloat() else 0f
         ramSeries.value = ramSeries.value.drop(1) + pct
