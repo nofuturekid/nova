@@ -78,3 +78,30 @@ query GetNotifications {
         }
     }
 }
+
+# Full two-segment list for the Notifications sheet (incl. INFO). The
+# overview is fetched alongside so a single round-trip keeps the bell
+# badge consistent with the list after an action-triggered refetch.
+fragment NotificationFields on Notification {
+    id
+    title
+    subject
+    description
+    importance
+    link
+    type
+    timestamp
+    formattedTimestamp
+}
+
+query GetNotificationList {
+    notifications {
+        overview { unread { warning alert } }
+        unread: list(filter: { type: UNREAD }) {
+            ...NotificationFields
+        }
+        archived: list(filter: { type: ARCHIVE }) {
+            ...NotificationFields
+        }
+    }
+}

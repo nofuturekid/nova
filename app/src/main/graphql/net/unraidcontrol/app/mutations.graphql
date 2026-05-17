@@ -22,3 +22,15 @@ mutation StartParityCheck($correct: Boolean!) { parityCheck { start(correct: $co
 mutation PauseParityCheck                      { parityCheck { pause }  }
 mutation ResumeParityCheck                     { parityCheck { resume } }
 mutation CancelParityCheck                     { parityCheck { cancel } }
+
+# Notification actions. archiveNotification = mark read; unreadNotification
+# restores an archived item to unread. deleteNotification needs the item's
+# current type (UNREAD/ARCHIVE). archiveAll with no importance archives all
+# unread. Overview-returning ones let the caller refresh the bell badge.
+mutation ArchiveNotification($id: PrefixedID!) { archiveNotification(id: $id) { id } }
+mutation UnreadNotification( $id: PrefixedID!) { unreadNotification( id: $id) { id } }
+mutation DeleteNotification( $id: PrefixedID!, $type: NotificationType!) {
+    deleteNotification(id: $id, type: $type) { unread { warning alert } }
+}
+mutation ArchiveAllNotifications { archiveAll { unread { warning alert } } }
+mutation RecalculateNotificationOverview { recalculateOverview { unread { warning alert } } }

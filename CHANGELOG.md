@@ -15,6 +15,12 @@ release version + date and opens a fresh `[Unreleased]`.
 
 ## [Unreleased]
 
+### Added
+- The notifications sheet now has Unread and Archived tabs showing all
+  notifications (including info-level ones), and you can mark notifications
+  as read/archived, restore archived ones, delete them individually, or
+  archive all unread at once.
+
 ### Fixed
 - The notifications indicator in the top bar now shows a bell icon
   instead of an information (ⓘ) symbol.
