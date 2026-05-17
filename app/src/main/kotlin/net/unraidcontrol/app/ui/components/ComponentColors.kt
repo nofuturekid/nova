@@ -30,9 +30,10 @@ import net.unraidcontrol.app.ui.theme.UnraidTheme
  * it or the future swap stops being zero-visual.
  */
 
-/** On-tone label colour: dark on bright accents, white on dark ones —
- *  identical rule to [UnraidButton]'s private `onToneColor`. */
-private fun onTone(tone: Color): Color =
+/** On-tone label colour: dark on bright accents, white on dark ones.
+ *  Single source of truth (ADR-0030 P3) — [UnraidButton] consumes this;
+ *  its former private `onToneColor` duplicate was folded in here. */
+internal fun onTone(tone: Color): Color =
     if (tone.luminance() > 0.45f) Color(0xFF06120E) else Color.White
 
 @Composable
