@@ -1,0 +1,63 @@
+name: CodeQL
+
+# This workflow replaces GitHub's CodeQL "default setup" (disabled via the
+# code-scanning/default-setup API) with an in-repo "advanced setup" so the
+# analysis is disciplined the same way ci.yml is (ADR-0019 spirit).
+#
+# Default setup ran on every push:main *and* every PR with NO concurrency
+# group: rapid squash-merges spun up N parallel main analyses, and even
+# docs-only commits got fully scanned. That is pure waste — the PR head is
+# the source we care about and it is already analyzed on `pull_request`;
+# the post-merge push:main re-run only re-scans the exact same source under
+# a new SHA (same rationale ci.yml states for skipping push:main, lines
+# ~3-7). So: PR + a weekly baseline only, paths-ignore for non-code, and
+# concurrency cancel-in-progress — mirrors ci.yml.
+on:
+  pull_request:
+    paths-ignore:
+      - '**/*.md'
+      - 'docs/**'
+      - '.claude/**'
+      - 'LICENSE'
+  schedule:
+    - cron: '27 4 * * 1'   # weekly baseline scan (Mondays 04:27 UTC)
+  workflow_dispatch:
+
+# Least-privilege GITHUB_TOKEN: CodeQL needs to upload SARIF results
+# (security-events) and read the repo + Actions metadata; nothing else.
+permissions:
+  contents: read
+  security-events: write
+  actions: read
+
+concurrency:
+  group: codeql-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  analyze:
+    name: Analyze (${{ matrix.language }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        language: [actions, java-kotlin]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@v3
+        with:
+          language: ${{ matrix.language }}
+          # build-mode: none for both languages. `actions` needs no build.
+          # java-kotlin: this is an Android/Gradle project, so a full
+          # autobuild would need the Android SDK and is slow/flaky;
+          # build-mode: none is supported for java-kotlin and keeps CodeQL
+          # light (tradeoff: dataflow without a compiled build).
+          build-mode: none
+
+      - name: Perform CodeQL Analysis
+        uses: github/codeql-action/analyze@v3
+        with:
+          category: "/language:${{ matrix.language }}"
