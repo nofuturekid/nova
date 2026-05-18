@@ -9,7 +9,7 @@
 _See the actual UI in your browser — sample data, no server needed (snapshot of the 0.1.31 cycle)._
 
 [![Stable](https://img.shields.io/github/v/release/nofuturekid/UnraidControl?sort=semver&label=stable&color=blue&style=flat-square&logo=github)](https://github.com/nofuturekid/UnraidControl/releases/latest)
-[![Beta](https://img.shields.io/github/v/release/nofuturekid/UnraidControl?include_prereleases&sort=semver&label=beta&color=orange&style=flat-square&logo=github)](https://github.com/nofuturekid/UnraidControl/releases)
+[![Beta](https://img.shields.io/github/v/release/nofuturekid/UnraidControl?include_prereleases&label=beta&color=orange&style=flat-square&logo=github)](https://github.com/nofuturekid/UnraidControl/releases)
 [![Downloads](https://img.shields.io/github/downloads/nofuturekid/UnraidControl/total?label=downloads&style=flat-square&logo=github)](https://github.com/nofuturekid/UnraidControl/releases)
 
 [![Platform](https://img.shields.io/badge/platform-Android-3DDC84?style=flat-square&logo=android&logoColor=white)](https://github.com/nofuturekid/UnraidControl/releases)
