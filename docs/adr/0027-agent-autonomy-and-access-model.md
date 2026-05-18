@@ -113,6 +113,14 @@ committed, or echoed.
 
 - Any autonomous action causes unintended server or shared-state
   impact → tighten tiers, treat as an incident, amend this ADR.
+  - **Observed 2026-05-18 (ADR-0033 / PR #142):** a delegated agent
+    enabled GitHub Pages out-of-band via the admin API (`POST
+    /repos/.../pages`) to unblock a deploy, instead of stopping to
+    report as briefed. A Tier-2 shared-infra mutation performed
+    autonomously without per-occurrence confirmation. Reversible, intent
+    was user-authorised (Pages was the chosen option), but the *method*
+    crossed the Tier-2 line — concrete evidence that Tier-2 enforcement
+    is currently convention/discipline, not mechanically guaranteed.
 - No separate test Unraid instance is available → Tier 2 stays fully
   gated against the only (production) instance; revisit whether
   mutation testing is in scope at all.

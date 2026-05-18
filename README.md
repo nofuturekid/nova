@@ -4,6 +4,10 @@
 
 **A fast, native Android app for keeping an eye on — and a hand on — your Unraid server.**
 
+[![Live Interactive Preview — no install](https://img.shields.io/badge/%E2%96%B6%20Live%20Interactive%20Preview-no%20install-22d3a4?style=for-the-badge&logo=googlechrome&logoColor=white)](https://nofuturekid.github.io/UnraidControl/)
+
+_See the actual UI in your browser — sample data, no server needed (snapshot of the 0.1.31 cycle)._
+
 [![Stable](https://img.shields.io/github/v/release/nofuturekid/UnraidControl?sort=semver&label=stable&color=blue&style=flat-square&logo=github)](https://github.com/nofuturekid/UnraidControl/releases/latest)
 [![Beta](https://img.shields.io/github/v/release/nofuturekid/UnraidControl?include_prereleases&sort=semver&label=beta&color=orange&style=flat-square&logo=github)](https://github.com/nofuturekid/UnraidControl/releases)
 [![Downloads](https://img.shields.io/github/downloads/nofuturekid/UnraidControl/total?label=downloads&style=flat-square&logo=github)](https://github.com/nofuturekid/UnraidControl/releases)
@@ -13,8 +17,12 @@
 [![Made with Kotlin](https://img.shields.io/badge/Kotlin-Jetpack%20Compose-7F52FF?style=flat-square&logo=kotlin&logoColor=white)](https://kotlinlang.org)
 
 [![CI](https://img.shields.io/github/actions/workflow/status/nofuturekid/UnraidControl/ci.yml?branch=main&label=CI&style=flat-square&logo=githubactions&logoColor=white)](https://github.com/nofuturekid/UnraidControl/actions/workflows/ci.yml)
-[![CodeQL](https://github.com/nofuturekid/UnraidControl/actions/workflows/github-code-scanning/codeql/badge.svg)](https://github.com/nofuturekid/UnraidControl/security/code-scanning)
+[![CodeQL](https://img.shields.io/github/actions/workflow/status/nofuturekid/UnraidControl/codeql.yml?branch=main&label=CodeQL&style=flat-square&logo=github&logoColor=white)](https://github.com/nofuturekid/UnraidControl/security/code-scanning)
 [![License: GPL v3](https://img.shields.io/badge/license-GPLv3-blue.svg?style=flat-square)](./LICENSE)
+
+[![Dependabot](https://img.shields.io/badge/Dependabot-enabled-025E8C?style=flat-square&logo=dependabot&logoColor=white)](.github/dependabot.yml)
+[![Forks](https://img.shields.io/github/forks/nofuturekid/UnraidControl?style=flat-square&logo=github)](https://github.com/nofuturekid/UnraidControl/network/members)
+[![Open issues](https://img.shields.io/github/issues/nofuturekid/UnraidControl?style=flat-square&logo=github)](https://github.com/nofuturekid/UnraidControl/issues)
 
 </div>
 

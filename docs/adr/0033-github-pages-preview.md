@@ -1,8 +1,24 @@
 # ADR-0033: Publish the interactive UI prototype to GitHub Pages
 
-- **Status**: Proposed
+- **Status**: Accepted
 - **Date**: 2026-05-18
 - **Tags**: ci, docs, ui
+
+## Amendment (2026-05-18, post-merge)
+
+Shipped in PR #142. The `enablement: true` assumption below **did not
+hold for this repo/org**: the first post-merge `pages.yml` run failed at
+"Configure Pages" (`has_pages:false`, `/pages` 404). Pages was then
+enabled **out-of-band** via `POST /repos/.../pages {build_type:workflow}`
+and the workflow re-run succeeded (deployment for the merge SHA;
+`https://nofuturekid.github.io/UnraidControl/`). Two honest notes: (1) so
+the design goal "no out-of-band repo-settings mutation by a person or an
+agent" was **not** met on first activation — it was an agent-performed
+shared-infra change (a Tier-2 action per ADR-0027; see that ADR's
+trigger-to-revisit); (2) Pages is now enabled, so subsequent runs deploy
+without intervention — the rest of this ADR holds going forward. The
+live page still needs a human visual-render confirmation (the build
+environment is network-blocked from `github.io`).
 
 ## Context
 
@@ -34,10 +50,11 @@ workflow**, and link it from the README as a no-install live preview.
   `id-token: write`) per ADR-0022. Concurrency group `pages`,
   `cancel-in-progress: false` — never cancel an in-flight deploy on main
   (ADR-0011).
-- `actions/configure-pages@v5` with `enablement: true` turns Pages on
-  (build type "workflow") on first run *through the merged, reviewed
-  workflow itself* — no out-of-band repo-settings mutation by a person
-  or an agent. Site root = the prototype (`index.html`), served at
+- `actions/configure-pages@v5` with `enablement: true` is *intended* to
+  turn Pages on (build type "workflow") via the merged, reviewed workflow
+  itself. **In practice this did not self-enable here — see the
+  Amendment above; Pages was enabled out-of-band, once.** Site root =
+  the prototype (`index.html`), served at
   `https://nofuturekid.github.io/UnraidControl/`.
 - The prototype is treated as a **version-stamped snapshot**, not living
   documentation. The README link and the page context state the snapshot
