@@ -26,6 +26,8 @@ It talks to your server through the official Unraid API (the Connect plugin's Gr
 
 ## Screenshots
 
+**Live interactive preview (no install):** <https://nofuturekid.github.io/UnraidControl/> — a clickable prototype of the UI (snapshot of the 0.1.31 cycle; sample data, not a live server).
+
 <div align="center">
 
 | Overview | Docker | Container detail |

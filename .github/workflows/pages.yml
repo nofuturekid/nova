@@ -1,0 +1,49 @@
+name: Pages
+
+# Publishes the self-contained interactive UI prototype
+# (docs/preview/index.html) to GitHub Pages so people can see what the
+# app looks like without installing it. See ADR-0033. This is a UI
+# *snapshot*, not the live Compose app.
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - docs/preview/**
+      - .github/workflows/pages.yml
+  workflow_dispatch:
+
+# Least-privilege (ADR-0022): only what Pages deployment needs.
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# One Pages deployment at a time; never cancel an in-flight deploy on
+# main (ADR-0011 — cancel-in-progress is for PR branches, not main).
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v6
+      - name: Configure Pages
+        # enablement:true turns Pages on (build type "workflow") on the
+        # first run via the merged-and-authorised workflow itself — no
+        # out-of-band repo-settings change. Documented in ADR-0033.
+        uses: actions/configure-pages@v5
+        with:
+          enablement: true
+      - name: Upload preview as Pages artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: docs/preview
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
