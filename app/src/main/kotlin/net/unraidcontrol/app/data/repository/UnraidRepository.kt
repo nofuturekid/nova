@@ -10,6 +10,7 @@ import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.withTimeoutOrNull
 import net.unraidcontrol.app.data.api.ApolloClientFactory
 import net.unraidcontrol.app.data.local.ApiKeyResult
@@ -83,6 +84,25 @@ class UnraidRepository @Inject constructor(
         /** Consecutive poll failures before the UI drops to an Error state. */
         const val TRANSIENT_ERROR_TOLERANCE = 3
     }
+
+    /**
+     * The resolved base URL of the currently active server, or `null` when
+     * there is no server / no usable key (states where [DomainState.Content]
+     * is impossible anyway).
+     *
+     * This is the *server-identity* key. The ViewModel uses it to drop any
+     * [DomainState.Content] still tagged with the previous server's URL the
+     * instant the active server changes — so server A's array / containers /
+     * VMs / metrics are never shown under server B's name while B's first
+     * poll is still in flight (triage #3). It tracks server identity only,
+     * NOT the per-tab gate, so an ordinary tab switch for the *same* server
+     * keeps showing the cached data with no skeleton flash.
+     */
+    val activeBaseUrl: Flow<String?> = servers.activeWithKey
+        .map { active ->
+            if (active == null || active.apiKey.isBlank()) null else activeUrl(active)
+        }
+        .distinctUntilChanged()
 
     // ── Domain polling streams ────────────────────────────────────────
     //

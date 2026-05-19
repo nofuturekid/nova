@@ -15,6 +15,12 @@ release version + date and opens a fresh `[Unreleased]`.
 
 ## [Unreleased]
 
+## [0.1.31-beta8] - 2026-05-18
+
+### Fixed
+- Switching servers no longer briefly shows the previous server's data
+  under the new server's name (#3).
+
 ## [0.1.31-beta7] - 2026-05-18
 
 ### Fixed
@@ -131,7 +137,8 @@ accessibility and visual-consistency pass.
   every poll/refresh (lower overhead, no behaviour change).
 - Internal Android Gradle Plugin cleanup with no user-facing effect.
 
-[Unreleased]: https://github.com/nofuturekid/UnraidControl/compare/v0.1.31-beta7...HEAD
+[Unreleased]: https://github.com/nofuturekid/UnraidControl/compare/v0.1.31-beta8...HEAD
+[0.1.31-beta8]: https://github.com/nofuturekid/UnraidControl/releases/tag/v0.1.31-beta8
 [0.1.31-beta7]: https://github.com/nofuturekid/UnraidControl/releases/tag/v0.1.31-beta7
 [0.1.31-beta6]: https://github.com/nofuturekid/UnraidControl/releases/tag/v0.1.31-beta6
 [0.1.31-beta5]: https://github.com/nofuturekid/UnraidControl/releases/tag/v0.1.31-beta5
