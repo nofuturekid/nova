@@ -219,7 +219,7 @@ External deep review verified against HEAD f86c25f. Tracks below are binding; se
 | 21 | domainStream TRANSIENT_ERROR_TOLERANCE=3 untested | REAL gap | test backlog |
 | 22 | UpdateController.installUpdate re-entrancy untested | REAL gap | test backlog |
 
-- **#6 wontfix:** `UnraidNotification.type` is populated per-item from the server (GraphQlMapper, `NotificationFields.type`); an Archived item has `type == Archive`, so the elvis fallback only fires if the server omits type entirely — it does not derive from the wrong tab. Premise false at HEAD.
+- **#6 wontfix:** `UnraidNotification.type` is populated per-item from the server (GraphQlMapper, `NotificationFields.type`); an Archived item has `type == Archive`, so the elvis fallback only fires if the server omits type entirely — it does not derive from the wrong tab. Premise false at HEAD. (Trivial: `GraphQlMapper.kt` ~:202 has a dead `?.`/`?:` on a non-null `NotificationType` (CI "unnecessary safe call"; #6-adjacent, negligible) — remove opportunistically.)
 - **#11 no action:** ADR-0028 explicitly adopts the `(variant,endpoint,apiKey)` composite key and its stale-entry trade-off; in-memory only.
 - **#14 wontfix:** ADR-0017 `refreshAll()` deliberately warms all domains to shorten the post-pull wait; client is cached (ADR-0028). Intentional, documented.
 

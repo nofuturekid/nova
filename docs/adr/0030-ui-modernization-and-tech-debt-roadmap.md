@@ -351,3 +351,4 @@ UI/M3 debt surfaced by the 2026-05-18 review; in ADR-0030 scope, not ad-hoc — 
 - **F1 — `SettingsScreen` scroll:** plain `Column` (no `verticalScroll`), clips on short screens (≈360×640dp). Add `verticalScroll`/lazy. (triage #13)
 - **F2 — on-accent literal `Color(0xFF06120E)`** at ArrayTab/ContainerDetailSheet(×2)/VmDetailSheet/VmsTab(×2): bypasses `onPrimary`/`onTone()` → invisible on light accents (Rule 13). Route through P1 helpers. (triage #15)
 - **F3 — bespoke `Toggle`** in `SettingsScreen` (hardcoded white thumb, no `Role.Switch`/`toggleable`) → M3 `Switch`. (triage #16)
+- **F4 — `TabRow` deprecated → `PrimaryTabRow`/`SecondaryTabRow`:** `NotificationsSheet` (~:122) uses the deprecated M3 `TabRow`. Swap to the M3 replacement when the roadmap reaches it. (compiler-deprecation surfaced 2026-05-18)
