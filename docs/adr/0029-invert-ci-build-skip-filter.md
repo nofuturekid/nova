@@ -1,9 +1,15 @@
 # ADR-0029: Invert the CI build-skip filter to a build-affecting allowlist
 
-- **Status**: Proposed
+- **Status**: Accepted
 - **Date**: 2026-05-17
 - **Tags**: ci, process
 - **Supersedes**: [ADR-0009](./0009-docs-only-ci-bypass.md) (docs-only CI bypass via deny-list)
+
+> Status reconciled to Accepted 2026-05-18 — the decision has been in force
+> since `ci.yml`'s `Detect build-affecting change` step adopted the
+> build-affecting allowlist (#133: "only `ci.yml` is build-affecting"), and
+> ADR-0009 is already indexed "Superseded by ADR-0029". ADR was merged as
+> Proposed by a process slip.
 
 ## Amendment 2026-05-17 — only `ci.yml` among workflows is build-affecting
 

@@ -1,8 +1,13 @@
 # ADR-0028: Cache Apollo clients per (server, variant) in the factory
 
-- **Status**: Proposed
+- **Status**: Accepted
 - **Date**: 2026-05-17
 - **Tags**: data, performance, api
+
+> Status reconciled to Accepted 2026-05-18 — the decision has been in force
+> since `ApolloClientFactory` shipped the per-`(variant, endpoint, apiKey)`
+> `ConcurrentHashMap` client cache (triage #11: "already accepted verbatim").
+> ADR was merged as Proposed by a process slip.
 
 ## Context
 

@@ -1,8 +1,14 @@
 # ADR-0032: In-app notification actions (archive / unread / delete)
 
-- **Status**: Proposed
+- **Status**: Accepted
 - **Date**: 2026-05-17
 - **Tags**: ui, data
+
+> Status reconciled to Accepted 2026-05-18 — the decision has been in force
+> since in-app notification actions (archive / unread / delete + Unread/
+> Archived tabs and bell badge) shipped through the 0.1.31 betas into
+> **v0.1.31 stable** and were maintainer device-accepted. ADR was merged as
+> Proposed by a process slip.
 
 ## Context
 

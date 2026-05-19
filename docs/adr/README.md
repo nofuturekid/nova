@@ -62,11 +62,11 @@ ADRs live under `docs/` so the CI docs-only bypass applies — pure-ADR PRs comp
 | [0025](./0025-dependabot-advisory-radar.md) | Dependabot as a low-noise advisory radar (no auto-merge) | Accepted |
 | [0026](./0026-graphql-subscriptions-hybrid.md) | GraphQL subscriptions for select domains (hybrid with polling) | Deprecated (provisional; revisit per ADR-0027) |
 | [0027](./0027-agent-autonomy-and-access-model.md) | Agent autonomy & access model (tiered) | Proposed |
-| [0028](./0028-cache-apollo-clients-in-factory.md) | Cache Apollo clients per (server, variant) in the factory | Proposed |
-| [0029](./0029-invert-ci-build-skip-filter.md) | Invert the CI build-skip filter to a build-affecting allowlist | Proposed |
+| [0028](./0028-cache-apollo-clients-in-factory.md) | Cache Apollo clients per (server, variant) in the factory | Accepted |
+| [0029](./0029-invert-ci-build-skip-filter.md) | Invert the CI build-skip filter to a build-affecting allowlist | Accepted |
 | [0030](./0030-ui-modernization-and-tech-debt-roadmap.md) | UI modernization & tech-debt roadmap (phased) | Proposed |
-| [0031](./0031-curated-changelog.md) | Curated CHANGELOG.md drives release notes | Proposed |
-| [0032](./0032-notifications-actions.md) | In-app notification actions (archive / unread / delete) | Proposed |
+| [0031](./0031-curated-changelog.md) | Curated CHANGELOG.md drives release notes | Accepted |
+| [0032](./0032-notifications-actions.md) | In-app notification actions (archive / unread / delete) | Accepted |
 | [0033](./0033-github-pages-preview.md) | Publish the interactive UI prototype to GitHub Pages | Accepted |
 | [0034](./0034-update-and-data-at-rest-hardening.md) | Verify the update APK; harden data-at-rest / transport | Accepted |
 | [0035](./0035-apikey-store-decrypt-failure-semantics.md) | Distinguish absent vs. undecryptable stored API keys (amends ADR-0024) | Accepted |
