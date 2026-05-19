@@ -47,8 +47,13 @@ The retention policy is:
    restated. Never `--cleanup-tag`; compare-links must keep resolving.
 2. **Every stable `vX.Y.Z` Release entry is kept** — this is the
    canonical, installable version history; it is never pruned.
-3. **Only the single newest pre-release entry is kept** — older
-   `-betaN` / `-rcN` entries of completed cycles are superseded.
+3. **Only the single newest pre-release entry is kept, and only while
+   it is ahead of the latest stable** — it is the live testing pointer.
+   Older `-betaN` / `-rcN` entries of completed cycles are superseded.
+   Once a cycle is promoted to a stable `vX.Y.Z`, ALL of that cycle's
+   (and older) pre-release entries are pruned: the stable supersedes
+   even the newest beta, since there is no testing pointer ahead of the
+   stable left to retain.
 4. **Superseded beta/rc Release *entries* of completed cycles are
    pruned** (`gh release delete <tag> --yes`). Their git tags remain
    (rule 1); their attached APK / mapping assets go with the entry —
