@@ -37,7 +37,9 @@ import org.junit.Test
  * failure#3 assertions break.
  *
  * Collector style mirrors UpdateControllerTest / StaleCrossServerTest
- * (launch into a list + advanceUntilIdle on a virtual scheduler); JUnit +
+ * (launch into a list, driven on a virtual scheduler). Because the poll loop
+ * is infinite, the scheduler is stepped one poll interval at a time via
+ * advanceTimeBy + runCurrent (advanceUntilIdle would never return). JUnit +
  * kotlinx-coroutines-test only, no new deps.
  */
 @OptIn(ExperimentalCoroutinesApi::class)
@@ -68,7 +70,11 @@ class TransientErrorToleranceTest {
         // ── Iteration 1: a success → state is Content(payload).
         // WHY: a fresh successful poll must surface its payload; this also
         // arms the grace window (the loop now has a "last good Content").
-        scope.testScheduler.advanceUntilIdle()
+        // NOTE: the poll loop is `while(true)`, so advanceUntilIdle() would
+        // never return (a delay() is always scheduled). With the unconfined
+        // test dispatcher `launch` runs eagerly to the first delay(), so
+        // runCurrent() settles exactly the iteration-1 emission.
+        scope.testScheduler.runCurrent()
         assertEquals(good, emissions.last())
 
         // ── Iteration 2: failure #1 (within tolerance) → still Content.
