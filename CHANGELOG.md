@@ -15,6 +15,12 @@ release version + date and opens a fresh `[Unreleased]`.
 
 ## [Unreleased]
 
+## [0.1.31-beta9] - 2026-05-18
+
+### Fixed
+- In-app update no longer hangs if the install result broadcast arrives
+  before the app finishes (re)starting (#10).
+
 ## [0.1.31-beta8] - 2026-05-18
 
 ### Fixed
@@ -137,7 +143,8 @@ accessibility and visual-consistency pass.
   every poll/refresh (lower overhead, no behaviour change).
 - Internal Android Gradle Plugin cleanup with no user-facing effect.
 
-[Unreleased]: https://github.com/nofuturekid/UnraidControl/compare/v0.1.31-beta8...HEAD
+[Unreleased]: https://github.com/nofuturekid/UnraidControl/compare/v0.1.31-beta9...HEAD
+[0.1.31-beta9]: https://github.com/nofuturekid/UnraidControl/releases/tag/v0.1.31-beta9
 [0.1.31-beta8]: https://github.com/nofuturekid/UnraidControl/releases/tag/v0.1.31-beta8
 [0.1.31-beta7]: https://github.com/nofuturekid/UnraidControl/releases/tag/v0.1.31-beta7
 [0.1.31-beta6]: https://github.com/nofuturekid/UnraidControl/releases/tag/v0.1.31-beta6
