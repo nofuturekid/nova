@@ -115,12 +115,27 @@ class MainViewModel @Inject constructor(
             visible && (tab == MainTab.Overview || tab == MainTab.Docker || sheet)
         }
 
+    // Triage #3: the previous server's last Content survives in stateIn's
+    // cache (and in any in-flight poll) across an active-server switch. We
+    // must never show server A's data under server B's name. The cold
+    // domainStream can't emit Loading on switch without also flashing a
+    // skeleton on every same-server tab toggle — the screen always collects
+    // every *State, so the gate flip alone re-collects the cold flow on each
+    // tab change (no stateIn timeout is involved), and an extra Loading there
+    // would regress ADR-0017's no-skeleton-flash-on-re-entry. So we reset on
+    // SERVER IDENTITY here instead: any Content tagged with a serverBaseUrl
+    // that isn't the current active server's URL is replaced with Loading
+    // until a matching Content arrives. A same-server tab switch keeps the
+    // cached Content (its serverBaseUrl still matches) — no new flash.
     private fun <T> gatedStream(
         gate: Flow<Boolean>,
         stream: Flow<DomainState<T>>,
-    ): StateFlow<DomainState<T>> = gate
-        .distinctUntilChanged()
-        .flatMapLatest { active -> if (active) stream else emptyFlow() }
+    ): StateFlow<DomainState<T>> = combine(
+        gate
+            .distinctUntilChanged()
+            .flatMapLatest { active -> if (active) stream else emptyFlow() },
+        unraid.activeBaseUrl,
+    ) { state, activeUrl -> resetIfForeignServer(state, activeUrl) }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), DomainState.Loading)
 
     val infoState: StateFlow<DomainState<ServerInfo>> =
@@ -311,4 +326,26 @@ class MainViewModel @Inject constructor(
 
     suspend fun containerLogs(id: String): List<net.unraidcontrol.app.data.model.LogLine> =
         unraid.containerLogs(id)
+
+    internal companion object {
+        /**
+         * Server-identity guard for [gatedStream] (triage #3). A [state]
+         * that is [DomainState.Content] tagged with a [serverBaseUrl] other
+         * than the currently [activeUrl] belongs to a server we just switched
+         * away from — surface [DomainState.Loading] instead so server A's
+         * data is never shown under server B's name. Non-Content states
+         * ([NoServer]/[Error]/[Loading]) and Content already matching the
+         * active server pass through unchanged (so a same-server tab switch
+         * keeps its cached Content with no skeleton flash).
+         */
+        fun <T> resetIfForeignServer(
+            state: DomainState<T>,
+            activeUrl: String?,
+        ): DomainState<T> =
+            if (state is DomainState.Content<T> && state.serverBaseUrl != activeUrl) {
+                DomainState.Loading
+            } else {
+                state
+            }
+    }
 }
