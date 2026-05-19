@@ -112,6 +112,14 @@ release (CI/infra + ADR only).
   intentional and cheap (no compile), the minimum needed for the Security
   tab. The default-branch `java-kotlin` findings still lag up to a week
   (weekly schedule), an accepted advisory-scanner trade-off.
+- **Known/expected consequence:** GitHub code-scanning's "1 configuration
+  not found / cannot determine PR-introduced alerts for `java-kotlin`"
+  warning on PRs is EXPECTED and intentional — PRs run the `actions`-only
+  config by design (PR #130 cost decision, preserved by decision 4), so
+  no per-PR `java-kotlin` baseline exists to diff against. Do **not**
+  "fix" this by adding `java-kotlin` to per-PR runs; the Security-tab
+  default-branch baseline is covered by `on.push: main` (decision 4) plus
+  the weekly `java-kotlin` schedule run (decision 4 / PR #130).
 
 **Trigger to revisit**
 - The `test` job materially slows CI (becomes the wall-time long pole or

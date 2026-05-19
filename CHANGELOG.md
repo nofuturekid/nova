@@ -15,6 +15,62 @@ release version + date and opens a fresh `[Unreleased]`.
 
 ## [Unreleased]
 
+## [0.1.31] - 2026-05-18
+
+Stable promotion of the whole 0.1.31 cycle (beta1…beta9), device-verified.
+This release delivers actionable notifications, a security-hardening pass
+for app updates and data-at-rest, and a batch of code-review fixes.
+
+### Added
+- The notifications sheet now has Unread and Archived tabs showing all
+  notifications (including info-level ones). You can mark notifications
+  as read or archived, restore archived ones, delete them individually,
+  archive all unread at once, or delete all archived at once.
+
+### Changed
+- The notifications indicator in the top bar now shows a bell icon
+  instead of an information (ⓘ) symbol, and its badge counts every
+  unread notification (info-level ones are no longer omitted, so the
+  number matches the list).
+
+### Security
+- App updates are now verified before install: the downloaded APK must
+  match both the expected byte size and a constant-time SHA-256 of the
+  GitHub release asset, the download URL must be HTTPS, and a mismatch
+  fails closed (nothing is installed). (ADR-0034)
+- Network security hardening: cleartext HTTP still works for your local
+  Unraid server on the LAN, but the GitHub update hosts are now
+  HTTPS-only. (ADR-0034)
+- Backup and device-transfer now exclude the API-key material and your
+  server URLs, so they are no longer copied into a cloud backup or a
+  new-device transfer. (ADR-0034)
+- The API-key store now tells "no key saved" apart from "a key is saved
+  but can't be decrypted": the second case shows a clear re-enter prompt
+  instead of a misleading "Missing API key". (ADR-0035, amends ADR-0024)
+
+### Fixed
+- Switching servers no longer briefly shows the previous server's data
+  under the new server's name.
+- The notifications list now loads correctly against real Unraid servers
+  (fixed required pagination parameters).
+- The delete-notification confirmation dialog no longer stays on screen
+  after deleting (both active and archived notifications).
+- The container log tab's live-tail loop no longer swallows coroutine
+  cancellation, so closing the sheet or stopping the container stops the
+  loop cleanly without a stale log overwrite.
+- HTTP request logging is now disabled in release builds (it was only
+  ever meant for debug).
+- The Add/Edit-server form no longer retains a previous session's state:
+  opening it always shows exactly the selected server (blank for Add).
+- If the install-permission screen can't be opened on a device (a ROM
+  without that settings activity), the updater now shows an error
+  instead of silently resetting with no feedback.
+- The Docker poll gate now updates without a one-frame lag when the
+  container sheet opens or closes, avoiding a needless poll
+  cancel/restart.
+- In-app update no longer hangs if the install-result broadcast arrives
+  before the app finishes (re)starting.
+
 ## [0.1.31-beta9] - 2026-05-18
 
 ### Fixed
@@ -143,7 +199,8 @@ accessibility and visual-consistency pass.
   every poll/refresh (lower overhead, no behaviour change).
 - Internal Android Gradle Plugin cleanup with no user-facing effect.
 
-[Unreleased]: https://github.com/nofuturekid/UnraidControl/compare/v0.1.31-beta9...HEAD
+[Unreleased]: https://github.com/nofuturekid/UnraidControl/compare/v0.1.31...HEAD
+[0.1.31]: https://github.com/nofuturekid/UnraidControl/releases/tag/v0.1.31
 [0.1.31-beta9]: https://github.com/nofuturekid/UnraidControl/releases/tag/v0.1.31-beta9
 [0.1.31-beta8]: https://github.com/nofuturekid/UnraidControl/releases/tag/v0.1.31-beta8
 [0.1.31-beta7]: https://github.com/nofuturekid/UnraidControl/releases/tag/v0.1.31-beta7

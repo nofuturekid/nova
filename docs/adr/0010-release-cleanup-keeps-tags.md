@@ -34,7 +34,30 @@ gh release delete <tag> --yes
 
 After step 2 the compare-link rendering on existing releases recovers automatically.
 
-## Consequences
+## Amendment 2026-05-18 — release-entry retention policy
+
+The original decision covers *tags* (always kept). This amendment makes
+the durable convention for which **GitHub Release entries** are kept
+explicit, so trimming isn't re-litigated each time the `/releases` page
+gets cluttered. Status stays **Accepted**.
+
+The retention policy is:
+
+1. **All git tags are always kept** — the original ADR-0010 rule,
+   restated. Never `--cleanup-tag`; compare-links must keep resolving.
+2. **Every stable `vX.Y.Z` Release entry is kept** — this is the
+   canonical, installable version history; it is never pruned.
+3. **Only the single newest pre-release entry is kept** — older
+   `-betaN` / `-rcN` entries of completed cycles are superseded.
+4. **Superseded beta/rc Release *entries* of completed cycles are
+   pruned** (`gh release delete <tag> --yes`). Their git tags remain
+   (rule 1); their attached APK / mapping assets go with the entry —
+   acceptable, CI build artifacts expire on their own retention anyway,
+   and the stable promotion of that cycle carries the shipped APK.
+
+The prune itself is a **separate maintainer-run housekeeping step**,
+never automated and never deletes tags. This amendment records the
+convention only; performing it is out of band.
 
 **Positive**
 - Compare-links stay valid forever, even as old releases are trimmed.

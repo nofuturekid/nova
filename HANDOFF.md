@@ -38,7 +38,11 @@ Native Android client for Unraid NAS servers (Kotlin + Jetpack Compose, Apollo G
 | v0.1.28 | release | Stable promotion of the whole 0.1.28 cycle, device-verified |
 | v0.1.29-beta1…beta7 | pre-release | M3 type-scale migration; Docker-logs Dark/Light; Theme-mode **Dark/Light/System**; Dependabot adopted (ADR-0025); **notifications bell+badge+sheet**; UI polish (changelog typo, overview cards, banner); system-bar contrast vs app theme |
 | v0.1.29-beta8…beta13 | pre-release | Container-sheet **log live-tail + pull-to-refresh**; Phase E GraphQL-subscription pilot E0+E1 (ADR-0026) — WSS transport works but reverted (no subscribe-snapshot, server-side FS-watcher); back to polling; **ADR-0027** agent autonomy/access model |
-| **v0.1.29** | **release (Latest)** | Stable promotion of the 0.1.29 cycle (polling-only; container-sheet live-tail/pull-to-refresh; Phase E evaluated → provisionally parked per ADR-0026/0027) |
+| v0.1.29 | release | Stable promotion of the 0.1.29 cycle (polling-only; container-sheet live-tail/pull-to-refresh; Phase E evaluated → provisionally parked per ADR-0026/0027) |
+| v0.1.30-beta1…beta7 | pre-release | M3 modernization roadmap (ADR-0030): standard Material-3 components throughout; accessibility + visual-consistency pass; AGP cleanup; Apollo-client reuse |
+| v0.1.30 | release | Stable promotion of the whole 0.1.30 cycle, device-verified |
+| v0.1.31-beta1…beta9 | pre-release | Notifications actions + Unread/Archived tabs + bell badge (ADR-0032); security hardening — verified APK install, network-security config, backup exclusions, key-decrypt re-enter (ADR-0034/0035); code-review triage fixes; CI-governance (ADR-0036) |
+| **v0.1.31** | **release (Latest)** | Stable promotion of the whole 0.1.31 cycle (beta1…beta9 maintainer device-accepted): notifications actions, security hardening (ADR-0034/0035), code-review triage fixes, CI governance (ADR-0036) |
 
 ## Stack
 
