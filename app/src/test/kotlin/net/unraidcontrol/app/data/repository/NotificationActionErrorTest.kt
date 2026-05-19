@@ -1,6 +1,7 @@
 package net.unraidcontrol.app.data.repository
 
 import com.apollographql.apollo.exception.ApolloException
+import com.apollographql.apollo.exception.ApolloNetworkException
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
@@ -77,7 +78,7 @@ class NotificationActionErrorTest {
         try {
             UnraidRepository.runNotificationActionFlow(
                 resolveClient = { FakeClient },
-                mutate = { throw ApolloException("boom: socket closed") },
+                mutate = { throw ApolloNetworkException("boom: socket closed") },
                 recalculate = { recalcRan = true },
                 nudge = { nudged = true },
             )
@@ -152,7 +153,7 @@ class NotificationActionErrorTest {
         UnraidRepository.runNotificationActionFlow(
             resolveClient = { FakeClient },
             mutate = { mutateRan = true },
-            recalculate = { throw ApolloException("recalc down") },
+            recalculate = { throw ApolloNetworkException("recalc down") },
             nudge = { nudged = true },
         )
 
