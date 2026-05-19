@@ -56,6 +56,14 @@ class UpdateRepository @Inject constructor() {
                     .firstOrNull { (v, _, _) -> v > current }
                     ?: return@withContext UpdateState.UpToDate
                 val (_, rel, apk) = match
+                // Defence in depth against a MITM that rewrites the asset
+                // URL to plain HTTP: refuse a non-https download URL up
+                // front (fail closed). See ADR-0034 #1.
+                if (!apk.browserDownloadUrl.startsWith("https://", ignoreCase = true)) {
+                    return@withContext UpdateState.Error(
+                        "Refusing update: download URL is not HTTPS",
+                    )
+                }
                 UpdateState.Available(
                     UpdateInfo(
                         version = rel.tagName.removePrefix("v"),
@@ -63,6 +71,7 @@ class UpdateRepository @Inject constructor() {
                         releaseUrl = rel.htmlUrl,
                         downloadUrl = apk.browserDownloadUrl,
                         sizeBytes = apk.size,
+                        digest = apk.digest,
                         isPrerelease = rel.prerelease,
                         releaseNotes = rel.body.orEmpty(),
                         publishedAtEpochMs = parseIso8601(rel.publishedAt),
@@ -97,6 +106,9 @@ class UpdateRepository @Inject constructor() {
         val name: String,
         val size: Long = 0,
         val browser_download_url: String,
+        // Present on current GitHub (e.g. "sha256:<hex>"); null on older
+        // assets uploaded before GitHub digested release assets.
+        val digest: String? = null,
     ) {
         val browserDownloadUrl: String get() = browser_download_url
     }

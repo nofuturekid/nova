@@ -68,3 +68,5 @@ ADRs live under `docs/` so the CI docs-only bypass applies — pure-ADR PRs comp
 | [0031](./0031-curated-changelog.md) | Curated CHANGELOG.md drives release notes | Proposed |
 | [0032](./0032-notifications-actions.md) | In-app notification actions (archive / unread / delete) | Proposed |
 | [0033](./0033-github-pages-preview.md) | Publish the interactive UI prototype to GitHub Pages | Accepted |
+| [0034](./0034-update-and-data-at-rest-hardening.md) | Verify the update APK; harden data-at-rest / transport | Accepted |
+| [0035](./0035-apikey-store-decrypt-failure-semantics.md) | Distinguish absent vs. undecryptable stored API keys (amends ADR-0024) | Accepted |

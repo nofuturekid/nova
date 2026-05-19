@@ -7,6 +7,12 @@ data class UpdateInfo(
     val releaseUrl: String,      // browser URL of the GitHub Release page
     val downloadUrl: String,     // direct APK asset URL
     val sizeBytes: Long,
+    /**
+     * GitHub asset content digest, e.g. "sha256:<hex>". Null on older
+     * assets GitHub did not digest (pre-digest releases). When null the
+     * install path falls back to the size check only — see ADR-0034.
+     */
+    val digest: String? = null,
     val isPrerelease: Boolean,
     val releaseNotes: String,
     /** Release publish time as epoch millis; null if GitHub didn't supply it. */

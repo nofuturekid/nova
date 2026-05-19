@@ -4,6 +4,7 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
+import net.unraidcontrol.app.data.local.ApiKeyResult
 import net.unraidcontrol.app.data.local.ApiKeyStore
 import net.unraidcontrol.app.data.local.SettingsStore
 import net.unraidcontrol.app.data.model.ConnectionMode
@@ -16,6 +17,13 @@ data class ActiveServer(
     val server: Server,
     val mode: ConnectionMode,
     val apiKey: String,
+    /**
+     * Why [apiKey] is blank, when it is (ADR-0035). [ApiKeyResult.Absent]
+     * → no key stored (existing "missing key" path);
+     * [ApiKeyResult.Undecryptable] → ciphertext present but un-decryptable
+     * (distinct re-enter prompt); [ApiKeyResult.Present] → key usable.
+     */
+    val keyState: ApiKeyResult,
 )
 
 @Singleton
@@ -32,7 +40,15 @@ class ServerRepository @Inject constructor(
 
     val activeWithKey: Flow<ActiveServer?> =
         combine(activeServer, connectionMode) { s, mode -> s to mode }.map { (s, mode) ->
-            s?.let { ActiveServer(server = it, mode = mode, apiKey = keys.get(it.id).orEmpty()) }
+            s?.let {
+                val result = keys.getResult(it.id)
+                ActiveServer(
+                    server = it,
+                    mode = mode,
+                    apiKey = (result as? ApiKeyResult.Present)?.key.orEmpty(),
+                    keyState = result,
+                )
+            }
         }
 
     suspend fun upsert(input: Server, apiKey: String): Server {

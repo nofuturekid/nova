@@ -12,6 +12,7 @@ import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.withTimeoutOrNull
 import net.unraidcontrol.app.data.api.ApolloClientFactory
+import net.unraidcontrol.app.data.local.ApiKeyResult
 import net.unraidcontrol.app.data.api.toArrayInfo
 import net.unraidcontrol.app.data.api.toContainers
 import net.unraidcontrol.app.data.api.toLiveMetrics
@@ -150,7 +151,17 @@ class UnraidRepository @Inject constructor(
                     return@flow
                 }
                 if (active.apiKey.isBlank()) {
-                    emit(DomainState.Error("Missing API key for ${active.server.name}"))
+                    // ADR-0035: a stored-but-undecryptable key is NOT the
+                    // same as "no key". Don't flatten it to "missing" —
+                    // tell the user it can no longer be decrypted so they
+                    // re-enter it via the existing Add/Edit server flow.
+                    val msg = if (active.keyState is ApiKeyResult.Undecryptable) {
+                        "Saved API key can no longer be decrypted — " +
+                            "re-enter it for ${active.server.name}"
+                    } else {
+                        "Missing API key for ${active.server.name}"
+                    }
+                    emit(DomainState.Error(msg))
                     return@flow
                 }
                 val url = activeUrl(active)

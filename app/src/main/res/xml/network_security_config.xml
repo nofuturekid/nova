@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  ADR-0034 #2 (hardening).
+
+  Base config keeps cleartext PERMITTED so the user's LAN Unraid server
+  reached over plain HTTP keeps working (the v0.1.2 LAN-HTTP decision
+  stands — do NOT break LAN HTTP). android:usesCleartextTraffic="true"
+  in the manifest stays as-is.
+
+  The GitHub update / transport hosts are pinned to HTTPS-only via
+  per-domain overrides regardless of the global cleartext flag, so a
+  MITM cannot downgrade the update fetch / asset download to HTTP.
+-->
+<network-security-config>
+    <base-config cleartextTrafficPermitted="true" />
+
+    <domain-config cleartextTrafficPermitted="false">
+        <domain includeSubdomains="false">api.github.com</domain>
+        <domain includeSubdomains="false">github.com</domain>
+        <domain includeSubdomains="false">objects.githubusercontent.com</domain>
+    </domain-config>
+</network-security-config>

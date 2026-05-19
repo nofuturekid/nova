@@ -20,6 +20,23 @@ import javax.inject.Singleton
 private val Context.apiKeyDataStore by preferencesDataStore(name = "unraid_keys")
 
 /**
+ * Outcome of reading a stored API key (ADR-0035, an ADR-0024 amendment).
+ *
+ * The two failure cases must be told apart: [Absent] means no key was
+ * ever stored for this server (normal first-run / post-update state);
+ * [Undecryptable] means ciphertext IS present but Tink decryption threw
+ * — e.g. the Android-Keystore master key was lost (factory reset, app
+ * data cleared on some OEMs, Keystore corruption). The latter must NOT
+ * be silently flattened to "missing key": the user needs to re-enter
+ * the key, and the message has to say so.
+ */
+sealed interface ApiKeyResult {
+    data class Present(val key: String) : ApiKeyResult
+    data object Absent : ApiKeyResult
+    data object Undecryptable : ApiKeyResult
+}
+
+/**
  * Per-server Unraid API keys are sensitive — encrypted at rest with Tink
  * AEAD (AES256-GCM). The keyset is persisted by Tink's
  * [AndroidKeysetManager], wrapped by an Android-Keystore master key.
@@ -53,14 +70,27 @@ class ApiKeyStore @Inject constructor(
         Unit
     }
 
-    suspend fun get(serverId: String): String? = withContext(Dispatchers.IO) {
+    /**
+     * Read + decrypt, distinguishing "never stored" from "stored but
+     * undecryptable" (ADR-0035). Never logs key material; on decrypt
+     * failure the exception is swallowed deliberately (it could carry
+     * ciphertext-derived data) and reported only as [Undecryptable].
+     */
+    suspend fun getResult(serverId: String): ApiKeyResult = withContext(Dispatchers.IO) {
         val enc = context.apiKeyDataStore.data.first()[stringPreferencesKey(serverId)]
-            ?: return@withContext null
+            ?: return@withContext ApiKeyResult.Absent
         runCatching {
             val ct = Base64.decode(enc, Base64.NO_WRAP)
             String(aead.decrypt(ct, serverId.toByteArray(Charsets.UTF_8)), Charsets.UTF_8)
-        }.getOrNull()
+        }.fold(
+            onSuccess = { ApiKeyResult.Present(it) },
+            // Ciphertext present but decrypt threw → distinct state, not null.
+            onFailure = { ApiKeyResult.Undecryptable },
+        )
     }
+
+    suspend fun get(serverId: String): String? =
+        (getResult(serverId) as? ApiKeyResult.Present)?.key
 
     suspend fun remove(serverId: String) = withContext(Dispatchers.IO) {
         context.apiKeyDataStore.edit { it.remove(stringPreferencesKey(serverId)) }
