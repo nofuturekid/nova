@@ -69,6 +69,7 @@ class InstallStatusReceiver : BroadcastReceiver() {
          * freshly-constructed UpdateController collector. Not used by
          * production code.
          */
+        @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
         fun resetForTest() { _events.resetReplayCache() }
     }
 }
