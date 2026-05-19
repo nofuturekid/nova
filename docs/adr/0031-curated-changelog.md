@@ -1,10 +1,15 @@
 # ADR-0031: Curated CHANGELOG.md drives release notes
 
-- **Status**: Proposed
+- **Status**: Accepted
 - **Date**: 2026-05-17
 - **Tags**: release, process, docs
 - **Amends**: [ADR-0010](./0010-release-cleanup-keeps-tags.md) (release-notes
   content; ADR-0010's tag-keeping + compare-link rationale is unchanged)
+
+> Status reconciled to Accepted 2026-05-18 — the decision has been in force
+> since every beta/stable release ships a curated `CHANGELOG.md` section that
+> drives the in-app updater notes (e.g. [0.1.31], [0.1.32-beta1]). ADR was
+> merged as Proposed by a process slip.
 
 ## Context
 
