@@ -47,8 +47,12 @@ class UpdateControllerTest {
         val onInstall: (File) -> Unit = {},
     ) : ApkInstaller {
         var installedFile: File? = null
-        override suspend fun download(url: String, onProgress: (Float) -> Unit): File =
-            onDownload(url, onProgress)
+        override suspend fun download(
+            url: String,
+            expectedSizeBytes: Long,
+            expectedDigest: String?,
+            onProgress: (Float) -> Unit,
+        ): File = onDownload(url, onProgress)
         override fun install(apk: File) {
             installedFile = apk
             onInstall(apk)

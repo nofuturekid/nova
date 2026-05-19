@@ -1,9 +1,28 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!--
+  ADR-0034 #12 — corrected for the post-ADR-0024 storage layout. The old
+  rule excluded a stale sharedpref `unraid_keys.xml` that no longer
+  exists. Exclude the real secret/topology files from BOTH cloud backup
+  and device-to-device transfer:
+
+    datastore/unraid_prefs.preferences_pb  — server names + URLs (plaintext topology)
+    datastore/unraid_keys.preferences_pb   — Tink AEAD ciphertext of API keys
+    sharedpref/unraid_apikey_keyset_prefs.xml — Tink keyset (Keystore-wrapped)
+
+  The whole `datastore` directory is also excluded as a fail-safe
+  (ADR-0034) in case a DataStore file name changes.
+-->
 <data-extraction-rules>
     <cloud-backup>
-        <exclude domain="sharedpref" path="unraid_keys.xml" />
+        <exclude domain="file" path="datastore" />
+        <exclude domain="file" path="datastore/unraid_prefs.preferences_pb" />
+        <exclude domain="file" path="datastore/unraid_keys.preferences_pb" />
+        <exclude domain="sharedpref" path="unraid_apikey_keyset_prefs.xml" />
     </cloud-backup>
     <device-transfer>
-        <exclude domain="sharedpref" path="unraid_keys.xml" />
+        <exclude domain="file" path="datastore" />
+        <exclude domain="file" path="datastore/unraid_prefs.preferences_pb" />
+        <exclude domain="file" path="datastore/unraid_keys.preferences_pb" />
+        <exclude domain="sharedpref" path="unraid_apikey_keyset_prefs.xml" />
     </device-transfer>
 </data-extraction-rules>

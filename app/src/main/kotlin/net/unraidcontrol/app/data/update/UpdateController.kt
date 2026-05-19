@@ -70,7 +70,11 @@ class UpdateController(
     fun installUpdate(info: UpdateInfo) = scope.launch {
         _installState.value = InstallState.Downloading(0f)
         try {
-            val apk = installer.download(info.downloadUrl) { progress ->
+            val apk = installer.download(
+                info.downloadUrl,
+                info.sizeBytes,
+                info.digest,
+            ) { progress ->
                 _installState.value = InstallState.Downloading(progress)
             }
             _installState.value = InstallState.Installing

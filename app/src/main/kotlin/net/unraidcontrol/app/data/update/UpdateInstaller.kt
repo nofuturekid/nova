@@ -15,6 +15,7 @@ import okhttp3.Request
 import okio.buffer
 import okio.sink
 import java.io.File
+import java.security.MessageDigest
 import java.util.concurrent.TimeUnit
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -39,8 +40,20 @@ class UpdateInstaller @Inject constructor(
         .readTimeout(60, TimeUnit.SECONDS)
         .build()
 
-    override suspend fun download(url: String, onProgress: (Float) -> Unit): File =
+    override suspend fun download(
+        url: String,
+        expectedSizeBytes: Long,
+        expectedDigest: String?,
+        onProgress: (Float) -> Unit,
+    ): File =
         withContext(Dispatchers.IO) {
+            // Defence in depth: refuse a non-https URL even though
+            // UpdateRepository already screens it (ADR-0034 #1).
+            if (!url.startsWith("https://", ignoreCase = true)) {
+                throw ApkInstaller.VerificationException(
+                    "Refusing to download update over a non-HTTPS URL",
+                )
+            }
             val req = Request.Builder().url(url).build()
             http.newCall(req).execute().use { resp ->
                 if (!resp.isSuccessful) throw RuntimeException("HTTP ${resp.code} downloading APK")
@@ -49,14 +62,19 @@ class UpdateInstaller @Inject constructor(
                 val out = updatesDir().resolve("UnraidControl-update.apk")
                 out.parentFile?.mkdirs()
                 if (out.exists()) out.delete()
+                val sha = MessageDigest.getInstance("SHA-256")
+                var written = 0L
                 body.source().use { src ->
                     out.sink().buffer().use { sink ->
                         val buffer = okio.Buffer()
-                        var written = 0L
                         while (true) {
                             val read = src.read(buffer, 8192L)
                             if (read == -1L) break
-                            sink.write(buffer, read)
+                            // Snapshot exactly the bytes we are about to
+                            // persist, hash them, then write the same bytes.
+                            val chunk = buffer.readByteArray(read)
+                            sha.update(chunk)
+                            sink.write(chunk)
                             written += read
                             onProgress((written.toFloat() / total).coerceIn(0f, 1f))
                         }
@@ -64,6 +82,39 @@ class UpdateInstaller @Inject constructor(
                     }
                 }
                 onProgress(1f)
+
+                // ── Verify BEFORE the bytes can reach PackageInstaller ──
+                // Fail closed: any mismatch deletes the temp file and
+                // throws; install() is never reached. See ADR-0034 #1.
+                if (written != expectedSizeBytes) {
+                    out.delete()
+                    throw ApkInstaller.VerificationException(
+                        "Update size mismatch: expected $expectedSizeBytes bytes, got $written",
+                    )
+                }
+                if (expectedDigest != null) {
+                    val expectedHex = expectedDigest.substringAfter("sha256:", "")
+                        .trim()
+                        .lowercase()
+                    if (expectedHex.isEmpty()) {
+                        out.delete()
+                        throw ApkInstaller.VerificationException(
+                            "Update digest is not a sha256 digest: $expectedDigest",
+                        )
+                    }
+                    val actualHex = sha.digest()
+                        .joinToString("") { "%02x".format(it.toInt() and 0xFF) }
+                    if (!MessageDigest.isEqual(
+                            expectedHex.toByteArray(Charsets.US_ASCII),
+                            actualHex.toByteArray(Charsets.US_ASCII),
+                        )
+                    ) {
+                        out.delete()
+                        throw ApkInstaller.VerificationException(
+                            "Update SHA-256 mismatch — refusing to install",
+                        )
+                    }
+                }
                 out
             }
         }
