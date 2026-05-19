@@ -92,4 +92,8 @@ class UpdateController(
     fun resetInstall() {
         _installState.value = InstallState.Idle
     }
+
+    fun installFailed(message: String) {
+        _installState.value = InstallState.Failed(message)
+    }
 }

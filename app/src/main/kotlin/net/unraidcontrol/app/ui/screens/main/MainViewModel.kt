@@ -212,8 +212,17 @@ class MainViewModel @Inject constructor(
     fun resetInstall() = updateController.resetInstall()
 
     fun launchPermissionIntent(state: InstallState.NeedsPermission, launch: (Intent) -> Unit) {
-        launch(state.intent)
-        updateController.resetInstall()
+        try {
+            launch(state.intent)
+            updateController.resetInstall()
+        } catch (e: android.content.ActivityNotFoundException) {
+            // ROM without the unknown-app-sources settings activity: don't
+            // silently reset to Idle (user gets no feedback). Surface it via
+            // the existing install-error path.
+            updateController.installFailed(
+                "Can't open the install-permission screen on this device"
+            )
+        }
     }
 
     fun toggleConnection() = viewModelScope.launch {
