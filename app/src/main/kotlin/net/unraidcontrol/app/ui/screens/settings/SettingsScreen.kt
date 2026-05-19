@@ -6,6 +6,8 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -22,6 +24,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
@@ -61,6 +64,7 @@ import net.unraidcontrol.app.ui.components.UC
 import net.unraidcontrol.app.ui.components.UnraidButton
 import net.unraidcontrol.app.ui.components.UnraidCard
 import net.unraidcontrol.app.ui.components.UnraidIconButton
+import net.unraidcontrol.app.ui.components.unraidSwitchColors
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import net.unraidcontrol.app.ui.screens.update.UpdateDialog
@@ -187,6 +191,7 @@ fun SettingsScreen(
         Column(
             modifier = Modifier
                 .fillMaxWidth()
+                .verticalScroll(rememberScrollState())
                 .padding(horizontal = d.screenPad, vertical = 8.dp),
             verticalArrangement = Arrangement.spacedBy(d.gap),
         ) {
@@ -373,25 +378,14 @@ private fun SettingRow(label: String, content: @Composable () -> Unit) {
 
 @Composable
 private fun Toggle(value: Boolean, onChange: (Boolean) -> Unit) {
-    val t = UnraidTheme.colors
-    Box(
-        modifier = Modifier
-            .size(width = 44.dp, height = 26.dp)
-            .clip(RoundedCornerShape(13.dp))
-            // Off-track uses t.text alpha so the contrast inverts with the theme:
-            // light-grey dot on dark surface, dark-grey dot on light surface.
-            .background(if (value) t.accent else t.text.copy(alpha = UnraidAlpha.controlTrackOff))
-            .clickable { onChange(!value) },
-        contentAlignment = if (value) Alignment.CenterEnd else Alignment.CenterStart,
-    ) {
-        Box(
-            modifier = Modifier
-                .size(20.dp)
-                .padding(horizontal = 3.dp)
-                .clip(CircleShape)
-                .background(Color.White),
-        )
-    }
+    // M3 Switch (ADR-0030 F3): replaces the bespoke clickable Box thumb.
+    // Brings the M3 look + free `Role.Switch`/toggleable a11y (TalkBack
+    // announces "switch"); colours route through the P1-style helper.
+    Switch(
+        checked = value,
+        onCheckedChange = onChange,
+        colors = unraidSwitchColors(),
+    )
 }
 
 @Composable

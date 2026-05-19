@@ -8,6 +8,8 @@ import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.IconButtonColors
 import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.OutlinedTextFieldDefaults
+import androidx.compose.material3.SwitchColors
+import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.TextFieldColors
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.graphics.Color
@@ -144,6 +146,26 @@ fun unraidProgressColors(
 ): Pair<Color, Color> {
     val t = UnraidTheme.colors
     return (color ?: t.accent) to (track ?: t.muted.copy(alpha = UnraidAlpha.track))
+}
+
+// --- Switch (P-follow-up F3) --------------------------------------------
+
+/** M3 `Switch` colours for the Settings toggle. Mirrors the bespoke
+ *  `Toggle`'s palette via the live theme: checked track = `accent` with
+ *  the contrast-correct on-accent thumb ([onTone]); unchecked track =
+ *  `text @ UnraidAlpha.controlTrackOff` (the former off-track token). No
+ *  hardcoded literals — same single-source-of-truth rule as P1/P3. */
+@Composable
+fun unraidSwitchColors(): SwitchColors {
+    val t = UnraidTheme.colors
+    return SwitchDefaults.colors(
+        checkedThumbColor = onTone(t.accent),
+        checkedTrackColor = t.accent,
+        checkedBorderColor = Color.Transparent,
+        uncheckedThumbColor = t.text,
+        uncheckedTrackColor = t.text.copy(alpha = UnraidAlpha.controlTrackOff),
+        uncheckedBorderColor = Color.Transparent,
+    )
 }
 
 // --- Text field (P7) ----------------------------------------------------

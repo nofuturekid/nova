@@ -54,6 +54,7 @@ import net.unraidcontrol.app.ui.components.UC
 import net.unraidcontrol.app.ui.components.UnraidButton
 import net.unraidcontrol.app.ui.components.UnraidCard
 import net.unraidcontrol.app.ui.components.UnraidIconButton
+import net.unraidcontrol.app.ui.components.onTone
 import net.unraidcontrol.app.ui.theme.JetBrainsMono
 import net.unraidcontrol.app.ui.theme.UnraidAlpha
 import net.unraidcontrol.app.ui.theme.UnraidTheme
@@ -216,7 +217,7 @@ fun ContainerDetailSheet(
                         variant = BtnVariant.Filled,
                         tone = Tone.Info,
                         fullWidth = true,
-                        leadingIcon = { UC.Refresh(14.dp, Color(0xFF06120E)) },
+                        leadingIcon = { UC.Refresh(14.dp, onTone(t.info)) },
                     )
                     Spacer(Modifier.height(8.dp))
                 }
@@ -246,7 +247,7 @@ fun ContainerDetailSheet(
                             modifier = Modifier.weight(1f),
                             variant = BtnVariant.Filled,
                             fullWidth = true,
-                            leadingIcon = { UC.Play(14.dp, Color(0xFF06120E)) },
+                            leadingIcon = { UC.Play(14.dp, onTone(t.accent)) },
                         )
                     }
                 }

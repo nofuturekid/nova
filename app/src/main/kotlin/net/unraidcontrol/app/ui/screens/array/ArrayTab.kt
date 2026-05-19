@@ -38,6 +38,7 @@ import net.unraidcontrol.app.ui.components.UC
 import net.unraidcontrol.app.ui.components.UnraidButton
 import net.unraidcontrol.app.ui.components.UnraidCard
 import net.unraidcontrol.app.ui.components.UnraidProgress
+import net.unraidcontrol.app.ui.components.onTone
 import net.unraidcontrol.app.ui.screens.ErrorState
 import net.unraidcontrol.app.ui.screens.LoadingState
 import net.unraidcontrol.app.ui.screens.NoServerState
@@ -135,7 +136,7 @@ private fun ArrayContent(
                                 onClick = onStart,
                                 label = "Start",
                                 variant = BtnVariant.Filled,
-                                leadingIcon = { UC.Play(14.dp, Color(0xFF06120E)) },
+                                leadingIcon = { UC.Play(14.dp, onTone(t.accent)) },
                             )
                         }
                     }

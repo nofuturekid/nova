@@ -119,7 +119,14 @@ fun NotificationsSheet(
             // ── Segments ──
             val unread = data?.unread.orEmpty()
             val archived = data?.archived.orEmpty()
-            androidx.compose.material3.TabRow(
+            // ADR-0030 F4: deprecated M3 `TabRow` → `SecondaryTabRow`
+            // (semantically correct for in-sheet content-filter tabs;
+            // Primary* is for top-level destinations). containerColor/
+            // contentColor preserved; the M3 secondary indicator now uses
+            // colorScheme.primary (= the P1-wired accent) instead of the
+            // legacy default contentColor — the one intentional, M3-correct
+            // indicator difference.
+            androidx.compose.material3.SecondaryTabRow(
                 selectedTabIndex = tabIndex,
                 containerColor = t.surface2,
                 contentColor = t.text,

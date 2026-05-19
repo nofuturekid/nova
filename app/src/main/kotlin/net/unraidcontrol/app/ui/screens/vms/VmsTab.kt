@@ -38,6 +38,7 @@ import net.unraidcontrol.app.ui.components.SectionLabel
 import net.unraidcontrol.app.ui.components.Tone
 import net.unraidcontrol.app.ui.components.UC
 import net.unraidcontrol.app.ui.components.UnraidCard
+import net.unraidcontrol.app.ui.components.onTone
 import net.unraidcontrol.app.ui.screens.ErrorState
 import net.unraidcontrol.app.ui.screens.LoadingState
 import net.unraidcontrol.app.ui.screens.NoServerState
@@ -147,7 +148,7 @@ private fun VmTile(
                     .background(Brush.linearGradient(listOf(t.accent, Color(0xFF3B82F6))))
                     .alpha(if (dim) 0.55f else 1f),
                 contentAlignment = Alignment.Center,
-            ) { UC.Vm(20.dp, Color(0xFF06120E)) }
+            ) { UC.Vm(20.dp, onTone(t.accent)) }
             Spacer(Modifier.height(8.dp))
             Text(
                 text = vm.name,
@@ -217,7 +218,7 @@ private fun VmCard(
                     .alpha(if (vm.state == VmState.Running) 1f else 0.55f),
                 contentAlignment = Alignment.Center,
             ) {
-                UC.Vm(20.dp, Color(0xFF06120E))
+                UC.Vm(20.dp, onTone(t.accent))
             }
             Column(modifier = Modifier.weight(1f)) {
                 Text(vm.name, color = t.text, style = MaterialTheme.typography.titleSmall)
