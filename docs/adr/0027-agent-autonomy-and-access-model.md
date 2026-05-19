@@ -1,8 +1,36 @@
 # ADR-0027: Agent autonomy & access model
 
-- **Status**: Proposed
+- **Status**: Accepted
 - **Date**: 2026-05-16
 - **Tags**: process, security, tooling
+
+## Acceptance & scope (2026-05-19)
+
+Maintainer-ratified 2026-05-19 with **scope A**.
+
+- **Broader Tier-1 autonomy, in BOTH the sandbox and the maintainer's
+  home system.** Tier-1 work — local build/test/lint/codegen, reading
+  CI, the per-PR branch → CI → merge → tag → release flow, docs/ADRs,
+  read-only server introspection, emulator/device verification — is
+  **act-first + report**: no per-occurrence "may I?" for reversible
+  Tier-1 work in either environment.
+- **Tier 2 and Tier 3 are unchanged and remain fully in force.** Tier-2
+  (any mutating/irreversible action on a server, anything beyond
+  read-only on the production/home NAS, secrets, shared-infra or
+  repo-settings changes, destructive git, publishing beyond the beta
+  flow) still requires explicit per-occurrence maintainer confirmation.
+  Tier-3 (the maintainer's on-device acceptance for UX/behaviour, an ADR
+  for non-obvious decisions, confirm-before-risky) is never delegated.
+  "More autonomy" means **act-first on Tier-1, not** a relaxation of
+  Tier-2/3.
+- **"Accepted" is the ratified operating contract, not a claim that
+  tier enforcement is mechanically guaranteed.** The recorded Tier-2
+  deviation (the ADR-0033 Pages-enablement incident, below) and the
+  Trigger-to-revisit stay fully in force; enforcement remains
+  discipline-based and revisitable. Any future Tier-2 relaxation (e.g.
+  home-NAS mutations without per-occurrence confirm) is a separate,
+  deliberate ADR-0027 amendment — explicitly **out of scope** of this
+  acceptance.
 
 ## Context
 
