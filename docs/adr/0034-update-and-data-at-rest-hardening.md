@@ -117,3 +117,19 @@ DataStore file-name change cannot silently re-expose a secret.
 - ADR-0008 (in-app updater / PackageInstaller), ADR-0024 (DataStore +
   Tink storage), ADR-0027 (Tier-3 on-device acceptance).
 - Sibling: ADR-0035 (key-decrypt failure semantics).
+
+## Device acceptance
+
+v0.1.31-beta6 maintainer device-accepted 2026-05-18 (PR #146). On-device
+1–5 green: LAN cleartext HTTP to local Unraid preserved (#2, no
+regression); HTTPS / remote connectivity OK; the in-app update
+download/verify pipeline runs end-to-end without a false rejection (#1
+happy path). Latent / not on-device-testable, covered by CI + static
+review: the full #1 tamper/verify proof is latent until a later release
+self-updates *away from* beta6 (no post-beta6 signed asset to verify
+against from within beta6 itself), as is the #1 negative / MITM-rejection
+path; #12 backup & device-transfer exclusion of the key material + server
+URLs is verified by static review of the backup/transfer rules, not
+on-device. Tier-3 (ADR-0027) is satisfied for the testable surface; the
+latent paths stay CI/review-covered until a post-beta6 self-update
+exercises them.
