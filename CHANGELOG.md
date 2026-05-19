@@ -15,6 +15,26 @@ release version + date and opens a fresh `[Unreleased]`.
 
 ## [Unreleased]
 
+## [0.1.31-beta6] - 2026-05-18
+
+### Security
+- App updates are now verified before install: the downloaded APK must
+  match both the expected byte size and a constant-time SHA-256 of the
+  GitHub release asset, the download URL must be HTTPS, and a mismatch
+  fails closed (nothing is installed). (ADR-0034, triage #1)
+- Network security hardening: cleartext HTTP still works for your local
+  Unraid server on the LAN, but the GitHub update hosts are now
+  HTTPS-only. (ADR-0034, #2)
+- Backup and device-transfer now exclude the API-key material and your
+  server URLs, so they are no longer copied into a cloud backup or a
+  new-device transfer. (ADR-0034, #12)
+
+### Fixed
+- The API-key store now tells "no key saved" apart from "a key is saved
+  but can't be decrypted": the second case shows a clear re-enter prompt
+  instead of a misleading "Missing API key". (ADR-0035, amends ADR-0024,
+  #8)
+
 ## [0.1.31-beta5] - 2026-05-17
 
 ### Added
@@ -93,7 +113,8 @@ accessibility and visual-consistency pass.
   every poll/refresh (lower overhead, no behaviour change).
 - Internal Android Gradle Plugin cleanup with no user-facing effect.
 
-[Unreleased]: https://github.com/nofuturekid/UnraidControl/compare/v0.1.31-beta5...HEAD
+[Unreleased]: https://github.com/nofuturekid/UnraidControl/compare/v0.1.31-beta6...HEAD
+[0.1.31-beta6]: https://github.com/nofuturekid/UnraidControl/releases/tag/v0.1.31-beta6
 [0.1.31-beta5]: https://github.com/nofuturekid/UnraidControl/releases/tag/v0.1.31-beta5
 [0.1.31-beta4]: https://github.com/nofuturekid/UnraidControl/releases/tag/v0.1.31-beta4
 [0.1.31-beta3]: https://github.com/nofuturekid/UnraidControl/releases/tag/v0.1.31-beta3

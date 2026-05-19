@@ -89,3 +89,16 @@ the opaque `Undecryptable` marker propagates. No key material is logged.
 - HANDOFF "Code-review triage (2026-05-18)" — item #8.
 - Amends **ADR-0024** (API-key storage on DataStore + Tink).
 - Sibling: ADR-0034 (update + data-at-rest hardening).
+
+## Device acceptance
+
+v0.1.31-beta6 maintainer device-accepted 2026-05-18 (PR #146). On-device
+1–5 green: the #8 happy path is exercised — both an existing API key and
+a newly-entered one authenticate against the real Unraid server (the
+`Present` → authenticate flow). Latent / not on-device-testable, covered
+by CI + static review: the `Undecryptable` path (#8) cannot be triggered
+on-device without corrupting the Tink keyset, so the re-enter-prompt
+branch and its distinction from `Absent` (the old misleading "Missing
+API key") are covered by unit tests + static review, not the device run.
+Tier-3 (ADR-0027) is satisfied for the testable surface; the
+undecryptable branch stays test/review-covered.
