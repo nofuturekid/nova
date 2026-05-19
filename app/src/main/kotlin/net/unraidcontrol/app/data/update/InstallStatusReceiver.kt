@@ -39,7 +39,16 @@ class InstallStatusReceiver : BroadcastReceiver() {
     companion object {
         const val ACTION = "net.unraidcontrol.app.action.INSTALL_STATUS"
 
-        private val _events = MutableSharedFlow<InstallEvent>(extraBufferCapacity = 8)
+        // replay = 1 so a collector that subscribes *after* the
+        // PackageInstaller status broadcast has already fired (an in-process
+        // cold-start / restart race during install — #10) still receives the
+        // last install result instead of hanging forever on "Installing".
+        // extraBufferCapacity is kept so the non-suspending tryEmit() in
+        // onReceive() stays lossless.
+        private val _events = MutableSharedFlow<InstallEvent>(
+            replay = 1,
+            extraBufferCapacity = 8,
+        )
         /** Read-only stream consumers (e.g. MainViewModel) listen on. */
         val events: kotlinx.coroutines.flow.SharedFlow<InstallEvent> = _events.asSharedFlow()
 
