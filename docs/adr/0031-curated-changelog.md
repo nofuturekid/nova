@@ -99,3 +99,35 @@ single source of user-facing release notes.
   mechanism" precedent for the un-enforced contributor rule.
 - `CHANGELOG.md`, `.github/workflows/release.yml`.
 - [Keep a Changelog]: https://keepachangelog.com/en/1.1.0/
+
+## Amendment 2026-05-19 — bounded CHANGELOG (collapse betas; no compare-links)
+
+The original decision stands; this bounds what `CHANGELOG.md` retains and
+removes its footer reference-links.
+
+- **Collapse betas on stable promotion.** On stable `vX.Y.Z` promotion,
+  the cycle's `## [X.Y.Z-betaN]` / `## [X.Y.Z-rcN]` sections are folded
+  into the curated `## [X.Y.Z]` rollup and removed from `CHANGELOG.md`.
+  The file retains only `## [Unreleased]` + any *current unpromoted*
+  cycle's beta sections + all stable `## [X.Y.Z]` sections. Per-beta
+  detail stays in git history + tags; the stable rollup is canonical.
+  Symmetric with the [ADR-0010](./0010-release-cleanup-keeps-tags.md)
+  release-entry prune — a stable release supersedes its own betas.
+- **No compare/diff footer links.** The curated CHANGELOG carries no
+  `[x.y.z]: …/compare/…` footer reference-links and no
+  `[Unreleased]: …/compare/…` link. Rationale: the in-app curated notes
+  must not depend on anything prunable — neither git tags (ADR-0010 keeps
+  them, but the CHANGELOG no longer relies on that; defense in depth) nor
+  GitHub Release objects (pruned per ADR-0010). This is a deliberate
+  deviation from the strict [Keep a Changelog] footer-link idiom:
+  robustness > idiom. ADR-0031's value is the curated notes, not the
+  diff URLs. The auto "What's Changed" + compare link that
+  `generate_release_notes: true` appends *to the release body* is
+  unaffected — only the in-repo `CHANGELOG.md` drops its footer links.
+- **Trigger to revisit.** If a clickable per-version history in the
+  CHANGELOG itself becomes required, the only tag-deletion-proof option
+  is commit-SHA compare links (option (i) above) — considered and not
+  chosen here; revisit then.
+
+See [ADR-0010](./0010-release-cleanup-keeps-tags.md) for the tag-keeping
++ release-prune rationale this amendment is symmetric with.
