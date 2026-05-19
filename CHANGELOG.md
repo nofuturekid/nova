@@ -15,6 +15,13 @@ release version + date and opens a fresh `[Unreleased]`.
 
 ## [Unreleased]
 
+## [0.1.32-beta3] - 2026-05-19
+
+### Fixed
+- Double-tapping Install no longer starts two downloads / install
+  sessions — a second install request while one is in progress is
+  ignored (triage #22).
+
 ## [0.1.32-beta2] - 2026-05-19
 
 ### Fixed
@@ -227,7 +234,8 @@ accessibility and visual-consistency pass.
   every poll/refresh (lower overhead, no behaviour change).
 - Internal Android Gradle Plugin cleanup with no user-facing effect.
 
-[Unreleased]: https://github.com/nofuturekid/UnraidControl/compare/v0.1.32-beta2...HEAD
+[Unreleased]: https://github.com/nofuturekid/UnraidControl/compare/v0.1.32-beta3...HEAD
+[0.1.32-beta3]: https://github.com/nofuturekid/UnraidControl/compare/v0.1.32-beta2...v0.1.32-beta3
 [0.1.32-beta2]: https://github.com/nofuturekid/UnraidControl/compare/v0.1.32-beta1...v0.1.32-beta2
 [0.1.32-beta1]: https://github.com/nofuturekid/UnraidControl/releases/tag/v0.1.32-beta1
 [0.1.31]: https://github.com/nofuturekid/UnraidControl/releases/tag/v0.1.31
