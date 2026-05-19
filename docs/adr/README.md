@@ -71,3 +71,4 @@ ADRs live under `docs/` so the CI docs-only bypass applies — pure-ADR PRs comp
 | [0034](./0034-update-and-data-at-rest-hardening.md) | Verify the update APK; harden data-at-rest / transport | Accepted |
 | [0035](./0035-apikey-store-decrypt-failure-semantics.md) | Distinguish absent vs. undecryptable stored API keys (amends ADR-0024) | Accepted |
 | [0036](./0036-ci-governance-tests-cache-codeql.md) | Run unit tests in CI (blocking); basic Gradle cache; CodeQL v4 + default-branch push | Accepted |
+| [0037](./0037-resilient-action-launchers.md) | Resilient action launchers — failed user actions surface, never crash | Accepted |

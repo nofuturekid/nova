@@ -15,6 +15,14 @@ release version + date and opens a fresh `[Unreleased]`.
 
 ## [Unreleased]
 
+## [0.1.32-beta2] - 2026-05-19
+
+### Fixed
+- Notification & server actions (archive/delete, container/VM/array/parity
+  start-stop, …) no longer crash or silently fail on a flaky connection —
+  failures surface a transient message and the UI reconciles with the
+  server (triage #19, ADR-0037).
+
 ## [0.1.32-beta1] - 2026-05-18
 
 ADR-0030 post-P7 follow-ups (F1–F4): a small Material 3 modernization and
@@ -219,7 +227,8 @@ accessibility and visual-consistency pass.
   every poll/refresh (lower overhead, no behaviour change).
 - Internal Android Gradle Plugin cleanup with no user-facing effect.
 
-[Unreleased]: https://github.com/nofuturekid/UnraidControl/compare/v0.1.32-beta1...HEAD
+[Unreleased]: https://github.com/nofuturekid/UnraidControl/compare/v0.1.32-beta2...HEAD
+[0.1.32-beta2]: https://github.com/nofuturekid/UnraidControl/compare/v0.1.32-beta1...v0.1.32-beta2
 [0.1.32-beta1]: https://github.com/nofuturekid/UnraidControl/releases/tag/v0.1.32-beta1
 [0.1.31]: https://github.com/nofuturekid/UnraidControl/releases/tag/v0.1.31
 [0.1.31-beta9]: https://github.com/nofuturekid/UnraidControl/releases/tag/v0.1.31-beta9

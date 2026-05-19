@@ -4,10 +4,16 @@ import android.content.Intent
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CoroutineExceptionHandler
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
@@ -57,6 +63,69 @@ class MainViewModel @Inject constructor(
     private val updates: UpdateRepository,
     private val updateController: UpdateController,
 ) : ViewModel() {
+
+    // ── Resilient action seam (triage #19, ADR-0037) ──────────────────
+    //
+    // Every user-initiated mutation (notification archive/delete, docker /
+    // VM / array / parity start-stop, …) used to be a bare
+    // `viewModelScope.launch { unraid.<action>() }` with NO try/catch and
+    // NO global handler. A failing action over a flaky link (network drop,
+    // GraphQL error) was an uncaught throwable in viewModelScope — it could
+    // crash the whole app on a routine tap, with zero user feedback.
+    //
+    // Fix: route ALL such launchers through the single [launchAction] seam
+    // below. On any Throwable it (a) re-throws CancellationException so
+    // structured-concurrency cancellation is never swallowed, and (b) for
+    // any other failure surfaces ONE transient, non-fatal message via
+    // [userMessages] and returns — it never propagates to crash. The
+    // established action→nudge/refetch convergence (UnraidRepository) still
+    // reconciles the UI to server truth on the next poll, so the user's
+    // intent is not silently lost — only the crash is.
+
+    private val _userMessages = MutableSharedFlow<String>(extraBufferCapacity = 1)
+
+    /** Transient, non-fatal action-failure messages for the UI to show in
+     *  a snackbar. Lossless `tryEmit` via extraBufferCapacity; replay 0 so
+     *  a returning subscriber doesn't re-show a stale error. */
+    val userMessages: SharedFlow<String> = _userMessages.asSharedFlow()
+
+    /**
+     * Defense-in-depth safety net (ADR-0037 §3). [launchAction] already
+     * handles the expected failure path; this catches anything that still
+     * slips through (a throwing launcher that bypassed the seam, a bug in
+     * the seam itself) so it can never tear down the process. It does NOT
+     * replace [launchAction] — a handled action still gets a user signal.
+     */
+    private val actionExceptionHandler = CoroutineExceptionHandler { _, e ->
+        if (e is CancellationException) return@CoroutineExceptionHandler
+        _userMessages.tryEmit(ACTION_FAILED_MESSAGE)
+    }
+
+    /**
+     * Run a throwing repository action without ever crashing the app.
+     * CancellationException is re-thrown (structured concurrency must keep
+     * working — e.g. the scope being cleared). Any other Throwable is
+     * caught: a brief [message] is emitted and the coroutine ends normally.
+     * The repository's post-action nudge/refetch still converges the UI to
+     * server truth on the next poll. [before]/[finally] mirror the prior
+     * call sites' pre/post bookkeeping (e.g. the updating-pill set).
+     */
+    private fun launchAction(
+        message: String = ACTION_FAILED_MESSAGE,
+        before: () -> Unit = {},
+        finally: () -> Unit = {},
+        action: suspend () -> Unit,
+    ): Job {
+        before()
+        return viewModelScope.launch(actionExceptionHandler) {
+            runResilientAction(
+                message = message,
+                emit = { _userMessages.tryEmit(it) },
+                onFinally = finally,
+                action = action,
+            )
+        }
+    }
 
     // ── Server identity + settings (cheap, always on) ─────────────────
 
@@ -253,22 +322,20 @@ class MainViewModel @Inject constructor(
         unraid.refreshAll()
     }
 
-    fun startArray() = viewModelScope.launch { unraid.startArray() }
-    fun stopArray()  = viewModelScope.launch { unraid.stopArray() }
+    fun startArray() = launchAction { unraid.startArray() }
+    fun stopArray()  = launchAction { unraid.stopArray() }
 
-    fun startContainer(id: String)   = viewModelScope.launch { unraid.startContainer(id) }
-    fun stopContainer(id: String)    = viewModelScope.launch { unraid.stopContainer(id) }
-    fun restartContainer(id: String) = viewModelScope.launch { unraid.restartContainer(id) }
-    fun pauseContainer(id: String)   = viewModelScope.launch { unraid.pauseContainer(id) }
+    fun startContainer(id: String)   = launchAction { unraid.startContainer(id) }
+    fun stopContainer(id: String)    = launchAction { unraid.stopContainer(id) }
+    fun restartContainer(id: String) = launchAction { unraid.restartContainer(id) }
+    fun pauseContainer(id: String)   = launchAction { unraid.pauseContainer(id) }
 
     fun updateContainer(id: String) {
-        _updatingContainerIds.update { it + id }
-        viewModelScope.launch {
-            try {
-                unraid.updateContainer(id)
-            } finally {
-                _updatingContainerIds.update { it - id }
-            }
+        launchAction(
+            before = { _updatingContainerIds.update { it + id } },
+            finally = { _updatingContainerIds.update { it - id } },
+        ) {
+            unraid.updateContainer(id)
         }
     }
 
@@ -287,38 +354,36 @@ class MainViewModel @Inject constructor(
             ?.map { it.id }
             ?: return
         if (ids.isEmpty()) return
-        _updatingContainerIds.update { it + ids }
-        viewModelScope.launch {
-            try {
-                unraid.updateAllContainers()
-            } finally {
-                _updatingContainerIds.update { it - ids.toSet() }
-            }
+        launchAction(
+            before = { _updatingContainerIds.update { it + ids } },
+            finally = { _updatingContainerIds.update { it - ids.toSet() } },
+        ) {
+            unraid.updateAllContainers()
         }
     }
 
-    fun startVm(id: String)            = viewModelScope.launch { unraid.startVm(id) }
-    fun stopVm(id: String, force: Boolean) = viewModelScope.launch { unraid.stopVm(id, force) }
-    fun pauseVm(id: String)            = viewModelScope.launch { unraid.pauseVm(id) }
-    fun resumeVm(id: String)           = viewModelScope.launch { unraid.resumeVm(id) }
-    fun rebootVm(id: String)           = viewModelScope.launch { unraid.rebootVm(id) }
-    fun resetVm(id: String)            = viewModelScope.launch { unraid.resetVm(id) }
+    fun startVm(id: String)            = launchAction { unraid.startVm(id) }
+    fun stopVm(id: String, force: Boolean) = launchAction { unraid.stopVm(id, force) }
+    fun pauseVm(id: String)            = launchAction { unraid.pauseVm(id) }
+    fun resumeVm(id: String)           = launchAction { unraid.resumeVm(id) }
+    fun rebootVm(id: String)           = launchAction { unraid.rebootVm(id) }
+    fun resetVm(id: String)            = launchAction { unraid.resetVm(id) }
 
     // ── Notification actions ──────────────────────────────────────────
     // The repository nudges the notifications stream after each action, so
     // notificationsState (and the bell badge derived from it) refreshes
     // automatically — no local state mutation needed here.
-    fun archiveNotification(id: String) = viewModelScope.launch { unraid.archiveNotification(id) }
-    fun unreadNotification(id: String)  = viewModelScope.launch { unraid.unreadNotification(id) }
+    fun archiveNotification(id: String) = launchAction { unraid.archiveNotification(id) }
+    fun unreadNotification(id: String)  = launchAction { unraid.unreadNotification(id) }
     fun deleteNotification(id: String, type: NotifType) =
-        viewModelScope.launch { unraid.deleteNotification(id, type) }
-    fun archiveAllNotifications()       = viewModelScope.launch { unraid.archiveAllNotifications() }
-    fun deleteAllArchivedNotifications() = viewModelScope.launch { unraid.deleteArchivedNotifications() }
+        launchAction { unraid.deleteNotification(id, type) }
+    fun archiveAllNotifications()       = launchAction { unraid.archiveAllNotifications() }
+    fun deleteAllArchivedNotifications() = launchAction { unraid.deleteArchivedNotifications() }
 
-    fun startParityCheck(correct: Boolean) = viewModelScope.launch { unraid.startParityCheck(correct) }
-    fun pauseParityCheck()  = viewModelScope.launch { unraid.pauseParityCheck() }
-    fun resumeParityCheck() = viewModelScope.launch { unraid.resumeParityCheck() }
-    fun cancelParityCheck() = viewModelScope.launch { unraid.cancelParityCheck() }
+    fun startParityCheck(correct: Boolean) = launchAction { unraid.startParityCheck(correct) }
+    fun pauseParityCheck()  = launchAction { unraid.pauseParityCheck() }
+    fun resumeParityCheck() = launchAction { unraid.resumeParityCheck() }
+    fun cancelParityCheck() = launchAction { unraid.cancelParityCheck() }
 
     fun setDockerView(view: LayoutMode) = viewModelScope.launch { settings.setDockerView(view) }
     fun setVmsView(view: LayoutMode)    = viewModelScope.launch { settings.setVmsView(view) }
@@ -328,6 +393,48 @@ class MainViewModel @Inject constructor(
         unraid.containerLogs(id)
 
     internal companion object {
+        /** The single transient signal a failed user action surfaces.
+         *  Deliberately generic — the repository's next poll will reconcile
+         *  the actual state; this just tells the user the tap didn't take. */
+        const val ACTION_FAILED_MESSAGE = "Couldn't reach the server — try again"
+
+        /**
+         * The resilient-action control flow, extracted as a pure suspend
+         * function so the production [launchAction] and the triage-#19 unit
+         * test drive the *same* logic (no stale copy) — same-module
+         * `internal` test-seam convention here (cf.
+         * [net.unraidcontrol.app.data.repository.UnraidRepository.Companion.runNotificationActionFlow],
+         * `pollDomainForTest`, `UpdateRepository.parseVersion`).
+         *
+         * Contract (triage #19, ADR-0037 — the FIXED intent):
+         *  - [action] runs; on success nothing else happens (the
+         *    repository's own post-action nudge/refetch still converges the
+         *    UI on the next poll — that path is unchanged);
+         *  - a [CancellationException] is RE-THROWN unchanged so structured
+         *    concurrency (scope clear, parent cancel) keeps working;
+         *  - ANY other [Throwable] is CAUGHT — it does NOT propagate (so it
+         *    can never crash viewModelScope / the app) — and exactly one
+         *    transient [message] is [emit]ted for the snackbar;
+         *  - [onFinally] always runs (success, failure, or cancellation) so
+         *    pre/post bookkeeping (the updating-pill set) is never stranded.
+         */
+        internal suspend fun runResilientAction(
+            message: String = ACTION_FAILED_MESSAGE,
+            emit: (String) -> Unit,
+            onFinally: () -> Unit = {},
+            action: suspend () -> Unit,
+        ) {
+            try {
+                action()
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Throwable) {
+                emit(message)
+            } finally {
+                onFinally()
+            }
+        }
+
         /**
          * Server-identity guard for [gatedStream] (triage #3). A [state]
          * that is [DomainState.Content] tagged with a [serverBaseUrl] other
