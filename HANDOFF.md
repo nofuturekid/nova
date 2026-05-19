@@ -190,6 +190,39 @@ export KEY_ALIAS='unraidcontrol'
 
 Without the keystore the release config falls back to debug signing for local builds.
 
+## Code-review triage (2026-05-18)
+
+External deep review verified against HEAD f86c25f. Tracks below are binding; see ADR-0030 for the UI follow-ups and the test backlog under Open TODOs.
+
+| # | Item | Verdict | Track |
+|---|------|---------|-------|
+| 1 | No APK SHA-256/size verify before silent install | REAL (Crit) | Security ADR + beta (Step 2) |
+| 2 | Cleartext global, no network_security_config | BY-DESIGN base (v0.1.2 LAN-HTTP) / hardening REAL | Security ADR + beta (Step 2) |
+| 3 | stateIn retains prev server's DomainState on switch (stale data under new name) | REAL (Crit) | fix-now beta (own, Step 3) |
+| 4 | log-tail loop catch swallows CancellationException | REAL (Crit) | fix-now beta (Step 3 trivial batch) |
+| 5 | HttpLoggingInterceptor BASIC, no DEBUG guard (release log leak) | REAL (High) | fix-now beta (Step 3 trivial batch) |
+| 6 | deleteNotification n.type ?: Unread "wrong on Archived" | STALE — premise false at HEAD (type is per-item from server mapper) | wontfix (rationale) |
+| 7 | AddEditServer LaunchedEffect(server?.id) null-key collision | REAL (High) | fix-now beta (Step 3 trivial batch) |
+| 8 | ApiKeyStore.get() swallows Tink decrypt failure → permanent false "Missing API key" | NEEDS-JUDGMENT | ADR-0024 amendment + beta (Step 2) |
+| 9 | launchPermissionIntent resets before verifying launch(); ActivityNotFound eaten | REAL (High) | fix-now beta (Step 3 trivial batch) |
+| 10 | InstallStatusReceiver SharedFlow replay=0 startup race | REAL (High) | fix-now beta (own, Step 3) |
+| 11 | apiKey verbatim in Apollo client map key | ROUTE→ADR-0028 (already accepted verbatim) | no action (ADR-0028) |
+| 12 | backup/data-extraction rules stale post-ADR-0024; unraid_prefs (server URLs) + keyset not excluded | REAL (Med) | Security ADR + beta (Step 2) |
+| 13 | SettingsScreen no verticalScroll, clips short screens | REAL → ROUTE | ADR-0030 follow-up |
+| 14 | refreshAll() fires gated streams | BY-DESIGN (ADR-0017) | wontfix (rationale) |
+| 15 | hardcoded Color(0xFF06120E) vs onPrimary at 6 sites | REAL → ROUTE | ADR-0030 follow-up (P1 nachzug) |
+| 16 | SettingsScreen bespoke Toggle vs M3 Switch (no Role.Switch) | REAL → ROUTE | ADR-0030 follow-up |
+| 17 | LaunchedEffect(openContainer) non-suspending → one-frame stale dockerGate | REAL (Med) | fix-now beta (Step 3 trivial batch) |
+| 18 | server-switch DomainState reset untested | REAL gap | test backlog |
+| 19 | runNotificationAction network-error propagation untested | REAL gap | test backlog |
+| 20 | ServerRepository.delete of only server (setActiveServer(null) NPE) untested | REAL gap | test backlog |
+| 21 | domainStream TRANSIENT_ERROR_TOLERANCE=3 untested | REAL gap | test backlog |
+| 22 | UpdateController.installUpdate re-entrancy untested | REAL gap | test backlog |
+
+- **#6 wontfix:** `UnraidNotification.type` is populated per-item from the server (GraphQlMapper, `NotificationFields.type`); an Archived item has `type == Archive`, so the elvis fallback only fires if the server omits type entirely — it does not derive from the wrong tab. Premise false at HEAD.
+- **#11 no action:** ADR-0028 explicitly adopts the `(variant,endpoint,apiKey)` composite key and its stale-entry trade-off; in-memory only.
+- **#14 wontfix:** ADR-0017 `refreshAll()` deliberately warms all domains to shorten the post-pull wait; client is cached (ADR-0028). Intentional, documented.
+
 ## Open TODOs
 
 _Done since the old list: AGP-buildconfig (ADR-0023), parity-check
@@ -205,6 +238,11 @@ README screenshots, Edge-to-Edge incl. system-bar contrast
 - [ ] Mid-size feature tabs (schema-backed, not started): Shares · SMART disks · UPS card · System logs.
 - [ ] AsyncImage occasionally 404s silently on edge-case icon URLs.
 - [ ] No tests / no crash reporting / no offline cache.
+- [ ] Test: server-switch DomainState reset (triage #18)
+- [ ] Test: runNotificationAction network-error propagation (#19)
+- [ ] Test: ServerRepository.delete of the only server / setActiveServer(null) (#20)
+- [ ] Test: domainStream TRANSIENT_ERROR_TOLERANCE window (#21)
+- [ ] Test: UpdateController.installUpdate re-entrancy (#22)
 - [ ] German localization; real app icon; bundle Inter/JetBrains-Mono TTFs; CHANGELOG.md from tags.
 
 ### Decision needed

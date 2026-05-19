@@ -343,3 +343,11 @@ retained as the record of what was verified.
 - PR #103 / v0.1.30-beta2 — the shipped a11y/consistency pass this
   roadmap continues from; the bespoke→M3 scope survey informing the
   phase order.
+
+## Post-P7 follow-ups (2026-05-18 code-review triage)
+
+UI/M3 debt surfaced by the 2026-05-18 review; in ADR-0030 scope, not ad-hoc — own phase/beta when scheduled.
+
+- **F1 — `SettingsScreen` scroll:** plain `Column` (no `verticalScroll`), clips on short screens (≈360×640dp). Add `verticalScroll`/lazy. (triage #13)
+- **F2 — on-accent literal `Color(0xFF06120E)`** at ArrayTab/ContainerDetailSheet(×2)/VmDetailSheet/VmsTab(×2): bypasses `onPrimary`/`onTone()` → invisible on light accents (Rule 13). Route through P1 helpers. (triage #15)
+- **F3 — bespoke `Toggle`** in `SettingsScreen` (hardcoded white thumb, no `Role.Switch`/`toggleable`) → M3 `Switch`. (triage #16)
