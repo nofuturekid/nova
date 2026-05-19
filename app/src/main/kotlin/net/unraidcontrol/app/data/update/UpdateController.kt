@@ -67,25 +67,37 @@ class UpdateController(
         }
     }
 
-    fun installUpdate(info: UpdateInfo) = scope.launch {
-        _installState.value = InstallState.Downloading(0f)
-        try {
-            val apk = installer.download(
-                info.downloadUrl,
-                info.sizeBytes,
-                info.digest,
-            ) { progress ->
-                _installState.value = InstallState.Downloading(progress)
-            }
-            _installState.value = InstallState.Installing
+    fun installUpdate(info: UpdateInfo) {
+        // In-flight guard (triage #22): a double-tap on Install must not
+        // start a second download + PackageInstaller session for one APK.
+        // Only a terminal state may start a run — Idle (fresh) or Failed
+        // (retry allowed). Any non-terminal state (Downloading / Installing
+        // / NeedsPermission) means an install is already in progress, so a
+        // second call is a no-op: ignore it rather than launch a coroutine
+        // that would clobber the first install's progress back to
+        // Downloading(0f) and commit a duplicate session.
+        val state = _installState.value
+        if (state !is InstallState.Idle && state !is InstallState.Failed) return
+        scope.launch {
+            _installState.value = InstallState.Downloading(0f)
             try {
-                installer.install(apk)
-            } catch (e: ApkInstaller.NeedsPermissionException) {
-                // No session committed → no broadcast will arrive.
-                _installState.value = InstallState.NeedsPermission(e.intent)
+                val apk = installer.download(
+                    info.downloadUrl,
+                    info.sizeBytes,
+                    info.digest,
+                ) { progress ->
+                    _installState.value = InstallState.Downloading(progress)
+                }
+                _installState.value = InstallState.Installing
+                try {
+                    installer.install(apk)
+                } catch (e: ApkInstaller.NeedsPermissionException) {
+                    // No session committed → no broadcast will arrive.
+                    _installState.value = InstallState.NeedsPermission(e.intent)
+                }
+            } catch (e: Exception) {
+                _installState.value = InstallState.Failed(e.message ?: "Update failed")
             }
-        } catch (e: Exception) {
-            _installState.value = InstallState.Failed(e.message ?: "Update failed")
         }
     }
 
