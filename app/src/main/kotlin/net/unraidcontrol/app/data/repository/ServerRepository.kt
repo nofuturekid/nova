@@ -35,7 +35,7 @@ class ServerRepository @Inject constructor(
     val connectionMode: Flow<ConnectionMode> = store.connectionMode
 
     val activeServer: Flow<Server?> = combine(store.servers, store.activeServerId) { list, id ->
-        list.firstOrNull { it.id == id } ?: list.firstOrNull()
+        resolveActiveServer(list, id)
     }
 
     val activeWithKey: Flow<ActiveServer?> =
@@ -67,7 +67,9 @@ class ServerRepository @Inject constructor(
         val current = store.servers.first().filter { it.id != id }
         store.setServers(current)
         keys.remove(id)
-        if (store.activeServerId.first() == id) store.setActiveServer(current.firstOrNull()?.id)
+        if (store.activeServerId.first() == id) {
+            store.setActiveServer(nextActiveAfterDelete(current))
+        }
     }
 
     suspend fun setActive(id: String) {
@@ -80,4 +82,39 @@ class ServerRepository @Inject constructor(
 
     /** Returns the stored API key for a server, or null if none. */
     suspend fun apiKeyFor(id: String): String? = keys.get(id)
+
+    companion object {
+        /**
+         * Resolves the active [Server] from the stored list + persisted
+         * active id. The well-defined "no server" representation is `null`
+         * (mirrored downstream by [activeWithKey] → `null` →
+         * [UnraidRepository.domainStream] → [DomainState.NoServer]).
+         *
+         * Used by the production [activeServer] flow; also the seam the
+         * triage-#20 unit test asserts against, so there is exactly ONE
+         * implementation of the resolution rule (Rule 9 — a copy could
+         * drift and the test would stop pinning the real behaviour).
+         */
+        internal fun resolveActiveServer(list: List<Server>, id: String?): Server? =
+            list.firstOrNull { it.id == id } ?: list.firstOrNull()
+
+        /**
+         * The active-server id to persist after a [delete] removes the
+         * currently-active server, given the remaining (post-filter) list.
+         * When the deleted server was the ONLY/last one, `remaining` is
+         * empty and this is `null` — i.e. `setActiveServer(null)`, the
+         * well-defined "no active server" state (triage #20). When other
+         * servers remain, the first survivor becomes active so the app is
+         * never left pointing at a deleted server.
+         *
+         * Test-only seam — same-module `internal`, mirroring the existing
+         * `internal` unit-test entrypoint convention here (see
+         * [UnraidRepository.Companion.pollDomainForTest] /
+         * [net.unraidcontrol.app.data.update.UpdateRepository.parseVersion]).
+         * Production [delete] calls it; the triage-#20 test asserts it so
+         * the real reset decision is pinned, not a re-derived copy.
+         */
+        internal fun nextActiveAfterDelete(remaining: List<Server>): String? =
+            remaining.firstOrNull()?.id
+    }
 }
