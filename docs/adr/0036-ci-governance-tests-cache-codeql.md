@@ -134,6 +134,42 @@ release (CI/infra + ADR only).
   `java-kotlin` onto a (still bounded) push trigger, weighing PR #130's
   cost rationale.
 
+## Known consequence — transient plugin-fetch in the `test` job (2026-05-19)
+
+The new blocking `test` job (decision 1) runs on PRs under
+`cache-read-only` + `cache-provider: basic` (decision 2). Unlike a
+warm/writable cache, it must **fetch Gradle plugins fresh** during the
+configuration phase, so it is susceptible to a plugin-portal / registry
+blip *before any test executes*.
+
+Observed 2026-05-19: PR #163 run-2's `test` job failed in the Gradle
+**configuration phase** —
+`Plugin [id: 'com.google.devtools.ksp', version: '2.3.8'] … could not
+resolve 'com.google.devtools.ksp:com.google.devtools.ksp.gradle.plugin:2.3.8'`
+from Google / MavenCentral / GradlePluginPortal. The **same-commit**
+`build-debug` / `build-release` jobs passed (identical `pluginManagement`
+repos + `setup-gradle@v6` config — verified), and #163 run-1 was fully
+green including `test`. This is therefore **not a code/test defect and
+not a CI-config defect**: it is a transient registry fetch failure in the
+fresh-fetch `test` job.
+
+It is also **not caused by, and not fixed by, PR #164**
+(`InstallStatusReceiver.resetForTest` test-isolation hardening). #164 is
+a *latent* test-isolation hardening retained on its own merit (maintainer
+B decision); it is categorically unrelated to a configuration-phase KSP
+plugin-fetch failure. PR #164's merged commit message overstates
+causation (it was dispatched on a blind log-403 flake hypothesis);
+history is not rewritten — **this note is the correction of record**:
+#164 stays as a deliberate latent hardening, NOT the #163 fix.
+
+**Mitigation:** re-run the failed `test` job — the failure is transient.
+
+**Trigger to revisit / escalate:** if this recurs frequently, harden the
+`test` job (Gradle dependency-resolution retry, or warm its
+plugin/dependency cache so it does not fetch fresh on every PR). Tracked
+as a follow-up; **not done here** (this is the documentation correction
+only).
+
 ## Alternatives considered
 
 - **Keep the enhanced cache provider (do nothing for #2).** It is free on
