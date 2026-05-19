@@ -234,21 +234,17 @@ _Done since the old list: AGP-buildconfig (ADR-0023), parity-check
 mutations (wired), KSP1→KSP2 (ADR-0020), Tink-storage (ADR-0024),
 notifications indicator (0.1.29-beta6, on-device verify pending),
 README screenshots, Edge-to-Edge incl. system-bar contrast
-(0.1.29-beta7)._
+(0.1.29-beta7), container-sheet log live-tail + pull-to-refresh
+(0.1.29-beta8), code-review test backlog #18–22 written + merged +
+executed as a blocking CI gate (ADR-0036), resilient action launchers
+(#19, ADR-0037, 0.1.32-beta2), installUpdate double-tap guard (#22,
+0.1.32-beta3)._
 
 ### Open
-- [ ] Container logs fetched once on tab open — no live tail / in-sheet refresh.
-- [ ] Per-container CPU%/Mem — wire `dockerContainerStats(id)` (schema has it).
-- [ ] Pull-to-refresh on container detail sheet.
 - [ ] Mid-size feature tabs (schema-backed, not started): Shares · SMART disks · UPS card · System logs.
 - [ ] AsyncImage occasionally 404s silently on edge-case icon URLs.
-- [ ] No tests / no crash reporting / no offline cache.
-- [ ] Test: server-switch DomainState reset (triage #18)
-- [ ] Test: runNotificationAction network-error propagation (#19)
-- [ ] Test: ServerRepository.delete of the only server / setActiveServer(null) (#20)
-- [ ] Test: domainStream TRANSIENT_ERROR_TOLERANCE window (#21)
-- [ ] Test: UpdateController.installUpdate re-entrancy (#22)
-- [ ] German localization; real app icon; bundle Inter/JetBrains-Mono TTFs; CHANGELOG.md from tags.
+- [ ] No crash reporting / no offline cache.
+- [ ] German localization; real app icon; bundle Inter/JetBrains-Mono TTFs.
 
 ### Decision needed
 - [ ] Overview Network card shows `0.0 Mbps` (Unraid API exposes no host throughput) — remove / keep / file unraid-api feature request.
