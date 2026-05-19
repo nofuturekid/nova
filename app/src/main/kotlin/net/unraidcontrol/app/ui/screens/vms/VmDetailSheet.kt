@@ -22,7 +22,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import net.unraidcontrol.app.data.model.Vm
 import net.unraidcontrol.app.data.model.VmState
@@ -32,6 +31,7 @@ import net.unraidcontrol.app.ui.components.Tone
 import net.unraidcontrol.app.ui.components.UC
 import net.unraidcontrol.app.ui.components.UnraidButton
 import net.unraidcontrol.app.ui.components.UnraidIconButton
+import net.unraidcontrol.app.ui.components.onTone
 import net.unraidcontrol.app.ui.theme.UnraidAlpha
 import net.unraidcontrol.app.ui.theme.UnraidTheme
 
@@ -146,7 +146,7 @@ fun VmDetailSheet(
                             modifier = Modifier.weight(1f),
                             variant = BtnVariant.Filled,
                             fullWidth = true,
-                            leadingIcon = { UC.Play(14.dp, Color(0xFF06120E)) },
+                            leadingIcon = { UC.Play(14.dp, onTone(t.accent)) },
                         )
                     }
                 }

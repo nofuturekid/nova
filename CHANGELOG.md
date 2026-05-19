@@ -15,6 +15,26 @@ release version + date and opens a fresh `[Unreleased]`.
 
 ## [Unreleased]
 
+## [0.1.32-beta1] - 2026-05-18
+
+ADR-0030 post-P7 follow-ups (F1–F4): a small Material 3 modernization and
+accessibility batch shipped as one combined beta.
+
+### Changed
+- Notifications Unread/Archived tabs now use the non-deprecated Material 3
+  tab row; the selected-tab indicator follows the accent colour.
+
+### Fixed
+- The Settings screen now scrolls on short screens (and in landscape), so
+  no content is clipped on small devices.
+- On-accent text and icons now use the semantic Material 3 colour token,
+  so they stay visible on light accent colours (e.g. Amber) instead of
+  rendering near-invisible; dark accents are unchanged.
+
+### Accessibility
+- The Settings toggles now use the Material 3 Switch, so screen readers
+  announce them with the correct switch role and on/off state.
+
 ## [0.1.31] - 2026-05-18
 
 Stable promotion of the whole 0.1.31 cycle (beta1…beta9), device-verified.
@@ -199,7 +219,8 @@ accessibility and visual-consistency pass.
   every poll/refresh (lower overhead, no behaviour change).
 - Internal Android Gradle Plugin cleanup with no user-facing effect.
 
-[Unreleased]: https://github.com/nofuturekid/UnraidControl/compare/v0.1.31...HEAD
+[Unreleased]: https://github.com/nofuturekid/UnraidControl/compare/v0.1.32-beta1...HEAD
+[0.1.32-beta1]: https://github.com/nofuturekid/UnraidControl/releases/tag/v0.1.32-beta1
 [0.1.31]: https://github.com/nofuturekid/UnraidControl/releases/tag/v0.1.31
 [0.1.31-beta9]: https://github.com/nofuturekid/UnraidControl/releases/tag/v0.1.31-beta9
 [0.1.31-beta8]: https://github.com/nofuturekid/UnraidControl/releases/tag/v0.1.31-beta8
