@@ -20,7 +20,10 @@ name: CodeQL
 # the post-merge push:main re-run only re-scans the exact same source under
 # a new SHA (same rationale ci.yml states for skipping push:main, lines
 # ~3-7). So: PR + a weekly baseline only, paths-ignore for non-code, and
-# concurrency cancel-in-progress — mirrors ci.yml.
+# concurrency cancel-in-progress — mirrors ci.yml. (ADR-0036 later added a
+# narrow `push:main` trigger scoped to the fast `actions`-only scan purely
+# to populate the default-branch Security tab — see the `on:` block; that
+# does NOT reinstate the wasteful full per-push re-scan described here.)
 #
 # paths-ignore also excludes non-code `.github/` config (issue templates,
 # CODEOWNERS, dependabot) — same rationale as above: these files cannot
@@ -41,8 +44,31 @@ name: CodeQL
 # preserved weekly + on demand. The language list is event-driven via the
 # `config` job below (a static matrix `include` cannot compose with a
 # dynamically-sized language list, so build-mode is derived inline in init).
+#
+# Default-branch baseline (ADR-0036): a `push:main` trigger is required so
+# the Security tab is populated with code-scanning alerts FOR THE DEFAULT
+# BRANCH (GitHub only surfaces alerts there from analyses run on `main`;
+# `pull_request` analyses do not establish that baseline). To stay within
+# PR #130's deliberate cost design (the heavy `java-kotlin` compile is
+# weekly/dispatch only, NOT per-PR/per-push), `push:main` is treated
+# exactly like `pull_request` by the `config` job — it analyzes ONLY the
+# fast `actions` language (build-mode none, no Gradle/Android build). The
+# full `actions` + `java-kotlin` scan remains on the weekly `schedule`
+# baseline and `workflow_dispatch`, unchanged. Same paths-ignore as
+# `pull_request` so non-code default-branch pushes don't scan.
 on:
   pull_request:
+    paths-ignore:
+      - '**/*.md'
+      - 'docs/**'
+      - '.claude/**'
+      - 'LICENSE'
+      - '.github/ISSUE_TEMPLATE/**'
+      - '.github/CODEOWNERS'
+      - '.github/dependabot.yml'
+      - '.gitignore'
+  push:
+    branches: [main]
     paths-ignore:
       - '**/*.md'
       - 'docs/**'
@@ -80,7 +106,14 @@ jobs:
       - name: Determine languages for this event
         id: scope
         run: |
-          if [ "${{ github.event_name }}" = "pull_request" ]; then
+          # pull_request AND push:main → fast `actions` only (no Gradle/
+          # Android build). The push:main run exists solely to populate the
+          # default-branch Security-tab baseline (ADR-0036); making it
+          # compile java-kotlin would re-introduce the per-push heavy build
+          # that PR #130 deliberately moved to weekly/dispatch. Only the
+          # weekly `schedule` and on-demand `workflow_dispatch` scan BOTH
+          # languages (java-kotlin → the manual compile below).
+          if [ "${{ github.event_name }}" = "pull_request" ] || [ "${{ github.event_name }}" = "push" ]; then
             echo 'langs=["actions"]' >> "$GITHUB_OUTPUT"
           else
             echo 'langs=["actions","java-kotlin"]' >> "$GITHUB_OUTPUT"
@@ -132,6 +165,7 @@ jobs:
         uses: gradle/actions/setup-gradle@v6
         with:
           cache-read-only: true
+          cache-provider: basic
 
       - name: Set up Android SDK
         if: matrix.language == 'java-kotlin'
@@ -140,7 +174,7 @@ jobs:
           log-accepted-android-sdk-licenses: false
 
       - name: Initialize CodeQL
-        uses: github/codeql-action/init@v3
+        uses: github/codeql-action/init@v4
         with:
           languages: ${{ matrix.language }}
           build-mode: ${{ matrix.language == 'java-kotlin' && 'manual' || 'none' }}
@@ -154,6 +188,6 @@ jobs:
         run: ./gradlew :app:generateApolloSources :app:assembleDebug --stacktrace
 
       - name: Perform CodeQL Analysis
-        uses: github/codeql-action/analyze@v3
+        uses: github/codeql-action/analyze@v4
         with:
           category: "/language:${{ matrix.language }}"

@@ -60,6 +60,16 @@ class InstallStatusReceiver : BroadcastReceiver() {
          * named `*ForTest` to mark intent (no annotation dep added).
          */
         fun emitForTest(event: InstallEvent): Boolean = _events.tryEmit(event)
+
+        /**
+         * Test-only seam: clear the replay cache so each test starts with a
+         * clean InstallStatusReceiver. replay=1 (#10) is correct in
+         * production (single process-lifetime collector) but, without this,
+         * the process-global flow leaks the last event into the next test's
+         * freshly-constructed UpdateController collector. Not used by
+         * production code.
+         */
+        fun resetForTest() { _events.resetReplayCache() }
     }
 }
 

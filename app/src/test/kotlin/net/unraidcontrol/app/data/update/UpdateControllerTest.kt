@@ -9,6 +9,7 @@ import net.unraidcontrol.app.data.model.InstallState
 import net.unraidcontrol.app.data.model.UpdateInfo
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
+import org.junit.Before
 import org.junit.Test
 import java.io.File
 
@@ -23,6 +24,9 @@ import java.io.File
  */
 @OptIn(ExperimentalCoroutinesApi::class)
 class UpdateControllerTest {
+
+    @Before
+    fun resetReceiver() { InstallStatusReceiver.resetForTest() }
 
     private val info = UpdateInfo(
         version = "1.2.3",
