@@ -42,7 +42,9 @@ Native Android client for Unraid NAS servers (Kotlin + Jetpack Compose, Apollo G
 | v0.1.30-beta1…beta7 | pre-release | M3 modernization roadmap (ADR-0030): standard Material-3 components throughout; accessibility + visual-consistency pass; AGP cleanup; Apollo-client reuse |
 | v0.1.30 | release | Stable promotion of the whole 0.1.30 cycle, device-verified |
 | v0.1.31-beta1…beta9 | pre-release | Notifications actions + Unread/Archived tabs + bell badge (ADR-0032); security hardening — verified APK install, network-security config, backup exclusions, key-decrypt re-enter (ADR-0034/0035); code-review triage fixes; CI-governance (ADR-0036) |
-| **v0.1.31** | **release (Latest)** | Stable promotion of the whole 0.1.31 cycle (beta1…beta9 maintainer device-accepted): notifications actions, security hardening (ADR-0034/0035), code-review triage fixes, CI governance (ADR-0036), maintainer device-accepted 2026-05-18 |
+| v0.1.31 | release | Stable promotion of the whole 0.1.31 cycle (beta1…beta9 maintainer device-accepted): notifications actions, security hardening (ADR-0034/0035), code-review triage fixes, CI governance (ADR-0036), maintainer device-accepted 2026-05-18 |
+| v0.1.32-beta1…beta3 | pre-release | ADR-0030 F1–F4 M3 follow-ups; #19 resilient action launchers (ADR-0037); #22 installUpdate double-tap guard; CI transient-KSP note (ADR-0036) |
+| **v0.1.32** | **release (Latest)** | Stable promotion of the 0.1.32 cycle — F1–F4 M3 modernization, resilient action launchers (ADR-0037), install double-tap guard; beta1–beta3 maintainer device-accepted 2026-05-19 |
 
 ## Stack
 

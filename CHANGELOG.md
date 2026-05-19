@@ -15,6 +15,35 @@ release version + date and opens a fresh `[Unreleased]`.
 
 ## [Unreleased]
 
+## [0.1.32] - 2026-05-19
+
+Stable promotion of the whole 0.1.32 cycle (beta1…beta3), maintainer
+device-accepted. This release delivers a Material 3 modernization and
+accessibility batch, resilient action launchers, and an install
+double-tap guard.
+
+### Changed
+- Notifications Unread/Archived tabs now use the non-deprecated Material 3
+  tab row; the selected-tab indicator follows the accent colour.
+
+### Fixed
+- The Settings screen now scrolls on short screens (and in landscape), so
+  no content is clipped on small devices.
+- On-accent text and icons now use the semantic Material 3 colour token,
+  so they stay visible on light accent colours (e.g. Amber) instead of
+  rendering near-invisible; dark accents are unchanged.
+- Notification & server actions (archive/delete, container/VM/array/parity
+  start-stop, …) no longer crash or silently fail on a flaky connection —
+  failures surface a transient message and the UI reconciles with the
+  server (triage #19, ADR-0037).
+- Double-tapping Install no longer starts two downloads / install
+  sessions — a second install request while one is in progress is
+  ignored (triage #22).
+
+### Accessibility
+- The Settings toggles now use the Material 3 Switch, so screen readers
+  announce them with the correct switch role and on/off state.
+
 ## [0.1.32-beta3] - 2026-05-19
 
 ### Fixed
@@ -234,7 +263,8 @@ accessibility and visual-consistency pass.
   every poll/refresh (lower overhead, no behaviour change).
 - Internal Android Gradle Plugin cleanup with no user-facing effect.
 
-[Unreleased]: https://github.com/nofuturekid/UnraidControl/compare/v0.1.32-beta3...HEAD
+[Unreleased]: https://github.com/nofuturekid/UnraidControl/compare/v0.1.32...HEAD
+[0.1.32]: https://github.com/nofuturekid/UnraidControl/compare/v0.1.32-beta3...v0.1.32
 [0.1.32-beta3]: https://github.com/nofuturekid/UnraidControl/compare/v0.1.32-beta2...v0.1.32-beta3
 [0.1.32-beta2]: https://github.com/nofuturekid/UnraidControl/compare/v0.1.32-beta1...v0.1.32-beta2
 [0.1.32-beta1]: https://github.com/nofuturekid/UnraidControl/releases/tag/v0.1.32-beta1
