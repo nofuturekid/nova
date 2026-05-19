@@ -29,7 +29,10 @@ class ApolloClientFactory @Inject constructor() {
 
     private val baseHttpClient: OkHttpClient by lazy {
         val logging = HttpLoggingInterceptor().apply {
-            level = HttpLoggingInterceptor.Level.BASIC
+            level = if (net.unraidcontrol.app.BuildConfig.DEBUG)
+                HttpLoggingInterceptor.Level.BASIC
+            else
+                HttpLoggingInterceptor.Level.NONE
         }
         OkHttpClient.Builder()
             .connectTimeout(8, TimeUnit.SECONDS)
@@ -41,7 +44,10 @@ class ApolloClientFactory @Inject constructor() {
 
     private val longRunningHttpClient: OkHttpClient by lazy {
         val logging = HttpLoggingInterceptor().apply {
-            level = HttpLoggingInterceptor.Level.BASIC
+            level = if (net.unraidcontrol.app.BuildConfig.DEBUG)
+                HttpLoggingInterceptor.Level.BASIC
+            else
+                HttpLoggingInterceptor.Level.NONE
         }
         OkHttpClient.Builder()
             .connectTimeout(8, TimeUnit.SECONDS)

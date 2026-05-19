@@ -15,6 +15,24 @@ release version + date and opens a fresh `[Unreleased]`.
 
 ## [Unreleased]
 
+## [0.1.31-beta7] - 2026-05-18
+
+### Fixed
+- The container log tab's live-tail loop no longer swallows coroutine
+  cancellation, so closing the sheet or stopping the container stops the
+  loop cleanly without a stale log overwrite. (#4)
+- HTTP request logging is now disabled in release builds (it was only
+  ever meant for debug). (#5)
+- The Add/Edit-server form no longer retains a previous session's state:
+  opening it always shows exactly the selected server (blank for Add).
+  (#7)
+- If the install-permission screen can't be opened on a device (a ROM
+  without that settings activity), the updater now shows an error
+  instead of silently resetting with no feedback. (#9)
+- The Docker poll gate now updates without a one-frame lag when the
+  container sheet opens or closes, avoiding a needless poll
+  cancel/restart. (#17)
+
 ## [0.1.31-beta6] - 2026-05-18
 
 ### Security
@@ -113,7 +131,8 @@ accessibility and visual-consistency pass.
   every poll/refresh (lower overhead, no behaviour change).
 - Internal Android Gradle Plugin cleanup with no user-facing effect.
 
-[Unreleased]: https://github.com/nofuturekid/UnraidControl/compare/v0.1.31-beta6...HEAD
+[Unreleased]: https://github.com/nofuturekid/UnraidControl/compare/v0.1.31-beta7...HEAD
+[0.1.31-beta7]: https://github.com/nofuturekid/UnraidControl/releases/tag/v0.1.31-beta7
 [0.1.31-beta6]: https://github.com/nofuturekid/UnraidControl/releases/tag/v0.1.31-beta6
 [0.1.31-beta5]: https://github.com/nofuturekid/UnraidControl/releases/tag/v0.1.31-beta5
 [0.1.31-beta4]: https://github.com/nofuturekid/UnraidControl/releases/tag/v0.1.31-beta4

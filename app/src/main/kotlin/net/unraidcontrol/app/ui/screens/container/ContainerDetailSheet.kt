@@ -94,7 +94,9 @@ fun ContainerDetailSheet(
         if (tab == DetailTab.Logs && container.status == ContainerStatus.Running) {
             if (logs == null) logsLoading = true
             while (true) {
-                try { logs = onFetchLogs(container.id) } catch (_: Exception) {}
+                try { logs = onFetchLogs(container.id) } catch (e: Exception) {
+                    if (e is kotlinx.coroutines.CancellationException) throw e
+                }
                 logsLoading = false
                 delay(LOG_TAIL_INTERVAL_MS)
             }

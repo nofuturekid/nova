@@ -152,7 +152,12 @@ fun AddEditServerSheet(
     onDeleted: () -> Unit,
     vm: AddEditServerViewModel = hiltViewModel(),
 ) {
-    LaunchedEffect(server?.id) { vm.load(server) }
+    // Keyed on Unit, not server?.id: the shared (NavGraph-scoped) ViewModel
+    // is reused across opens, and an Add sheet's key is always null, so
+    // keying on server?.id skips reload on Add→Edit→Add and leaks the prior
+    // session's state. The sheet leaves composition on dismiss, so a Unit key
+    // re-runs exactly once per open with the freshly-passed server.
+    LaunchedEffect(Unit) { vm.load(server) }
     val state by vm.state.collectAsState()
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     val t = UnraidTheme.colors

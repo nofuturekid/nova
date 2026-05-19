@@ -120,8 +120,12 @@ fun MainScreen(
     }
 
     var openContainer by remember { mutableStateOf<Container?>(null) }
-    androidx.compose.runtime.LaunchedEffect(openContainer) {
-        vm.setDockerSheetOpen(openContainer != null)
+    // Set the Docker-poll gate synchronously with the state change. A
+    // LaunchedEffect(openContainer) ran one frame late, briefly leaving
+    // dockerGate() stale and needlessly cancelling/restarting the poll.
+    val setOpenContainer: (Container?) -> Unit = {
+        openContainer = it
+        vm.setDockerSheetOpen(it != null)
     }
     var openVm by remember { mutableStateOf<Vm?>(null) }
     var showNotifications by remember { mutableStateOf(false) }
@@ -250,7 +254,7 @@ fun MainScreen(
                         state = dockerState,
                         view = ui.dockerView,
                         onAddServer = onAddServer,
-                        onOpenContainer = { openContainer = it },
+                        onOpenContainer = { setOpenContainer(it) },
                         onStart = { c -> vm.startContainer(c.id) },
                         onRestart = { c -> vm.restartContainer(c.id) },
                         onStop = { c ->
@@ -313,8 +317,8 @@ fun MainScreen(
             isUpdating = shown.id in updatingIds,
             onFetchLogs = { id -> vm.containerLogs(id) },
             onRefresh = { vm.refresh() },
-            onDismiss = { openContainer = null },
-            onStart   = { vm.startContainer(it.id); openContainer = null },
+            onDismiss = { setOpenContainer(null) },
+            onStart   = { vm.startContainer(it.id); setOpenContainer(null) },
             onRestart = { vm.restartContainer(it.id) },
             onStop    = { c ->
                 confirm = ConfirmRequest(
@@ -323,7 +327,7 @@ fun MainScreen(
                     confirmLabel = "Stop",
                     tone = Tone.Danger,
                     icon = { UC.Stop(22.dp, t.danger) },
-                    onConfirm = { vm.stopContainer(c.id); confirm = null; openContainer = null },
+                    onConfirm = { vm.stopContainer(c.id); confirm = null; setOpenContainer(null) },
                 )
             },
             onUpdate  = { c -> vm.updateContainer(c.id) },
