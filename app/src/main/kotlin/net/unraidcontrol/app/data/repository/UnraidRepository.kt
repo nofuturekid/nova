@@ -71,7 +71,7 @@ class UnraidRepository @Inject constructor(
     private val servers: ServerRepository,
     private val apolloFactory: ApolloClientFactory,
 ) {
-    private companion object {
+    companion object {
         /** Default poll interval per domain (ms). Values reflect how often
          *  each domain actually changes — info almost never, metrics often. */
         const val POLL_INFO_MS = 60_000L      // hostname/version/CPU specs change between reboots
@@ -83,6 +83,67 @@ class UnraidRepository @Inject constructor(
 
         /** Consecutive poll failures before the UI drops to an Error state. */
         const val TRANSIENT_ERROR_TOLERANCE = 3
+
+        /**
+         * The transient-error-tolerant poll loop, factored out so it has
+         * exactly ONE implementation. Production [domainStream] calls it with
+         * an Apollo-backed [fetch]; [pollDomainForTest] calls it with a
+         * caller-scripted [fetch]. A single shared body means the unit test
+         * pins the *real* tolerance state machine (Rule 9) rather than a copy
+         * that could silently drift.
+         *
+         * Behaviour (triage #21): after a successful [DomainState.Content] is
+         * emitted, the next consecutive [DomainState.Error]s do NOT surface
+         * immediately — the last good Content is re-emitted while
+         * `consecutiveErrors` stays below [TRANSIENT_ERROR_TOLERANCE]. Once
+         * failures reach the tolerance the Error surfaces. A single success
+         * resets the counter.
+         */
+        private suspend fun <T> kotlinx.coroutines.flow.FlowCollector<DomainState<T>>.pollDomain(
+            intervalMs: Long,
+            nudge: Flow<Unit>?,
+            fetch: suspend () -> DomainState<T>,
+        ) {
+            var lastContent: DomainState.Content<T>? = null
+            var consecutiveErrors = 0
+            while (true) {
+                when (val result = fetch()) {
+                    is DomainState.Content<T> -> {
+                        lastContent = result
+                        consecutiveErrors = 0
+                        emit(result)
+                    }
+                    is DomainState.Error -> {
+                        consecutiveErrors++
+                        val tolerated = lastContent != null &&
+                            consecutiveErrors < TRANSIENT_ERROR_TOLERANCE
+                        emit(if (tolerated) lastContent else result)
+                    }
+                    else -> emit(result)
+                }
+                // Sleep the poll interval, but cut it short if a nudge
+                // arrives (post-action fast refresh). No nudge → plain delay.
+                if (nudge == null) {
+                    delay(intervalMs)
+                } else {
+                    withTimeoutOrNull(intervalMs) { nudge.first() }
+                }
+            }
+        }
+
+        /**
+         * Test-only seam — same-module `internal`, mirroring the existing
+         * `internal` unit-test entrypoint convention here (see
+         * [net.unraidcontrol.app.data.update.UpdateRepository.parseVersion]).
+         * Drives the *production* [pollDomain] loop with a caller-scripted
+         * [fetch] so a unit test can assert the documented transient-error
+         * tolerance (triage #21) against the real state machine. Not used by
+         * any production code path.
+         */
+        internal fun <T> pollDomainForTest(
+            intervalMs: Long,
+            fetch: suspend () -> DomainState<T>,
+        ): Flow<DomainState<T>> = flow { pollDomain(intervalMs, null, fetch) }
     }
 
     /**
@@ -186,32 +247,7 @@ class UnraidRepository @Inject constructor(
                 }
                 val url = activeUrl(active)
                 val client = apolloFactory.build(url, active.apiKey)
-
-                var lastContent: DomainState.Content<T>? = null
-                var consecutiveErrors = 0
-                while (true) {
-                    when (val result = fetch(client, url)) {
-                        is DomainState.Content<T> -> {
-                            lastContent = result
-                            consecutiveErrors = 0
-                            emit(result)
-                        }
-                        is DomainState.Error -> {
-                            consecutiveErrors++
-                            val tolerated = lastContent != null &&
-                                consecutiveErrors < TRANSIENT_ERROR_TOLERANCE
-                            emit(if (tolerated) lastContent else result)
-                        }
-                        else -> emit(result)
-                    }
-                    // Sleep the poll interval, but cut it short if a nudge
-                    // arrives (post-action fast refresh). No nudge → plain delay.
-                    if (nudge == null) {
-                        delay(intervalMs)
-                    } else {
-                        withTimeoutOrNull(intervalMs) { nudge.first() }
-                    }
-                }
+                pollDomain(intervalMs, nudge) { fetch(client, url) }
             }
         }
 
