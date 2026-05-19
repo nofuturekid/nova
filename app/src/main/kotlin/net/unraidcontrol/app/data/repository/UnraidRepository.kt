@@ -144,6 +144,37 @@ class UnraidRepository @Inject constructor(
             intervalMs: Long,
             fetch: suspend () -> DomainState<T>,
         ): Flow<DomainState<T>> = flow { pollDomain(intervalMs, null, fetch) }
+
+        /**
+         * The notification-action error contract, extracted as a pure
+         * function so the production [runNotificationAction] and the
+         * triage-#19 unit test drive the *same* control flow (no stale
+         * copy). This is the seam, mirroring the same-module `internal`
+         * test-entrypoint convention here (e.g. [pollDomainForTest],
+         * [net.unraidcontrol.app.data.update.UpdateRepository.parseVersion]).
+         *
+         * Contract (intentional — see KDoc on the actions below):
+         *  - [resolveClient] null → no server: silent no-op, NO nudge;
+         *  - [mutate] (the actual `*NotificationMutation`) is NOT guarded:
+         *    a network failure PROPAGATES out (so the recalc + nudge below
+         *    are skipped); the action→refetch convergence does not run on a
+         *    failed mutation;
+         *  - [recalculate] IS `runCatching`-guarded — a failed overview
+         *    recalc is swallowed and the nudge still fires (the next poll +
+         *    server state still reconcile);
+         *  - [nudge] fires only when the mutation succeeded.
+         */
+        internal suspend fun <C> runNotificationActionFlow(
+            resolveClient: suspend () -> C?,
+            mutate: suspend (C) -> Unit,
+            recalculate: suspend (C) -> Unit,
+            nudge: () -> Unit,
+        ) {
+            val c = resolveClient() ?: return
+            mutate(c)
+            runCatching { recalculate(c) }
+            nudge()
+        }
     }
 
     /**
@@ -401,12 +432,13 @@ class UnraidRepository @Inject constructor(
     suspend fun deleteArchivedNotifications() =
         runNotificationAction { it.mutation(DeleteArchivedNotificationsMutation()).execute() }
 
-    private suspend fun runNotificationAction(block: suspend (ApolloClient) -> Unit) {
-        val c = activeClient() ?: return
-        block(c)
-        runCatching { c.mutation(RecalculateNotificationOverviewMutation()).execute() }
-        notificationsNudge.tryEmit(Unit)
-    }
+    private suspend fun runNotificationAction(block: suspend (ApolloClient) -> Unit) =
+        runNotificationActionFlow(
+            resolveClient = { activeClient() },
+            mutate = { c -> block(c) },
+            recalculate = { c -> c.mutation(RecalculateNotificationOverviewMutation()).execute() },
+            nudge = { notificationsNudge.tryEmit(Unit) },
+        )
 
     /**
      * Fetches the last [tail] log lines for the given container. Returns an
