@@ -45,12 +45,27 @@ class InstallStatusReceiver : BroadcastReceiver() {
         // last install result instead of hanging forever on "Installing".
         // extraBufferCapacity is kept so the non-suspending tryEmit() in
         // onReceive() stays lossless.
-        private val _events = MutableSharedFlow<InstallEvent>(
+        //
+        // `var` (not `val`) only so resetForTest() can hand each test a
+        // pristine instance; production never reassigns this field (no prod
+        // code path calls resetForTest), so the single long-lived
+        // UpdateController collector subscribes once at init to the original
+        // instance and behaviour is byte-identical to a plain `val`.
+        // @Volatile guarantees test-thread visibility of the reassignment.
+        @Volatile
+        private var _events = MutableSharedFlow<InstallEvent>(
             replay = 1,
             extraBufferCapacity = 8,
         )
-        /** Read-only stream consumers (e.g. MainViewModel) listen on. */
-        val events: kotlinx.coroutines.flow.SharedFlow<InstallEvent> = _events.asSharedFlow()
+        /**
+         * Read-only stream consumers (e.g. MainViewModel) listen on. A getter
+         * (not a cached val) so that after resetForTest() a freshly-built
+         * (test) collector subscribes to the current `_events` instance. In
+         * production `_events` is never reassigned, so this always returns the
+         * original instance — unchanged production behaviour.
+         */
+        val events: kotlinx.coroutines.flow.SharedFlow<InstallEvent>
+            get() = _events.asSharedFlow()
 
         /**
          * Test-only seam: emit an [InstallEvent] as if the system
@@ -62,15 +77,24 @@ class InstallStatusReceiver : BroadcastReceiver() {
         fun emitForTest(event: InstallEvent): Boolean = _events.tryEmit(event)
 
         /**
-         * Test-only seam: clear the replay cache so each test starts with a
-         * clean InstallStatusReceiver. replay=1 (#10) is correct in
-         * production (single process-lifetime collector) but, without this,
-         * the process-global flow leaks the last event into the next test's
-         * freshly-constructed UpdateController collector. Not used by
-         * production code.
+         * Test-only seam: recreate the process-global flow so each test
+         * starts with a fully pristine InstallStatusReceiver — both the
+         * replay slot AND the extraBufferCapacity (#10) drained.
+         *
+         * Previously this called `_events.resetReplayCache()`, which clears
+         * ONLY the replay slot, not the 8-slot extraBufferCapacity. The
+         * triage-#22 concurrent test (two in-flight installUpdate calls →
+         * double install → multiple events into the global flow) exposed
+         * that buffered, uncollected emissions survived resetReplayCache()
+         * and leaked into the next test's freshly-constructed
+         * UpdateController collector → an order-dependent flaky failure.
+         * Recreating the SharedFlow drops both replay and buffer, fully
+         * isolating tests. Not used by production code (prod never resets
+         * this seam; see `_events`/`events` notes — behaviour unchanged).
          */
-        @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
-        fun resetForTest() { _events.resetReplayCache() }
+        fun resetForTest() {
+            _events = MutableSharedFlow(replay = 1, extraBufferCapacity = 8)
+        }
     }
 }
 
