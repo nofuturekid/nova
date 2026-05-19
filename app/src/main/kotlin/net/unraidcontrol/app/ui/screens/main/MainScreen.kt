@@ -27,12 +27,15 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.NavigationBarItemDefaults
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.material3.ripple
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.material3.pulltorefresh.rememberPullToRefreshState
 import androidx.compose.ui.semantics.Role
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -141,6 +144,17 @@ fun MainScreen(
         contract = ActivityResultContracts.StartActivityForResult(),
     ) { /* nothing — user returns; if granted, they tap Install again */ }
 
+    // Transient action-failure signal (triage #19, ADR-0037). A failed
+    // user action no longer crashes the app — the resilient launcher in
+    // MainViewModel emits a brief message here; we surface it in the
+    // existing Material 3 idiom (snackbar) and let the polling streams
+    // reconcile the actual state.
+    val snackbarHostState = remember { SnackbarHostState() }
+    LaunchedEffect(Unit) {
+        vm.userMessages.collect { msg -> snackbarHostState.showSnackbar(msg) }
+    }
+
+    Box(modifier = Modifier.fillMaxSize()) {
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -408,6 +422,15 @@ fun MainScreen(
             onGrantPermission = { state ->
                 vm.launchPermissionIntent(state) { permissionLauncher.launch(it) }
             },
+        )
+    }
+
+        SnackbarHost(
+            hostState = snackbarHostState,
+            modifier = Modifier
+                .align(Alignment.BottomCenter)
+                .windowInsetsPadding(WindowInsets.systemBars)
+                .padding(bottom = 72.dp),
         )
     }
 }
