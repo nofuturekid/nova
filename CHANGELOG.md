@@ -15,6 +15,11 @@ release version + date and opens a fresh `[Unreleased]`.
 
 ## [Unreleased]
 
+## [0.1.33-beta2] - 2026-05-20
+
+### Added
+- **Deprecation banner** — dismissible banner on Overview informing users that the next release ships under a new application ID (NOVA) and won't auto-update. Settings → About gains a "What's changing" paragraph with the same information durably visible (non-dismissible). See ADR-0039.
+
 ## [0.1.33-beta1] - 2026-05-20
 
 ### Added

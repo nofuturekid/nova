@@ -20,6 +20,7 @@ class SettingsRepository @Inject constructor(
     val includePrereleases: Flow<Boolean> = store.includePrereleases
     val lastUpdateCheck: Flow<Long?> = store.lastUpdateCheck
     val dismissedUpdateTag: Flow<String?> = store.dismissedUpdateTag
+    val renameBannerDismissed: Flow<Boolean> = store.renameBannerDismissed
 
     suspend fun setAccent(hex: Long)         = store.setAccent(hex)
     suspend fun setThemeMode(mode: ThemeMode) = store.setThemeMode(mode)
@@ -30,4 +31,5 @@ class SettingsRepository @Inject constructor(
     suspend fun setIncludePrereleases(value: Boolean) = store.setIncludePrereleases(value)
     suspend fun setLastUpdateCheck(epochMs: Long) = store.setLastUpdateCheck(epochMs)
     suspend fun setDismissedUpdateTag(tag: String?) = store.setDismissedUpdateTag(tag)
+    suspend fun setRenameBannerDismissed(value: Boolean) = store.setRenameBannerDismissed(value)
 }
