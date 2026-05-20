@@ -72,6 +72,7 @@ import net.unraidcontrol.app.ui.screens.container.ContainerDetailSheet
 import net.unraidcontrol.app.ui.screens.docker.DockerTab
 import net.unraidcontrol.app.ui.screens.notifications.NotificationsSheet
 import net.unraidcontrol.app.ui.screens.overview.OverviewTab
+import net.unraidcontrol.app.ui.screens.rename.RenameBanner
 import net.unraidcontrol.app.ui.screens.update.UpdateBanner
 import net.unraidcontrol.app.ui.screens.update.UpdateDialog
 import net.unraidcontrol.app.ui.screens.vms.VmDetailSheet
@@ -180,6 +181,11 @@ fun MainScreen(
             notificationBadge = (notificationsState as? DomainState.Content)?.value?.badgeCount ?: 0,
             onOpenNotifications = { showNotifications = true },
         )
+
+        val renameDismissed by vm.renameBannerDismissed.collectAsState()
+        if (!renameDismissed) {
+            RenameBanner(onDismiss = { vm.dismissRenameBanner() })
+        }
 
         val update = updateState
         if (update is UpdateState.Available && update.info.tag != dismissedTag) {

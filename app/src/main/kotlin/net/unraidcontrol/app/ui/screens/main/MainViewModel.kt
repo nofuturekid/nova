@@ -252,6 +252,10 @@ class MainViewModel @Inject constructor(
     val dismissedUpdateTag: StateFlow<String?> = settings.dismissedUpdateTag
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
 
+    val renameBannerDismissed: StateFlow<Boolean> =
+        settings.renameBannerDismissed
+            .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), false)
+
     init {
         checkForUpdate()
 
@@ -289,6 +293,10 @@ class MainViewModel @Inject constructor(
 
     fun dismissUpdate(tag: String) = viewModelScope.launch {
         settings.setDismissedUpdateTag(tag)
+    }
+
+    fun dismissRenameBanner() = viewModelScope.launch {
+        settings.setRenameBannerDismissed(true)
     }
 
     fun installUpdate(info: UpdateInfo) = updateController.installUpdate(info)
