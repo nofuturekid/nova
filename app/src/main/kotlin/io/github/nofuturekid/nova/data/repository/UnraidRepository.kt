@@ -18,6 +18,8 @@ import io.github.nofuturekid.nova.data.api.toArrayInfo
 import io.github.nofuturekid.nova.data.api.toContainers
 import io.github.nofuturekid.nova.data.api.toLiveMetrics
 import io.github.nofuturekid.nova.data.api.toNotifications
+import io.github.nofuturekid.nova.data.api.toPluginOperations
+import io.github.nofuturekid.nova.data.api.toPlugins
 import io.github.nofuturekid.nova.data.api.toServerInfo
 import io.github.nofuturekid.nova.data.api.toVms
 import io.github.nofuturekid.nova.data.model.ArrayInfo
@@ -26,6 +28,8 @@ import io.github.nofuturekid.nova.data.model.Container
 import io.github.nofuturekid.nova.data.model.LiveMetrics
 import io.github.nofuturekid.nova.data.model.LogLine
 import io.github.nofuturekid.nova.data.model.Notifications
+import io.github.nofuturekid.nova.data.model.Plugin
+import io.github.nofuturekid.nova.data.model.PluginInstallOperation
 import io.github.nofuturekid.nova.data.model.ServerInfo
 import io.github.nofuturekid.nova.data.model.Vm
 import io.github.nofuturekid.nova.graphql.ArchiveAllNotificationsMutation
@@ -40,6 +44,8 @@ import io.github.nofuturekid.nova.graphql.ForceStopVmMutation
 import io.github.nofuturekid.nova.graphql.GetArrayQuery
 import io.github.nofuturekid.nova.graphql.GetDockerContainersQuery
 import io.github.nofuturekid.nova.graphql.GetMetricsQuery
+import io.github.nofuturekid.nova.graphql.GetPluginOperationsQuery
+import io.github.nofuturekid.nova.graphql.GetPluginsQuery
 import io.github.nofuturekid.nova.graphql.GetServerInfoQuery
 import io.github.nofuturekid.nova.graphql.CancelParityCheckMutation
 import io.github.nofuturekid.nova.graphql.GetVmsQuery
@@ -80,6 +86,8 @@ class UnraidRepository @Inject constructor(
         const val POLL_DOCKER_MS = 2_000L     // container start/stop/update reactions
         const val POLL_VMS_MS = 3_000L        // VM state transitions
         const val POLL_NOTIFICATIONS_MS = 60_000L  // alerts change rarely; bell is global
+        const val POLL_PLUGINS_MS = 30_000L        // plugins list rarely changes
+        const val POLL_PLUGIN_OPERATIONS_MS = 10_000L  // install jobs progress; polled only while screen open
 
         /** Consecutive poll failures before the UI drops to an Error state. */
         const val TRANSIENT_ERROR_TOLERANCE = 3
@@ -240,6 +248,16 @@ class UnraidRepository @Inject constructor(
     fun notificationsStream(intervalMs: Long = POLL_NOTIFICATIONS_MS): Flow<DomainState<Notifications>> =
         domainStream(intervalMs, notificationsNudge) { client, baseUrl ->
             fetch(client, GetNotificationListQuery()) { data -> data.toNotifications() }.withBaseUrl(baseUrl)
+        }
+
+    fun pluginsStream(intervalMs: Long = POLL_PLUGINS_MS): Flow<DomainState<List<Plugin>>> =
+        domainStream(intervalMs) { client, baseUrl ->
+            fetch(client, GetPluginsQuery()) { data -> data.toPlugins() }.withBaseUrl(baseUrl)
+        }
+
+    fun pluginOperationsStream(intervalMs: Long = POLL_PLUGIN_OPERATIONS_MS): Flow<DomainState<List<PluginInstallOperation>>> =
+        domainStream(intervalMs) { client, baseUrl ->
+            fetch(client, GetPluginOperationsQuery()) { data -> data.toPluginOperations() }.withBaseUrl(baseUrl)
         }
 
     /**

@@ -15,6 +15,11 @@ release version + date and opens a fresh `[Unreleased]`.
 
 ## [Unreleased]
 
+## [0.1.34-beta2] - 2026-05-20
+
+### Added
+- **Settings → Server plugins** — read-only inventory of installed Unraid plugins (name, version, API/CLI module flags) and the install-operation history (status pills for queued/running/succeeded/failed, expandable output log per operation). Phase A + B per the GraphQL plugin surface; no mutations or subscriptions in this cycle. See ADR-0017 polling pattern.
+
 ## [0.1.34-beta1] - 2026-05-20
 
 ### Changed

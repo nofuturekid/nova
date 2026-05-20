@@ -159,3 +159,22 @@ data class LogLine(
     val time: String,
     val message: String,
 )
+
+enum class PluginInstallStatus { Failed, Queued, Running, Succeeded }
+
+data class Plugin(
+    val name: String,
+    val version: String,
+    val hasApiModule: Boolean?,
+    val hasCliModule: Boolean?,
+)
+
+data class PluginInstallOperation(
+    val id: String,
+    val url: String,
+    val name: String?,
+    val status: PluginInstallStatus,
+    val createdAt: String,
+    val finishedAt: String?,
+    val output: List<String>,
+)

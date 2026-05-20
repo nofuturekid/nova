@@ -114,3 +114,24 @@ query GetNotificationList {
         }
     }
 }
+
+query GetPlugins {
+    plugins {
+        name
+        version
+        hasApiModule
+        hasCliModule
+    }
+}
+
+query GetPluginOperations {
+    pluginInstallOperations {
+        id
+        url
+        name
+        status
+        createdAt
+        finishedAt
+        output
+    }
+}

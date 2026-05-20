@@ -166,6 +166,7 @@ class SettingsViewModel @Inject constructor(
 fun SettingsScreen(
     onBack: () -> Unit,
     onOpenAboutLibraries: () -> Unit,
+    onOpenPlugins: () -> Unit,
     vm: SettingsViewModel = hiltViewModel(),
 ) {
     val t = UnraidTheme.colors
@@ -337,6 +338,29 @@ fun SettingsScreen(
                             )
                         }
                     }
+                }
+            }
+
+            SectionLabel("Server")
+            UnraidCard(padding = UnraidTheme.tokens.pad) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable { onOpenPlugins() }
+                        .padding(vertical = 8.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Text(
+                        text = "Server plugins",
+                        color = t.text,
+                        style = MaterialTheme.typography.labelLarge,
+                    )
+                    Icon(
+                        imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
+                        contentDescription = null,
+                        tint = t.muted,
+                    )
                 }
             }
 

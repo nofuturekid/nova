@@ -35,6 +35,8 @@ type Query {
     vms: Vms
     metrics: Metrics
     notifications: Notifications!
+    plugins: [Plugin!]!
+    pluginInstallOperations: [PluginInstallOperation!]!
 }
 
 # ── Notifications ────────────────────────────────────────────────────
@@ -95,6 +97,35 @@ enum NotificationImportance {
     ALERT
     INFO
     WARNING
+}
+
+# ── Server plugins (read-only inventory + install-job history) ───────
+#    Verified against unraid/api main branch's generated-schema.graphql
+#    on 2026-05-20. Phase A (plugins) + Phase B (pluginInstallOperations).
+#    No mutations / subscriptions in this beta.
+type Plugin {
+    name: String!
+    version: String!
+    hasApiModule: Boolean
+    hasCliModule: Boolean
+}
+
+enum PluginInstallStatus {
+    FAILED
+    QUEUED
+    RUNNING
+    SUCCEEDED
+}
+
+type PluginInstallOperation {
+    id: ID!
+    url: String!
+    name: String
+    status: PluginInstallStatus!
+    createdAt: DateTime!
+    updatedAt: DateTime
+    finishedAt: DateTime
+    output: [String!]!
 }
 
 type Metrics {
