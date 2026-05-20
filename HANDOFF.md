@@ -266,15 +266,16 @@ executed as a blocking CI gate (ADR-0036), resilient action launchers
 - **Baseline Profiles: parked** — modest startup gain vs. real infra
   cost (generation needs an emulator; only an on-demand GMD workflow
   fits our lean CI). Own ADR if revisited.
-- **App-rename: committed** — Lime Technology Unraid® Trademark Policy
-  reviewed 2026-05-20; current name violates §3 (Unraid + word
-  compound) and §4 (Unraid-first construction). Tier-1 asset audit
-  confirmed §5 (logo use) clean — issue is name-only. ADR-0038
-  captures the commitment; README §6 attribution form landed in the
-  same PR. Rename cycle (`0.1.33` with own ADR + applicationId /
-  package / repo migration + transition beta carrying a deprecation
-  banner) waits on the new brand-name decision (maintainer's call,
-  not delegated).
+- **App-rename: NOVA locked.** ADR-0038 committed to the rename; ADR-0039
+  records the brand decision durably: **NOVA — NAS Operations Viewer
+  Anywhere**, canonical form `NOVA for Unraid®`, applicationId
+  `io.github.nofuturekid.nova` (GitHub-derived namespace; iOS-friendly).
+  Migration sequence: 0.1.33-beta2 deprecation banner under old applicationId
+  → 0.1.33-beta3 full rename (package + applicationId + app_name + nova-motif
+  launcher icon + README/HANDOFF/CHANGELOG rebrand + release-asset renames) →
+  0.1.33 Stable squash-promotion → repo rename `UnraidControl` → `nova` after
+  Stable device-acceptance. iOS / web targets remain non-committal (their own
+  ADR if ever pursued; GPL-v3-vs-App-Store-ToS is a real concern).
 - VM vCPU/RAM/GPU stay placeholder zeros — `VmDomain` doesn't expose them.
 - Container auto-start toggle read-only; Restart = stop+start (no atomic
   mutation in schema).
