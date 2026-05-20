@@ -1,6 +1,7 @@
 package net.unraidcontrol.app.ui.screens.settings
 
 import android.content.Intent
+import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
@@ -23,9 +24,13 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -37,6 +42,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.toArgb
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.ViewModel
@@ -159,6 +165,7 @@ class SettingsViewModel @Inject constructor(
 @Composable
 fun SettingsScreen(
     onBack: () -> Unit,
+    onOpenAboutLibraries: () -> Unit,
     vm: SettingsViewModel = hiltViewModel(),
 ) {
     val t = UnraidTheme.colors
@@ -329,6 +336,62 @@ fun SettingsScreen(
                                 variant = BtnVariant.Filled,
                             )
                         }
+                    }
+                }
+            }
+
+            SectionLabel("About")
+            UnraidCard(padding = UnraidTheme.tokens.pad) {
+                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    SettingRow(label = "App") {
+                        Text(
+                            text = "UnraidControl v${BuildConfig.VERSION_NAME}",
+                            color = t.text,
+                            style = MaterialTheme.typography.labelLarge,
+                        )
+                    }
+                    SettingRow(label = "License") {
+                        Text(
+                            text = "GPL v3",
+                            color = t.text,
+                            style = MaterialTheme.typography.labelLarge,
+                        )
+                    }
+                    val ctx = LocalContext.current
+                    SettingRow(label = "Source code") {
+                        TextButton(onClick = {
+                            ctx.startActivity(
+                                Intent(Intent.ACTION_VIEW,
+                                    Uri.parse("https://github.com/nofuturekid/UnraidControl"))
+                            )
+                        }) { Text("View on GitHub", color = t.accent) }
+                    }
+                    Text(
+                        text = "Unraid® is a registered trademark of Lime Technology, Inc. " +
+                               "UnraidControl is an independent, community-built client; it uses the term " +
+                               "solely to describe compatibility with the Unraid® operating system and " +
+                               "is not affiliated with, endorsed by, or supported by Lime Technology.",
+                        color = t.muted,
+                        style = MaterialTheme.typography.bodySmall,
+                    )
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable { onOpenAboutLibraries() }
+                            .padding(vertical = 8.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Text(
+                            text = "Open-source licenses",
+                            color = t.text,
+                            style = MaterialTheme.typography.labelLarge,
+                        )
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
+                            contentDescription = null,
+                            tint = t.muted,
+                        )
                     }
                 }
             }

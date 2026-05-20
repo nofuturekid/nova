@@ -5,6 +5,7 @@ plugins {
     alias(libs.plugins.ksp)
     alias(libs.plugins.hilt)
     alias(libs.plugins.apollo)
+    alias(libs.plugins.aboutlibraries)
 }
 
 android {
@@ -15,8 +16,8 @@ android {
         applicationId = "net.unraidcontrol.app"
         minSdk = 26
         targetSdk = 36
-        versionCode = 85
-        versionName = "0.1.32"
+        versionCode = 86
+        versionName = "0.1.33-beta1"
 
         vectorDrawables { useSupportLibrary = true }
     }
@@ -154,6 +155,7 @@ dependencies {
 
     implementation(libs.markdown.renderer)
     implementation(libs.markdown.renderer.m3)
+    implementation(libs.aboutlibraries.compose.m3)
 
     implementation(libs.kotlinx.coroutines.android)
     implementation(libs.kotlinx.serialization.json)

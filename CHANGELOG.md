@@ -15,6 +15,11 @@ release version + date and opens a fresh `[Unreleased]`.
 
 ## [Unreleased]
 
+## [0.1.33-beta1] - 2026-05-20
+
+### Added
+- **Settings → About** — app name + version, GPL v3 + source-code link, Unraid® trademark attribution paragraph (per ADR-0038 / Lime Trademark Policy §6), and a full open-source license list (powered by AboutLibraries).
+
 ## [0.1.32] - 2026-05-19
 
 Stable promotion of the whole 0.1.32 cycle (beta1…beta3), maintainer

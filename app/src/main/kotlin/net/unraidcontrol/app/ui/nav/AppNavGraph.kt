@@ -12,12 +12,14 @@ import net.unraidcontrol.app.data.model.Server
 import net.unraidcontrol.app.ui.screens.main.MainScreen
 import net.unraidcontrol.app.ui.screens.server.AddEditServerSheet
 import net.unraidcontrol.app.ui.screens.server.ServerListScreen
+import net.unraidcontrol.app.ui.screens.settings.AboutLibrariesScreen
 import net.unraidcontrol.app.ui.screens.settings.SettingsScreen
 
 object Routes {
     const val Main       = "main"
     const val ServerList = "server_list"
     const val Settings   = "settings"
+    const val AboutLibraries = "about_libraries"
 }
 
 @Composable
@@ -41,7 +43,13 @@ fun AppNavGraph() {
             )
         }
         composable(Routes.Settings) {
-            SettingsScreen(onBack = { navController.popBackStack() })
+            SettingsScreen(
+                onBack = { navController.popBackStack() },
+                onOpenAboutLibraries = { navController.navigate(Routes.AboutLibraries) },
+            )
+        }
+        composable(Routes.AboutLibraries) {
+            AboutLibrariesScreen(onBack = { navController.popBackStack() })
         }
     }
 
