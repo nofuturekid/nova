@@ -4,25 +4,25 @@
 
 **NOVA for Unraid® — your NAS in your pocket. A fast, native Android app for keeping an eye on — and a hand on — your Unraid® server.**
 
-[![Live Interactive Preview — no install](https://img.shields.io/badge/%E2%96%B6%20Live%20Interactive%20Preview-no%20install-22d3a4?style=for-the-badge&logo=googlechrome&logoColor=white)](https://nofuturekid.github.io/UnraidControl/)
+[![Live Interactive Preview — no install](https://img.shields.io/badge/%E2%96%B6%20Live%20Interactive%20Preview-no%20install-22d3a4?style=for-the-badge&logo=googlechrome&logoColor=white)](https://nofuturekid.github.io/nova/)
 
 _See the actual UI in your browser — sample data, no server needed (snapshot of the 0.1.31 cycle)._
 
-[![Stable](https://img.shields.io/github/v/release/nofuturekid/UnraidControl?sort=semver&label=stable&color=blue&style=flat-square&logo=github)](https://github.com/nofuturekid/UnraidControl/releases/latest)
-[![Beta](https://img.shields.io/github/v/release/nofuturekid/UnraidControl?include_prereleases&label=beta&color=orange&style=flat-square&logo=github)](https://github.com/nofuturekid/UnraidControl/releases)
-[![Downloads](https://img.shields.io/github/downloads/nofuturekid/UnraidControl/total?label=downloads&style=flat-square&logo=github)](https://github.com/nofuturekid/UnraidControl/releases)
+[![Stable](https://img.shields.io/github/v/release/nofuturekid/nova?sort=semver&label=stable&color=blue&style=flat-square&logo=github)](https://github.com/nofuturekid/nova/releases/latest)
+[![Beta](https://img.shields.io/github/v/release/nofuturekid/nova?include_prereleases&label=beta&color=orange&style=flat-square&logo=github)](https://github.com/nofuturekid/nova/releases)
+[![Downloads](https://img.shields.io/github/downloads/nofuturekid/nova/total?label=downloads&style=flat-square&logo=github)](https://github.com/nofuturekid/nova/releases)
 
-[![Platform](https://img.shields.io/badge/platform-Android-3DDC84?style=flat-square&logo=android&logoColor=white)](https://github.com/nofuturekid/UnraidControl/releases)
-[![Min Android](https://img.shields.io/badge/Android-8.0%2B-3DDC84?style=flat-square&logo=android&logoColor=white)](https://github.com/nofuturekid/UnraidControl/releases)
+[![Platform](https://img.shields.io/badge/platform-Android-3DDC84?style=flat-square&logo=android&logoColor=white)](https://github.com/nofuturekid/nova/releases)
+[![Min Android](https://img.shields.io/badge/Android-8.0%2B-3DDC84?style=flat-square&logo=android&logoColor=white)](https://github.com/nofuturekid/nova/releases)
 [![Made with Kotlin](https://img.shields.io/badge/Kotlin-Jetpack%20Compose-7F52FF?style=flat-square&logo=kotlin&logoColor=white)](https://kotlinlang.org)
 
-[![CI](https://img.shields.io/github/actions/workflow/status/nofuturekid/UnraidControl/ci.yml?branch=main&label=CI&style=flat-square&logo=githubactions&logoColor=white)](https://github.com/nofuturekid/UnraidControl/actions/workflows/ci.yml)
-[![CodeQL](https://img.shields.io/github/actions/workflow/status/nofuturekid/UnraidControl/codeql.yml?branch=main&label=CodeQL&style=flat-square&logo=github&logoColor=white)](https://github.com/nofuturekid/UnraidControl/security/code-scanning)
+[![CI](https://img.shields.io/github/actions/workflow/status/nofuturekid/nova/ci.yml?branch=main&label=CI&style=flat-square&logo=githubactions&logoColor=white)](https://github.com/nofuturekid/nova/actions/workflows/ci.yml)
+[![CodeQL](https://img.shields.io/github/actions/workflow/status/nofuturekid/nova/codeql.yml?branch=main&label=CodeQL&style=flat-square&logo=github&logoColor=white)](https://github.com/nofuturekid/nova/security/code-scanning)
 [![License: GPL v3](https://img.shields.io/badge/license-GPLv3-blue.svg?style=flat-square)](./LICENSE)
 
 [![Dependabot](https://img.shields.io/badge/Dependabot-enabled-025E8C?style=flat-square&logo=dependabot&logoColor=white)](.github/dependabot.yml)
-[![Forks](https://img.shields.io/github/forks/nofuturekid/UnraidControl?style=flat-square&logo=github)](https://github.com/nofuturekid/UnraidControl/network/members)
-[![Open issues](https://img.shields.io/github/issues/nofuturekid/UnraidControl?style=flat-square&logo=github)](https://github.com/nofuturekid/UnraidControl/issues)
+[![Forks](https://img.shields.io/github/forks/nofuturekid/nova?style=flat-square&logo=github)](https://github.com/nofuturekid/nova/network/members)
+[![Open issues](https://img.shields.io/github/issues/nofuturekid/nova?style=flat-square&logo=github)](https://github.com/nofuturekid/nova/issues)
 
 </div>
 
@@ -34,7 +34,7 @@ It talks to your server through the official Unraid API (the Connect plugin's Gr
 
 ## Screenshots
 
-**Live interactive preview (no install):** <https://nofuturekid.github.io/UnraidControl/> — a clickable prototype of the UI (snapshot of the 0.1.31 cycle; sample data, not a live server).
+**Live interactive preview (no install):** <https://nofuturekid.github.io/nova/> — a clickable prototype of the UI (snapshot of the 0.1.31 cycle; sample data, not a live server).
 
 <div align="center">
 
@@ -70,7 +70,7 @@ A few things bend to taste in **Settings**:
 
 ## Getting started
 
-1. **Install** the latest APK from the [Releases page](https://github.com/nofuturekid/UnraidControl/releases). (Android will ask you to allow installing from your browser/files app — that's expected for apps outside the Play Store.)
+1. **Install** the latest APK from the [Releases page](https://github.com/nofuturekid/nova/releases). (Android will ask you to allow installing from your browser/files app — that's expected for apps outside the Play Store.)
 2. On your Unraid server, generate an **API key**: web UI → _Settings → Management Access → API / Connect_.
 3. Open the app → **Add server** and fill in:
    - **Name** — a label, e.g. `Tower`

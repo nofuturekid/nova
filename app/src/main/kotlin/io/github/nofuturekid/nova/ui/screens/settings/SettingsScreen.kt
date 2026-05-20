@@ -362,7 +362,7 @@ fun SettingsScreen(
                         TextButton(onClick = {
                             ctx.startActivity(
                                 Intent(Intent.ACTION_VIEW,
-                                    Uri.parse("https://github.com/nofuturekid/UnraidControl"))
+                                    Uri.parse("https://github.com/nofuturekid/nova"))
                             )
                         }) { Text("View on GitHub", color = t.accent) }
                     }
@@ -383,7 +383,7 @@ fun SettingsScreen(
                     TextButton(onClick = {
                         ctx.startActivity(
                             Intent(Intent.ACTION_VIEW,
-                                Uri.parse("https://github.com/nofuturekid/UnraidControl/releases"))
+                                Uri.parse("https://github.com/nofuturekid/nova/releases"))
                         )
                     }) { Text("View releases on GitHub", color = t.accent) }
                     Row(
