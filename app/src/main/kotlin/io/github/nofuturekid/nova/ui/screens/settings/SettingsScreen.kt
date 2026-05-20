@@ -345,7 +345,7 @@ fun SettingsScreen(
                 Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                     SettingRow(label = "App") {
                         Text(
-                            text = "UnraidControl v${BuildConfig.VERSION_NAME}",
+                            text = "NOVA v${BuildConfig.VERSION_NAME}",
                             color = t.text,
                             style = MaterialTheme.typography.labelLarge,
                         )
@@ -368,7 +368,7 @@ fun SettingsScreen(
                     }
                     Text(
                         text = "Unraid® is a registered trademark of Lime Technology, Inc. " +
-                               "UnraidControl is an independent, community-built client; it uses the term " +
+                               "NOVA is an independent, community-built client; it uses the term " +
                                "solely to describe compatibility with the Unraid® operating system and " +
                                "is not affiliated with, endorsed by, or supported by Lime Technology.",
                         color = t.muted,

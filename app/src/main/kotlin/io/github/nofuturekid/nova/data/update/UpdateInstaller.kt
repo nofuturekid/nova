@@ -59,7 +59,7 @@ class UpdateInstaller @Inject constructor(
                 if (!resp.isSuccessful) throw RuntimeException("HTTP ${resp.code} downloading APK")
                 val body = resp.body
                 val total = body.contentLength().coerceAtLeast(1L)
-                val out = updatesDir().resolve("UnraidControl-update.apk")
+                val out = updatesDir().resolve("NOVA-update.apk")
                 out.parentFile?.mkdirs()
                 if (out.exists()) out.delete()
                 val sha = MessageDigest.getInstance("SHA-256")
