@@ -166,6 +166,7 @@ fun SettingsScreen(
     onBack: () -> Unit,
     onOpenAboutLibraries: () -> Unit,
     onOpenPlugins: () -> Unit,
+    onOpenNetwork: () -> Unit,
     vm: SettingsViewModel = hiltViewModel(),
 ) {
     val t = UnraidTheme.colors
@@ -342,24 +343,45 @@ fun SettingsScreen(
 
             SectionLabel("Server")
             UnraidCard(padding = UnraidTheme.tokens.pad) {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clickable { onOpenPlugins() }
-                        .padding(vertical = 8.dp),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    Text(
-                        text = "Server plugins",
-                        color = t.text,
-                        style = MaterialTheme.typography.labelLarge,
-                    )
-                    Icon(
-                        imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
-                        contentDescription = null,
-                        tint = t.muted,
-                    )
+                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable { onOpenPlugins() }
+                            .padding(vertical = 8.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Text(
+                            text = "Server plugins",
+                            color = t.text,
+                            style = MaterialTheme.typography.labelLarge,
+                        )
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
+                            contentDescription = null,
+                            tint = t.muted,
+                        )
+                    }
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable { onOpenNetwork() }
+                            .padding(vertical = 8.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Text(
+                            text = "Network interfaces",
+                            color = t.text,
+                            style = MaterialTheme.typography.labelLarge,
+                        )
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
+                            contentDescription = null,
+                            tint = t.muted,
+                        )
+                    }
                 }
             }
 

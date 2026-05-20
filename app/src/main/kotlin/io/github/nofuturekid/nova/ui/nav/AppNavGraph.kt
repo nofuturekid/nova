@@ -10,6 +10,7 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import io.github.nofuturekid.nova.data.model.Server
 import io.github.nofuturekid.nova.ui.screens.main.MainScreen
+import io.github.nofuturekid.nova.ui.screens.network.NetworkScreen
 import io.github.nofuturekid.nova.ui.screens.plugins.PluginsScreen
 import io.github.nofuturekid.nova.ui.screens.server.AddEditServerSheet
 import io.github.nofuturekid.nova.ui.screens.server.ServerListScreen
@@ -22,6 +23,7 @@ object Routes {
     const val Settings   = "settings"
     const val AboutLibraries = "about_libraries"
     const val Plugins    = "plugins"
+    const val Network    = "network"
 }
 
 @Composable
@@ -49,6 +51,7 @@ fun AppNavGraph() {
                 onBack = { navController.popBackStack() },
                 onOpenAboutLibraries = { navController.navigate(Routes.AboutLibraries) },
                 onOpenPlugins = { navController.navigate(Routes.Plugins) },
+                onOpenNetwork = { navController.navigate(Routes.Network) },
             )
         }
         composable(Routes.AboutLibraries) {
@@ -56,6 +59,9 @@ fun AppNavGraph() {
         }
         composable(Routes.Plugins) {
             PluginsScreen(onBack = { navController.popBackStack() })
+        }
+        composable(Routes.Network) {
+            NetworkScreen(onBack = { navController.popBackStack() })
         }
     }
 

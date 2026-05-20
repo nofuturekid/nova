@@ -17,6 +17,7 @@ import io.github.nofuturekid.nova.data.local.ApiKeyResult
 import io.github.nofuturekid.nova.data.api.toArrayInfo
 import io.github.nofuturekid.nova.data.api.toContainers
 import io.github.nofuturekid.nova.data.api.toLiveMetrics
+import io.github.nofuturekid.nova.data.api.toNetworkInterfaces
 import io.github.nofuturekid.nova.data.api.toNotifications
 import io.github.nofuturekid.nova.data.api.toPluginOperations
 import io.github.nofuturekid.nova.data.api.toPlugins
@@ -27,6 +28,7 @@ import io.github.nofuturekid.nova.data.model.ConnectionMode
 import io.github.nofuturekid.nova.data.model.Container
 import io.github.nofuturekid.nova.data.model.LiveMetrics
 import io.github.nofuturekid.nova.data.model.LogLine
+import io.github.nofuturekid.nova.data.model.NetworkInterface
 import io.github.nofuturekid.nova.data.model.Notifications
 import io.github.nofuturekid.nova.data.model.Plugin
 import io.github.nofuturekid.nova.data.model.PluginInstallOperation
@@ -45,6 +47,7 @@ import io.github.nofuturekid.nova.graphql.GetArrayQuery
 import io.github.nofuturekid.nova.graphql.GetDockerContainersQuery
 import io.github.nofuturekid.nova.graphql.GetInstalledUnraidPluginsQuery
 import io.github.nofuturekid.nova.graphql.GetMetricsQuery
+import io.github.nofuturekid.nova.graphql.GetNetworkInterfacesQuery
 import io.github.nofuturekid.nova.graphql.GetPluginOperationsQuery
 import io.github.nofuturekid.nova.graphql.GetPluginsQuery
 import io.github.nofuturekid.nova.graphql.GetServerInfoQuery
@@ -90,6 +93,7 @@ class UnraidRepository @Inject constructor(
         const val POLL_PLUGINS_MS = 30_000L        // plugins list rarely changes
         const val POLL_INSTALLED_UNRAID_PLUGINS_MS = 30_000L  // .plg inventory rarely changes
         const val POLL_PLUGIN_OPERATIONS_MS = 10_000L  // install jobs progress; polled only while screen open
+        const val POLL_NETWORK_INTERFACES_MS = 30_000L // NIC config rarely changes
 
         /** Consecutive poll failures before the UI drops to an Error state. */
         const val TRANSIENT_ERROR_TOLERANCE = 3
@@ -265,6 +269,11 @@ class UnraidRepository @Inject constructor(
     fun pluginOperationsStream(intervalMs: Long = POLL_PLUGIN_OPERATIONS_MS): Flow<DomainState<List<PluginInstallOperation>>> =
         domainStream(intervalMs) { client, baseUrl ->
             fetch(client, GetPluginOperationsQuery()) { data -> data.toPluginOperations() }.withBaseUrl(baseUrl)
+        }
+
+    fun networkInterfacesStream(intervalMs: Long = POLL_NETWORK_INTERFACES_MS): Flow<DomainState<List<NetworkInterface>>> =
+        domainStream(intervalMs) { client, baseUrl ->
+            fetch(client, GetNetworkInterfacesQuery()) { data -> data.toNetworkInterfaces() }.withBaseUrl(baseUrl)
         }
 
     /**

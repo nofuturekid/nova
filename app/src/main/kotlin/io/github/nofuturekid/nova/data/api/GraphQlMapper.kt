@@ -9,6 +9,7 @@ import io.github.nofuturekid.nova.data.model.Disk
 import io.github.nofuturekid.nova.data.model.DiskStatus
 import io.github.nofuturekid.nova.data.model.DiskType
 import io.github.nofuturekid.nova.data.model.LiveMetrics
+import io.github.nofuturekid.nova.data.model.NetworkInterface
 import io.github.nofuturekid.nova.data.model.NotifImportance
 import io.github.nofuturekid.nova.data.model.NotifType
 import io.github.nofuturekid.nova.data.model.Notifications
@@ -23,6 +24,7 @@ import io.github.nofuturekid.nova.data.model.VmState
 import io.github.nofuturekid.nova.graphql.GetArrayQuery
 import io.github.nofuturekid.nova.graphql.GetDockerContainersQuery
 import io.github.nofuturekid.nova.graphql.GetMetricsQuery
+import io.github.nofuturekid.nova.graphql.GetNetworkInterfacesQuery
 import io.github.nofuturekid.nova.graphql.GetNotificationListQuery
 import io.github.nofuturekid.nova.graphql.GetNotificationsQuery
 import io.github.nofuturekid.nova.graphql.GetPluginOperationsQuery
@@ -240,6 +242,40 @@ fun GetPluginOperationsQuery.Data.toPluginOperations(): List<PluginInstallOperat
             output = op.output,
         )
     }
+
+// ── Network interfaces (join two upstream sources by iface name) ─────
+
+fun GetNetworkInterfacesQuery.Data.toNetworkInterfaces(): List<NetworkInterface> {
+    val infoBlock = info
+    val primaryName = infoBlock.primaryNetwork?.name
+    // Build a name→hardware map. The inner type name Apollo generates for
+    // devices.network depends on nesting (`Network1` etc.) so we access
+    // its scalar fields directly without naming the wrapper type.
+    val byIface = infoBlock.devices?.network.orEmpty().associateBy { it.iface }
+    return infoBlock.networkInterfaces.map { iface ->
+        val dev = byIface[iface.name]
+        NetworkInterface(
+            name = iface.name,
+            isPrimary = iface.name == primaryName,
+            description = iface.description,
+            status = iface.status,
+            protocol = iface.protocol,
+            macAddress = iface.macAddress ?: dev?.mac,
+            ipAddress = iface.ipAddress,
+            netmask = iface.netmask,
+            gateway = iface.gateway,
+            useDhcp = iface.useDhcp ?: dev?.dhcp,
+            ipv6Address = iface.ipv6Address,
+            ipv6Netmask = iface.ipv6Netmask,
+            ipv6Gateway = iface.ipv6Gateway,
+            useDhcp6 = iface.useDhcp6,
+            vendor = dev?.vendor,
+            model = dev?.model,
+            speed = dev?.speed,
+            virtual = dev?.virtual,
+        )
+    }
+}
 
 private fun GPluginInstallStatus.toDomain(): PluginInstallStatus = when (this) {
     GPluginInstallStatus.FAILED    -> PluginInstallStatus.Failed
