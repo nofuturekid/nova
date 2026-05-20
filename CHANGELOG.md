@@ -15,26 +15,20 @@ release version + date and opens a fresh `[Unreleased]`.
 
 ## [Unreleased]
 
-## [0.1.33-beta3] - 2026-05-20
+## [0.1.33] - 2026-05-20
+
+Renamed from `UnraidControl` to **NOVA** for compliance with the Lime Technology Unraid® Trademark Policy (§3 prohibits compound names combining "Unraid" with another word). See [ADR-0038](docs/adr/0038-lime-trademark-compliance-rename-pending.md) and [ADR-0039](docs/adr/0039-rename-to-nova.md).
+
+### Heads-up — existing installs do not auto-update
+
+The Android `applicationId` changed from `net.unraidcontrol.app` to `io.github.nofuturekid.nova`. From Android's view, NOVA is a new app — your old UnraidControl install stays on `0.1.33-beta2` and no longer receives updates. **Install NOVA fresh from the [Releases page](https://github.com/nofuturekid/UnraidControl/releases)**, re-enter your server's API key, and uninstall the old app. Server entries and theme preferences live in per-app DataStore and don't migrate — this is a one-time clean break.
+
+### Added
+- **Settings → About** — app name + version, GPL v3 + source-code link, full Unraid® trademark attribution paragraph (per ADR-0038 / §6), and an open-source license list (powered by AboutLibraries).
 
 ### Changed
-- **Full rename to NOVA.** Per ADR-0039:
-  - Android `applicationId` and Kotlin package: `net.unraidcontrol.app` → `io.github.nofuturekid.nova`.
-  - `app_name`: `UnraidControl` → `NOVA`.
-  - Launcher icon: nova/sparkle 4-pointed-star placeholder (replaceable later).
-  - Release asset name: `UnraidControl-vX.Y.Z.apk` → `NOVA-vX.Y.Z.apk`.
-  - README rebrand (text only — repo rename follows after Stable 0.1.33).
-- **Existing UnraidControl installs will not auto-update.** Install NOVA fresh from GitHub Releases and uninstall the old app. The deprecation banner in 0.1.33-beta2 warned about this one cycle ago.
-
-## [0.1.33-beta2] - 2026-05-20
-
-### Added
-- **Deprecation banner** — dismissible banner on Overview informing users that the next release ships under a new application ID (NOVA) and won't auto-update. Settings → About gains a "What's changing" paragraph with the same information durably visible (non-dismissible). See ADR-0039.
-
-## [0.1.33-beta1] - 2026-05-20
-
-### Added
-- **Settings → About** — app name + version, GPL v3 + source-code link, Unraid® trademark attribution paragraph (per ADR-0038 / Lime Trademark Policy §6), and a full open-source license list (powered by AboutLibraries).
+- **Renamed to NOVA — NAS Operations Viewer Anywhere.** Brand mark, `applicationId`, Kotlin package, AGP namespace, Apollo generated package, `app_name`, Application class (`NovaApp`), splash/Material theme (`Theme.Nova`), launcher icon (sparkle 4-pointed-star placeholder), local APK download filename, release-asset name (`NOVA-vX.Y.Z.apk`), and README / HANDOFF prose all flip to NOVA. Repo URL stays at `nofuturekid/UnraidControl` for this Stable — the repo rename follows in a separate post-Stable step (Step 4 of the ADR-0039 plan).
+- **Deprecation banner** shipped one cycle ago in `0.1.33-beta2` so existing users were warned about the non-auto-updating applicationId change before it landed.
 
 ## [0.1.32] - 2026-05-19
 
