@@ -19,7 +19,6 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.systemBars
 import androidx.compose.foundation.layout.windowInsetsPadding
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
@@ -398,18 +397,6 @@ fun SettingsScreen(
                         color = t.muted,
                         style = MaterialTheme.typography.bodySmall,
                     )
-                    Spacer(Modifier.height(4.dp))
-                    Text(
-                        text = "Renaming to NOVA. This app is being renamed to comply with the Unraid® Trademark Policy (ADR-0039). The next release ships as a separate app — NOVA — NAS Operations Viewer Anywhere — with a different application ID, so it won't auto-update from this version. The new app is announced on the GitHub Releases page.",
-                        color = t.muted,
-                        style = MaterialTheme.typography.bodySmall,
-                    )
-                    TextButton(onClick = {
-                        ctx.startActivity(
-                            Intent(Intent.ACTION_VIEW,
-                                Uri.parse("https://github.com/nofuturekid/nova/releases"))
-                        )
-                    }) { Text("View releases on GitHub", color = t.accent) }
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
