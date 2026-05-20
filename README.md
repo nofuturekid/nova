@@ -81,9 +81,9 @@ A few things bend to taste in **Settings**:
 
 Requires an Unraid 7.x server with the API/Connect plugin enabled.
 
-## Not affiliated with Lime Technology
+## Trademark attribution
 
-UnraidControl is an independent, community-built client. "Unraid" is a trademark of Lime Technology, Inc. This project is not affiliated with, endorsed by, or supported by Lime Technology.
+Unraid® is a registered trademark of Lime Technology, Inc. UnraidControl is an independent, community-built client; it uses the term solely to describe compatibility with the Unraid® operating system and is not affiliated with, endorsed by, or supported by Lime Technology. A name change in line with the Unraid® Trademark Policy is in progress — see [ADR-0038](./docs/adr/0038-lime-trademark-compliance-rename-pending.md).
 
 ## Contributing & internals
 
