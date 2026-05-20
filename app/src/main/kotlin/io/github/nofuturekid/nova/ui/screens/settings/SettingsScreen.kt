@@ -397,6 +397,12 @@ fun SettingsScreen(
                         color = t.muted,
                         style = MaterialTheme.typography.bodySmall,
                     )
+                    TextButton(onClick = {
+                        ctx.startActivity(
+                            Intent(Intent.ACTION_VIEW,
+                                Uri.parse("https://github.com/nofuturekid/nova/releases"))
+                        )
+                    }) { Text("View releases on GitHub", color = t.accent) }
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
