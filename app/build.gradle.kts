@@ -9,15 +9,15 @@ plugins {
 }
 
 android {
-    namespace = "net.unraidcontrol.app"
+    namespace = "io.github.nofuturekid.nova"
     compileSdk = 36
 
     defaultConfig {
-        applicationId = "net.unraidcontrol.app"
+        applicationId = "io.github.nofuturekid.nova"
         minSdk = 26
         targetSdk = 36
-        versionCode = 87
-        versionName = "0.1.33-beta2"
+        versionCode = 88
+        versionName = "0.1.33-beta3"
 
         vectorDrawables { useSupportLibrary = true }
     }
@@ -100,7 +100,7 @@ kotlin {
 
 apollo {
     service("unraid") {
-        packageName.set("net.unraidcontrol.app.graphql")
+        packageName.set("io.github.nofuturekid.nova.graphql")
         generateOptionalOperationVariables.set(false)
         // Custom scalars used by the Unraid 7 schema. PrefixedID and DateTime
         // are opaque strings to us; BigInt is a Long; URL/Port are their

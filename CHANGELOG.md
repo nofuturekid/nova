@@ -15,6 +15,17 @@ release version + date and opens a fresh `[Unreleased]`.
 
 ## [Unreleased]
 
+## [0.1.33-beta3] - 2026-05-20
+
+### Changed
+- **Full rename to NOVA.** Per ADR-0039:
+  - Android `applicationId` and Kotlin package: `net.unraidcontrol.app` → `io.github.nofuturekid.nova`.
+  - `app_name`: `UnraidControl` → `NOVA`.
+  - Launcher icon: nova/sparkle 4-pointed-star placeholder (replaceable later).
+  - Release asset name: `UnraidControl-vX.Y.Z.apk` → `NOVA-vX.Y.Z.apk`.
+  - README rebrand (text only — repo rename follows after Stable 0.1.33).
+- **Existing UnraidControl installs will not auto-update.** Install NOVA fresh from GitHub Releases and uninstall the old app. The deprecation banner in 0.1.33-beta2 warned about this one cycle ago.
+
 ## [0.1.33-beta2] - 2026-05-20
 
 ### Added

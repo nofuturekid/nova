@@ -40,7 +40,7 @@
             android:name=".data.update.InstallStatusReceiver"
             android:exported="false">
             <intent-filter>
-                <action android:name="net.unraidcontrol.app.action.INSTALL_STATUS" />
+                <action android:name="io.github.nofuturekid.nova.action.INSTALL_STATUS" />
             </intent-filter>
         </receiver>
     </application>
