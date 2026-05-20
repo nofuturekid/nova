@@ -15,6 +15,11 @@ release version + date and opens a fresh `[Unreleased]`.
 
 ## [Unreleased]
 
+## [0.1.34-beta5] - 2026-05-20
+
+### Changed
+- **Settings → About** — regrouped the two GitHub links ("Source code" + new "Releases") as paired `SettingRow` entries directly above "Open-source licenses"; trademark disclaimer moved to the bottom of the card as footer text. Pure visual cleanup, no functional change.
+
 ## [0.1.34-beta4] - 2026-05-20
 
 ### Added
