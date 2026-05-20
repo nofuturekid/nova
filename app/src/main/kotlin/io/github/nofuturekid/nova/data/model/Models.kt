@@ -178,3 +178,33 @@ data class PluginInstallOperation(
     val finishedAt: String?,
     val output: List<String>,
 )
+
+/**
+ * One server network interface — joined view of `info.networkInterfaces`
+ * (addressing/DHCP/protocol) and `info.devices.network` (hardware: vendor,
+ * model, link-speed, virtual-flag), keyed by interface name. [isPrimary]
+ * is true for the entry that matches `info.primaryNetwork.name`.
+ *
+ * Live RX/TX byte counters are NOT included — Unraid's GraphQL API does
+ * not expose traffic counters today; a separate upstream issue is planned.
+ */
+data class NetworkInterface(
+    val name: String,
+    val isPrimary: Boolean,
+    val description: String?,
+    val status: String?,
+    val protocol: String?,
+    val macAddress: String?,
+    val ipAddress: String?,
+    val netmask: String?,
+    val gateway: String?,
+    val useDhcp: Boolean?,
+    val ipv6Address: String?,
+    val ipv6Netmask: String?,
+    val ipv6Gateway: String?,
+    val useDhcp6: Boolean?,
+    val vendor: String?,
+    val model: String?,
+    val speed: String?,
+    val virtual: Boolean?,
+)

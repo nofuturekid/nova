@@ -179,6 +179,44 @@ type Info {
     memory: InfoMemory!
     os: InfoOs!
     versions: InfoVersions!
+    networkInterfaces: [InfoNetworkInterface!]!
+    primaryNetwork: InfoNetworkInterface
+    devices: InfoDevices
+}
+
+# ── Network (read-only inventory) ────────────────────────────────────
+#    Two upstream surfaces keyed by interface name — `networkInterfaces`
+#    carries addressing/DHCP/protocol, `devices.network` carries hardware
+#    (vendor / model / link-speed / virtual-flag). The Network-interfaces
+#    screen joins them in the mapper. No live RX/TX counters today.
+type InfoNetworkInterface {
+    name: String!
+    description: String
+    macAddress: String
+    status: String
+    protocol: String
+    ipAddress: String
+    netmask: String
+    gateway: String
+    useDhcp: Boolean
+    ipv6Address: String
+    ipv6Netmask: String
+    ipv6Gateway: String
+    useDhcp6: Boolean
+}
+
+type InfoNetwork {
+    iface: String!
+    model: String
+    vendor: String
+    mac: String
+    virtual: Boolean
+    speed: String
+    dhcp: Boolean
+}
+
+type InfoDevices {
+    network: [InfoNetwork!]
 }
 
 type InfoCpu {

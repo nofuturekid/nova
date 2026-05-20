@@ -139,3 +139,40 @@ query GetPluginOperations {
 query GetInstalledUnraidPlugins {
     installedUnraidPlugins
 }
+
+# `primaryNetwork { name }` is intentionally minimal — its full data
+# already appears in `networkInterfaces`; we just need the identifier
+# so the mapper can mark which interface is the management one.
+query GetNetworkInterfaces {
+    info {
+        networkInterfaces {
+            name
+            description
+            macAddress
+            status
+            protocol
+            ipAddress
+            netmask
+            gateway
+            useDhcp
+            ipv6Address
+            ipv6Netmask
+            ipv6Gateway
+            useDhcp6
+        }
+        primaryNetwork {
+            name
+        }
+        devices {
+            network {
+                iface
+                model
+                vendor
+                mac
+                virtual
+                speed
+                dhcp
+            }
+        }
+    }
+}

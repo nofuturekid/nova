@@ -15,6 +15,11 @@ release version + date and opens a fresh `[Unreleased]`.
 
 ## [Unreleased]
 
+## [0.1.34-beta4] - 2026-05-20
+
+### Added
+- **Settings → Network interfaces** — read-only inventory of NICs with IPv4/IPv6 addressing (address, netmask, gateway, DHCP), hardware info (MAC, vendor, model, link speed, virtual-flag), and primary-interface marker. Per-interface expandable detail view. Live RX/TX byte counters are NOT included — those aren't exposed by Unraid's GraphQL API yet (separate upstream issue planned).
+
 ## [0.1.34-beta3] - 2026-05-20
 
 ### Changed
