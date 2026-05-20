@@ -1,8 +1,8 @@
 <div align="center">
 
-# UnraidControl
+# NOVA — NAS Operations Viewer Anywhere
 
-**A fast, native Android app for keeping an eye on — and a hand on — your Unraid server.**
+**NOVA for Unraid® — your NAS in your pocket. A fast, native Android app for keeping an eye on — and a hand on — your Unraid® server.**
 
 [![Live Interactive Preview — no install](https://img.shields.io/badge/%E2%96%B6%20Live%20Interactive%20Preview-no%20install-22d3a4?style=for-the-badge&logo=googlechrome&logoColor=white)](https://nofuturekid.github.io/UnraidControl/)
 
@@ -28,7 +28,7 @@ _See the actual UI in your browser — sample data, no server needed (snapshot o
 
 ---
 
-UnraidControl puts the parts of your Unraid server you actually check on your phone — array health, container and VM state, live system metrics — into a clean, dark, one-thumb interface. Start a container, fix a stuck VM, kick off an update, glance at parity progress: without opening a laptop or fighting the desktop web UI on a phone screen.
+NOVA puts the parts of your Unraid® server you actually check on your phone — array health, container and VM state, live system metrics — into a clean, dark, one-thumb interface. Start a container, fix a stuck VM, kick off an update, glance at parity progress: without opening a laptop or fighting the desktop web UI on a phone screen.
 
 It talks to your server through the official Unraid API (the Connect plugin's GraphQL endpoint) over your own network — nothing is routed through any third party.
 
@@ -83,7 +83,7 @@ Requires an Unraid 7.x server with the API/Connect plugin enabled.
 
 ## Trademark attribution
 
-Unraid® is a registered trademark of Lime Technology, Inc. UnraidControl is an independent, community-built client; it uses the term solely to describe compatibility with the Unraid® operating system and is not affiliated with, endorsed by, or supported by Lime Technology. A name change in line with the Unraid® Trademark Policy is in progress — see [ADR-0038](./docs/adr/0038-lime-trademark-compliance-rename-pending.md).
+Unraid® is a registered trademark of Lime Technology, Inc. NOVA is an independent, community-built client; it uses the term solely to describe compatibility with the Unraid® operating system and is not affiliated with, endorsed by, or supported by Lime Technology. The project was previously named `UnraidControl`; the rename to NOVA in v0.1.33 was made to comply with the Unraid® Trademark Policy — see [ADR-0038](./docs/adr/0038-lime-trademark-compliance-rename-pending.md) and [ADR-0039](./docs/adr/0039-rename-to-nova.md).
 
 ## Contributing & internals
 

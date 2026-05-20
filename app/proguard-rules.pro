@@ -1,5 +1,5 @@
 # Keep Apollo generated types
--keep class net.unraidcontrol.app.graphql.** { *; }
+-keep class io.github.nofuturekid.nova.graphql.** { *; }
 
 # Hilt
 -keepclasseswithmembers class * { @dagger.hilt.android.lifecycle.HiltViewModel <init>(...); }
