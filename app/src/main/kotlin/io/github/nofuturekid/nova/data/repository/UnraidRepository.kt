@@ -43,6 +43,7 @@ import io.github.nofuturekid.nova.graphql.UnreadNotificationMutation
 import io.github.nofuturekid.nova.graphql.ForceStopVmMutation
 import io.github.nofuturekid.nova.graphql.GetArrayQuery
 import io.github.nofuturekid.nova.graphql.GetDockerContainersQuery
+import io.github.nofuturekid.nova.graphql.GetInstalledUnraidPluginsQuery
 import io.github.nofuturekid.nova.graphql.GetMetricsQuery
 import io.github.nofuturekid.nova.graphql.GetPluginOperationsQuery
 import io.github.nofuturekid.nova.graphql.GetPluginsQuery
@@ -87,6 +88,7 @@ class UnraidRepository @Inject constructor(
         const val POLL_VMS_MS = 3_000L        // VM state transitions
         const val POLL_NOTIFICATIONS_MS = 60_000L  // alerts change rarely; bell is global
         const val POLL_PLUGINS_MS = 30_000L        // plugins list rarely changes
+        const val POLL_INSTALLED_UNRAID_PLUGINS_MS = 30_000L  // .plg inventory rarely changes
         const val POLL_PLUGIN_OPERATIONS_MS = 10_000L  // install jobs progress; polled only while screen open
 
         /** Consecutive poll failures before the UI drops to an Error state. */
@@ -253,6 +255,11 @@ class UnraidRepository @Inject constructor(
     fun pluginsStream(intervalMs: Long = POLL_PLUGINS_MS): Flow<DomainState<List<Plugin>>> =
         domainStream(intervalMs) { client, baseUrl ->
             fetch(client, GetPluginsQuery()) { data -> data.toPlugins() }.withBaseUrl(baseUrl)
+        }
+
+    fun installedUnraidPluginsStream(intervalMs: Long = POLL_INSTALLED_UNRAID_PLUGINS_MS): Flow<DomainState<List<String>>> =
+        domainStream(intervalMs) { client, baseUrl ->
+            fetch(client, GetInstalledUnraidPluginsQuery()) { data -> data.installedUnraidPlugins }.withBaseUrl(baseUrl)
         }
 
     fun pluginOperationsStream(intervalMs: Long = POLL_PLUGIN_OPERATIONS_MS): Flow<DomainState<List<PluginInstallOperation>>> =

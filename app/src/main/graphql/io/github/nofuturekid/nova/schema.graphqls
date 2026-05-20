@@ -35,6 +35,7 @@ type Query {
     vms: Vms
     metrics: Metrics
     notifications: Notifications!
+    installedUnraidPlugins: [String!]!
     plugins: [Plugin!]!
     pluginInstallOperations: [PluginInstallOperation!]!
 }
@@ -102,6 +103,9 @@ enum NotificationImportance {
 # ── Server plugins (read-only inventory + install-job history) ───────
 #    Verified against unraid/api main branch's generated-schema.graphql
 #    on 2026-05-20. Phase A (plugins) + Phase B (pluginInstallOperations).
+#    beta3 adds `installedUnraidPlugins` — the real /boot/config/plugins/*.plg
+#    inventory (plain filenames). The `plugins` field above is the
+#    Node.js API-module registry, NOT the .plg list (upstream naming).
 #    No mutations / subscriptions in this beta.
 type Plugin {
     name: String!

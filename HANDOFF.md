@@ -50,7 +50,8 @@ Native Android client for Unraid NAS servers (Kotlin + Jetpack Compose, Apollo G
 | v0.1.33-beta3 | pre-release | Full rename — applicationId io.github.nofuturekid.nova, app_name NOVA, new icon, README/CHANGELOG rebrand, release asset NOVA-vX.Y.Z.apk |
 | **v0.1.33** | **release** | First Lime-trademark-compliant Stable — full rename to NOVA per ADR-0038/0039; existing UnraidControl installs do not auto-update |
 | v0.1.34-beta1 | pre-release | Repo rename to `nofuturekid/nova` — URL refresh sweep |
-| v0.1.34-beta2 | pre-release | Settings → Server plugins (read-only inventory + install-ops history) **(Latest)** |
+| v0.1.34-beta2 | pre-release | Settings → Server plugins (read-only inventory + install-ops history) |
+| v0.1.34-beta3 | pre-release | Settings → Server plugins: add real `.plg` inventory section + relabel API-modules section **(Latest)** |
 
 ## Stack
 

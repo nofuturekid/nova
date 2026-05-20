@@ -26,6 +26,10 @@ import javax.inject.Inject
 class PluginsViewModel @Inject constructor(
     unraid: UnraidRepository,
 ) : ViewModel() {
+    val installedUnraidPlugins: StateFlow<DomainState<List<String>>> =
+        unraid.installedUnraidPluginsStream()
+            .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), DomainState.Loading)
+
     val plugins: StateFlow<DomainState<List<Plugin>>> =
         unraid.pluginsStream()
             .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), DomainState.Loading)
