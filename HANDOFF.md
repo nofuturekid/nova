@@ -8,7 +8,7 @@ Native Android client for Unraid NAS servers (Kotlin + Jetpack Compose, Apollo G
 
 ## Repo
 
-- URL: https://github.com/nofuturekid/UnraidControl
+- URL: https://github.com/nofuturekid/nova
 - License: GPL-3.0-only (relicensed from CC BY-NC-SA 4.0 — see ADR-0021)
 - Default branch: `main` (protected)
 - Owner: nofuturekid (admin bypass on)
@@ -158,7 +158,7 @@ JSON-scalar decision rationale (incl. why-not-String): [ADR-0007](docs/adr/0007-
 - **KSP2 + Hilt 2.59.2** (ADR-0020/0023): the old `ksp.useKSP2=false` / Hilt-2.52 pin is gone. Hilt requires Kotlin ≥ 2.1.10 — it is coupled to the toolchain (ADR-0023 rollback note: Hilt can't be reverted in isolation).
 - **`DockerContainer.mounts` is `JSON` (single scalar) NOT `[JSON!]`** — the JSON content itself is an encoded array of mount objects. Easy to mistype based on intuition; v0.1.11 made the snapshot fail server-wide because of this exact wrong type. Parse via `parseMountsArray` in `GraphQlMapper.kt`.
 - **JSON scalar → kotlin.Any via Apollo's `AnyAdapter`** — the Unraid GraphQL `JSON` scalar serialises as inline JSON values (objects/arrays/primitives), not pre-stringified text. Custom `kotlin.String` adapters crash. We map it to `kotlin.Any` with `com.apollographql.apollo.api.AnyAdapter` (public, built-in). Don't try to write your own with `reader.readAny()` — that's `@ApolloInternal`.
-- **In-app updater** lives under `data/update/`: `UpdateRepository` polls `https://api.github.com/repos/nofuturekid/UnraidControl/releases` (no auth, 60 req/h rate limit fine for on-start checks), `UpdateInstaller` downloads APK to `cacheDir/updates/` and uses `PackageInstaller` for the install handshake, `InstallStatusReceiver` catches the session callback via a `BroadcastReceiver` declared in the manifest. The `REQUEST_INSTALL_PACKAGES` permission is needed; on first install Android prompts the user to whitelist us at `Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES`. The Settings screen exposes the "Include pre-releases" toggle + manual "Check now". Banner on MainScreen dismisses per-tag via `dismissedUpdateTag` in DataStore.
+- **In-app updater** lives under `data/update/`: `UpdateRepository` polls `https://api.github.com/repos/nofuturekid/nova/releases` (no auth, 60 req/h rate limit fine for on-start checks), `UpdateInstaller` downloads APK to `cacheDir/updates/` and uses `PackageInstaller` for the install handshake, `InstallStatusReceiver` catches the session callback via a `BroadcastReceiver` declared in the manifest. The `REQUEST_INSTALL_PACKAGES` permission is needed; on first install Android prompts the user to whitelist us at `Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES`. The Settings screen exposes the "Include pre-releases" toggle + manual "Check now". Banner on MainScreen dismisses per-tag via `dismissedUpdateTag` in DataStore.
 - Cleartext HTTP requires `android:usesCleartextTraffic="true"` in the manifest. LAN access against `http://192.168.x.x` needs this.
 - **CI `test` job (ADR-0036) can transiently fail at Gradle *configuration*** with a plugin-not-resolvable error (e.g. `com.google.devtools.ksp` not found) on a plugin-portal/registry blip — it fetches plugins fresh under PR `cache-read-only`. **Re-run the job; it is not a code defect** (see ADR-0036 "Known consequence — transient plugin-fetch in the `test` job" note; PR #163 2026-05-19).
 
@@ -184,8 +184,8 @@ JSON-scalar decision rationale (incl. why-not-String): [ADR-0007](docs/adr/0007-
 ## Local development
 
 ```bash
-git clone https://github.com/nofuturekid/UnraidControl
-cd UnraidControl
+git clone https://github.com/nofuturekid/nova
+cd nova
 ./gradlew :app:assembleDebug          # debug build, no keystore needed
 ```
 
@@ -286,11 +286,11 @@ executed as a blocking CI gate (ADR-0036), resilient action launchers
 ## Useful gh commands
 
 ```bash
-gh pr list --repo nofuturekid/UnraidControl
-gh run list --repo nofuturekid/UnraidControl --limit 10
-gh release list --repo nofuturekid/UnraidControl
-gh run download <id> --repo nofuturekid/UnraidControl --name app-release
-gh secret list --repo nofuturekid/UnraidControl
+gh pr list --repo nofuturekid/nova
+gh run list --repo nofuturekid/nova --limit 10
+gh release list --repo nofuturekid/nova
+gh run download <id> --repo nofuturekid/nova --name app-release
+gh secret list --repo nofuturekid/nova
 ```
 
 ## Resuming work — quick start

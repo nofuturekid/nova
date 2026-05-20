@@ -11,7 +11,7 @@ hold for this repo/org**: the first post-merge `pages.yml` run failed at
 "Configure Pages" (`has_pages:false`, `/pages` 404). Pages was then
 enabled **out-of-band** via `POST /repos/.../pages {build_type:workflow}`
 and the workflow re-run succeeded (deployment for the merge SHA;
-`https://nofuturekid.github.io/UnraidControl/`). Two honest notes: (1) so
+`https://nofuturekid.github.io/nova/`). Two honest notes: (1) so
 the design goal "no out-of-band repo-settings mutation by a person or an
 agent" was **not** met on first activation — it was an agent-performed
 shared-infra change (a Tier-2 action per ADR-0027; see that ADR's
@@ -55,7 +55,7 @@ workflow**, and link it from the README as a no-install live preview.
   itself. **In practice this did not self-enable here — see the
   Amendment above; Pages was enabled out-of-band, once.** Site root =
   the prototype (`index.html`), served at
-  `https://nofuturekid.github.io/UnraidControl/`.
+  `https://nofuturekid.github.io/nova/`.
 - The prototype is treated as a **version-stamped snapshot**, not living
   documentation. The README link and the page context state the snapshot
   version; it is refreshed deliberately, not kept in lockstep with every
@@ -120,3 +120,7 @@ documentation aid. Out of scope.
   on main), ADR-0029 (CI build-affecting allowlist — this workflow is
   not app-build-affecting).
 - README "Screenshots" section, where the live-preview link is added.
+
+## Addendum (2026-05-20) — Repo rename
+
+The Pages URL flipped when the repo was renamed `UnraidControl` → `nova` per ADR-0039 Step 4. The canonical URL is now `https://nofuturekid.github.io/nova/`; GitHub continues to redirect from the old URL but we no longer rely on that. The embedded prototype HTML at `docs/preview/index.html` still shows the old "UnraidControl" branding (it's a 0.1.31-era UI snapshot, not regenerated); a refresh against the current NOVA UI is a separate task.

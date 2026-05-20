@@ -15,13 +15,18 @@ release version + date and opens a fresh `[Unreleased]`.
 
 ## [Unreleased]
 
+## [0.1.34-beta1] - 2026-05-20
+
+### Changed
+- **Repo rename:** `nofuturekid/UnraidControl` → `nofuturekid/nova` (the final step of ADR-0039). README badge URLs, Live Interactive Preview URL, ADR-0033 reference URLs, in-app About URLs, and the `UpdateRepository.REPO` constant all flip to the new repo path. GitHub redirects continue serving old URLs for now, but the canonical path is `nofuturekid/nova`.
+
 ## [0.1.33] - 2026-05-20
 
 Renamed from `UnraidControl` to **NOVA** for compliance with the Lime Technology Unraid® Trademark Policy (§3 prohibits compound names combining "Unraid" with another word). See [ADR-0038](docs/adr/0038-lime-trademark-compliance-rename-pending.md) and [ADR-0039](docs/adr/0039-rename-to-nova.md).
 
 ### Heads-up — existing installs do not auto-update
 
-The Android `applicationId` changed from `net.unraidcontrol.app` to `io.github.nofuturekid.nova`. From Android's view, NOVA is a new app — your old UnraidControl install stays on `0.1.33-beta2` and no longer receives updates. **Install NOVA fresh from the [Releases page](https://github.com/nofuturekid/UnraidControl/releases)**, re-enter your server's API key, and uninstall the old app. Server entries and theme preferences live in per-app DataStore and don't migrate — this is a one-time clean break.
+The Android `applicationId` changed from `net.unraidcontrol.app` to `io.github.nofuturekid.nova`. From Android's view, NOVA is a new app — your old UnraidControl install stays on `0.1.33-beta2` and no longer receives updates. **Install NOVA fresh from the [Releases page](https://github.com/nofuturekid/nova/releases)**, re-enter your server's API key, and uninstall the old app. Server entries and theme preferences live in per-app DataStore and don't migrate — this is a one-time clean break.
 
 ### Added
 - **Settings → About** — app name + version, GPL v3 + source-code link, full Unraid® trademark attribution paragraph (per ADR-0038 / §6), and an open-source license list (powered by AboutLibraries).
