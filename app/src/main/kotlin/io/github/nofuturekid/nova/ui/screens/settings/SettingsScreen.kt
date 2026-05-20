@@ -411,20 +411,14 @@ fun SettingsScreen(
                             )
                         }) { Text("View on GitHub", color = t.accent) }
                     }
-                    Text(
-                        text = "Unraid® is a registered trademark of Lime Technology, Inc. " +
-                               "NOVA is an independent, community-built client; it uses the term " +
-                               "solely to describe compatibility with the Unraid® operating system and " +
-                               "is not affiliated with, endorsed by, or supported by Lime Technology.",
-                        color = t.muted,
-                        style = MaterialTheme.typography.bodySmall,
-                    )
-                    TextButton(onClick = {
-                        ctx.startActivity(
-                            Intent(Intent.ACTION_VIEW,
-                                Uri.parse("https://github.com/nofuturekid/nova/releases"))
-                        )
-                    }) { Text("View releases on GitHub", color = t.accent) }
+                    SettingRow(label = "Releases") {
+                        TextButton(onClick = {
+                            ctx.startActivity(
+                                Intent(Intent.ACTION_VIEW,
+                                    Uri.parse("https://github.com/nofuturekid/nova/releases"))
+                            )
+                        }) { Text("View on GitHub", color = t.accent) }
+                    }
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
@@ -444,6 +438,14 @@ fun SettingsScreen(
                             tint = t.muted,
                         )
                     }
+                    Text(
+                        text = "Unraid® is a registered trademark of Lime Technology, Inc. " +
+                               "NOVA is an independent, community-built client; it uses the term " +
+                               "solely to describe compatibility with the Unraid® operating system and " +
+                               "is not affiliated with, endorsed by, or supported by Lime Technology.",
+                        color = t.muted,
+                        style = MaterialTheme.typography.bodySmall,
+                    )
                 }
             }
         }
