@@ -13,6 +13,9 @@ import io.github.nofuturekid.nova.data.model.NotifImportance
 import io.github.nofuturekid.nova.data.model.NotifType
 import io.github.nofuturekid.nova.data.model.Notifications
 import io.github.nofuturekid.nova.data.model.ParityCheck
+import io.github.nofuturekid.nova.data.model.Plugin
+import io.github.nofuturekid.nova.data.model.PluginInstallOperation
+import io.github.nofuturekid.nova.data.model.PluginInstallStatus
 import io.github.nofuturekid.nova.data.model.ServerInfo
 import io.github.nofuturekid.nova.data.model.UnraidNotification
 import io.github.nofuturekid.nova.data.model.Vm
@@ -22,6 +25,8 @@ import io.github.nofuturekid.nova.graphql.GetDockerContainersQuery
 import io.github.nofuturekid.nova.graphql.GetMetricsQuery
 import io.github.nofuturekid.nova.graphql.GetNotificationListQuery
 import io.github.nofuturekid.nova.graphql.GetNotificationsQuery
+import io.github.nofuturekid.nova.graphql.GetPluginOperationsQuery
+import io.github.nofuturekid.nova.graphql.GetPluginsQuery
 import io.github.nofuturekid.nova.graphql.GetServerInfoQuery
 import io.github.nofuturekid.nova.graphql.GetVmsQuery
 import io.github.nofuturekid.nova.graphql.fragment.NotificationFields
@@ -31,6 +36,7 @@ import io.github.nofuturekid.nova.graphql.type.ArrayState as GArrayState
 import io.github.nofuturekid.nova.graphql.type.ContainerState as GContainerState
 import io.github.nofuturekid.nova.graphql.type.NotificationImportance as GNotifImportance
 import io.github.nofuturekid.nova.graphql.type.NotificationType as GNotifType
+import io.github.nofuturekid.nova.graphql.type.PluginInstallStatus as GPluginInstallStatus
 import io.github.nofuturekid.nova.graphql.type.VmState as GVmState
 
 /**
@@ -208,6 +214,39 @@ private fun NotificationFields.toDomain(): UnraidNotification = UnraidNotificati
 private fun GNotifType.toDomain(): NotifType = when (this) {
     GNotifType.ARCHIVE -> NotifType.Archive
     else               -> NotifType.Unread // UNREAD + UNKNOWN__
+}
+
+// ── Plugins ──────────────────────────────────────────────────────────
+
+fun GetPluginsQuery.Data.toPlugins(): List<Plugin> =
+    plugins.map { p ->
+        Plugin(
+            name = p.name,
+            version = p.version,
+            hasApiModule = p.hasApiModule,
+            hasCliModule = p.hasCliModule,
+        )
+    }
+
+fun GetPluginOperationsQuery.Data.toPluginOperations(): List<PluginInstallOperation> =
+    pluginInstallOperations.map { op ->
+        PluginInstallOperation(
+            id = op.id,
+            url = op.url,
+            name = op.name,
+            status = op.status.toDomain(),
+            createdAt = op.createdAt,
+            finishedAt = op.finishedAt,
+            output = op.output,
+        )
+    }
+
+private fun GPluginInstallStatus.toDomain(): PluginInstallStatus = when (this) {
+    GPluginInstallStatus.FAILED    -> PluginInstallStatus.Failed
+    GPluginInstallStatus.QUEUED    -> PluginInstallStatus.Queued
+    GPluginInstallStatus.RUNNING   -> PluginInstallStatus.Running
+    GPluginInstallStatus.SUCCEEDED -> PluginInstallStatus.Succeeded
+    else                           -> PluginInstallStatus.Failed // UNKNOWN__
 }
 
 // ── Helpers ──────────────────────────────────────────────────────────
