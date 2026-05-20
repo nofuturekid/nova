@@ -19,7 +19,6 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.systemBars
 import androidx.compose.foundation.layout.windowInsetsPadding
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
@@ -395,12 +394,6 @@ fun SettingsScreen(
                                "NOVA is an independent, community-built client; it uses the term " +
                                "solely to describe compatibility with the Unraid® operating system and " +
                                "is not affiliated with, endorsed by, or supported by Lime Technology.",
-                        color = t.muted,
-                        style = MaterialTheme.typography.bodySmall,
-                    )
-                    Spacer(Modifier.height(4.dp))
-                    Text(
-                        text = "Renaming to NOVA. This app is being renamed to comply with the Unraid® Trademark Policy (ADR-0039). The next release ships as a separate app — NOVA — NAS Operations Viewer Anywhere — with a different application ID, so it won't auto-update from this version. The new app is announced on the GitHub Releases page.",
                         color = t.muted,
                         style = MaterialTheme.typography.bodySmall,
                     )
