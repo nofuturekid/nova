@@ -135,3 +135,7 @@ query GetPluginOperations {
         output
     }
 }
+
+query GetInstalledUnraidPlugins {
+    installedUnraidPlugins
+}

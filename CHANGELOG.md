@@ -15,6 +15,11 @@ release version + date and opens a fresh `[Unreleased]`.
 
 ## [Unreleased]
 
+## [0.1.34-beta3] - 2026-05-20
+
+### Changed
+- **Settings → Server plugins** now shows the real user-installed Unraid plugins (.plg inventory) as the top section via the upstream `installedUnraidPlugins` query, with the old section relabeled to **"Unraid API modules"** since that's what the upstream `plugins` field actually returns (Node.js modules extending unraid-api, not the .plg files). Recent-operations section unchanged.
+
 ## [0.1.34-beta2] - 2026-05-20
 
 ### Added

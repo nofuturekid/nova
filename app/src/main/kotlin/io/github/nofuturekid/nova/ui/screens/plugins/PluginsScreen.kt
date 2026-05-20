@@ -47,6 +47,7 @@ fun PluginsScreen(
 ) {
     val t = UnraidTheme.colors
     val d = UnraidTheme.tokens
+    val installedState by vm.installedUnraidPlugins.collectAsState()
     val pluginsState by vm.plugins.collectAsState()
     val opsState by vm.operations.collectAsState()
 
@@ -76,12 +77,42 @@ fun PluginsScreen(
         ) {
             SectionLabel("Installed plugins")
             UnraidCard(padding = UnraidTheme.tokens.pad) {
+                InstalledUnraidPluginsSection(installedState)
+            }
+
+            SectionLabel("Unraid API modules")
+            UnraidCard(padding = UnraidTheme.tokens.pad) {
                 PluginsSection(pluginsState)
             }
 
             SectionLabel("Recent operations")
             UnraidCard(padding = UnraidTheme.tokens.pad) {
                 OperationsSection(opsState)
+            }
+        }
+    }
+}
+
+@Composable
+private fun InstalledUnraidPluginsSection(state: DomainState<List<String>>) {
+    val t = UnraidTheme.colors
+    when (state) {
+        is DomainState.Loading, is DomainState.NoServer ->
+            LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
+        is DomainState.Error ->
+            Text(state.message, color = t.danger, style = MaterialTheme.typography.bodyMedium)
+        is DomainState.Content<List<String>> -> {
+            val names = state.value
+                .map { it.removeSuffix(".plg") }
+                .sortedBy { it.lowercase() }
+            if (names.isEmpty()) {
+                Text("No plugins installed", color = t.muted, style = MaterialTheme.typography.bodyMedium)
+            } else {
+                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    names.forEach { name ->
+                        Text(name, color = t.text, style = MaterialTheme.typography.labelLarge)
+                    }
+                }
             }
         }
     }
@@ -98,7 +129,7 @@ private fun PluginsSection(state: DomainState<List<Plugin>>) {
         is DomainState.Content<List<Plugin>> -> {
             val plugins = state.value.sortedBy { it.name.lowercase() }
             if (plugins.isEmpty()) {
-                Text("No plugins installed", color = t.muted, style = MaterialTheme.typography.bodyMedium)
+                Text("No API modules", color = t.muted, style = MaterialTheme.typography.bodyMedium)
             } else {
                 Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                     plugins.forEach { PluginRow(it) }
