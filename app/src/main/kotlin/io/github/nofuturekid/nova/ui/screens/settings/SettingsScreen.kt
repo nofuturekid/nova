@@ -128,7 +128,7 @@ class SettingsViewModel @Inject constructor(
     init {
         // Refresh the snapshot when the user opens Settings so they see the
         // current update state instead of a stale 'Up to date'.
-        checkNow()
+        if (BuildConfig.HAS_UPDATER) checkNow()
     }
 
     fun setAccent(hex: Long)            = viewModelScope.launch { repo.setAccent(hex) }
@@ -146,16 +146,24 @@ class SettingsViewModel @Inject constructor(
     }
 
     fun checkNow() = viewModelScope.launch {
+        if (!BuildConfig.HAS_UPDATER) return@launch
         _checkState.value = UpdateState.Checking
         _checkState.value = updates.check(state.value.includePrereleases)
         repo.setLastUpdateCheck(System.currentTimeMillis())
     }
 
-    fun installUpdate(info: UpdateInfo) = updateController.installUpdate(info)
+    fun installUpdate(info: UpdateInfo) {
+        if (!BuildConfig.HAS_UPDATER) return
+        updateController.installUpdate(info)
+    }
 
-    fun resetInstall() = updateController.resetInstall()
+    fun resetInstall() {
+        if (!BuildConfig.HAS_UPDATER) return
+        updateController.resetInstall()
+    }
 
     fun launchPermissionIntent(state: InstallState.NeedsPermission, launch: (Intent) -> Unit) {
+        if (!BuildConfig.HAS_UPDATER) return
         launch(state.intent)
         updateController.resetInstall()
     }

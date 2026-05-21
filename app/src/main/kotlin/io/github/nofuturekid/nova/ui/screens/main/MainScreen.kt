@@ -51,6 +51,7 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import kotlinx.coroutines.launch
+import io.github.nofuturekid.nova.BuildConfig
 import io.github.nofuturekid.nova.data.model.ArrayState
 import io.github.nofuturekid.nova.data.model.Container
 import io.github.nofuturekid.nova.data.model.ConnectionMode
@@ -187,13 +188,15 @@ fun MainScreen(
             RenameBanner(onDismiss = { vm.dismissRenameBanner() })
         }
 
-        val update = updateState
-        if (update is UpdateState.Available && update.info.tag != dismissedTag) {
-            UpdateBanner(
-                info = update.info,
-                onTap = { showUpdateDialog = true },
-                onDismiss = { vm.dismissUpdate(update.info.tag) },
-            )
+        if (BuildConfig.HAS_UPDATER) {
+            val update = updateState
+            if (update is UpdateState.Available && update.info.tag != dismissedTag) {
+                UpdateBanner(
+                    info = update.info,
+                    onTap = { showUpdateDialog = true },
+                    onDismiss = { vm.dismissUpdate(update.info.tag) },
+                )
+            }
         }
 
         PullToRefreshBox(
@@ -415,20 +418,22 @@ fun MainScreen(
 
     ConfirmDialog(request = confirm, onDismiss = { confirm = null })
 
-    val u = updateState
-    if (showUpdateDialog && u is UpdateState.Available) {
-        UpdateDialog(
-            info = u.info,
-            install = installState,
-            onInstall = { vm.installUpdate(u.info) },
-            onDismiss = {
-                showUpdateDialog = false
-                if (installState is InstallState.Failed) vm.resetInstall()
-            },
-            onGrantPermission = { state ->
-                vm.launchPermissionIntent(state) { permissionLauncher.launch(it) }
-            },
-        )
+    if (BuildConfig.HAS_UPDATER) {
+        val u = updateState
+        if (showUpdateDialog && u is UpdateState.Available) {
+            UpdateDialog(
+                info = u.info,
+                install = installState,
+                onInstall = { vm.installUpdate(u.info) },
+                onDismiss = {
+                    showUpdateDialog = false
+                    if (installState is InstallState.Failed) vm.resetInstall()
+                },
+                onGrantPermission = { state ->
+                    vm.launchPermissionIntent(state) { permissionLauncher.launch(it) }
+                },
+            )
+        }
     }
 
         SnackbarHost(
