@@ -56,7 +56,8 @@ Native Android client for Unraid NAS servers (Kotlin + Jetpack Compose, Apollo G
 | v0.1.34-beta5 | pre-release | About-section regrouped (paired GitHub links, footer trademark) |
 | **v0.1.34** | **release** | Stable promotion of the 0.1.34 cycle — Settings → Server plugins (.plg inventory + API modules + install-ops history), Settings → Network interfaces (NIC inventory IPv4/IPv6 + hardware), Settings → About regrouped, repo-rename housekeeping; beta1–beta5 maintainer device-accepted 2026-05-21 |
 | v0.1.35-beta1 | pre-release | Distribution flavors (direct / store) per ADR-0040 — first step of the F-Droid publish path |
-| **v0.1.35** | **release** | Stable promotion of the 0.1.35 cycle — distribution flavors (direct / store, ADR-0040) + formal Privacy Policy; opens the F-Droid submission path **(Latest)** |
+| **v0.1.35** | **release** | Stable promotion of the 0.1.35 cycle — distribution flavors (direct / store, ADR-0040) + formal Privacy Policy; opens the F-Droid submission path |
+| v0.1.36-beta1 | pre-release | Store flavor: guard MainViewModel + SettingsViewModel updater paths + Overview banner UI — true zero-GitHub at runtime. Privacy-policy + ADR-0040 promise compliance ahead of F-Droid MR **(Latest)** |
 
 ## Stack
 

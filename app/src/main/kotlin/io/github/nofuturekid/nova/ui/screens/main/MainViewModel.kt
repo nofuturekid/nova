@@ -23,6 +23,7 @@ import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import io.github.nofuturekid.nova.BuildConfig
 import io.github.nofuturekid.nova.data.local.LayoutMode
 import io.github.nofuturekid.nova.data.model.AppSettings
 import io.github.nofuturekid.nova.data.model.ArrayInfo
@@ -257,7 +258,9 @@ class MainViewModel @Inject constructor(
             .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), false)
 
     init {
-        checkForUpdate()
+        if (BuildConfig.HAS_UPDATER) {
+            checkForUpdate()
+        }
 
         // Clear an id from `updatingContainerIds` as soon as the snapshot
         // poll says the container is explicitly UpToDate. The update mutation
@@ -285,6 +288,7 @@ class MainViewModel @Inject constructor(
     }
 
     fun checkForUpdate() = viewModelScope.launch {
+        if (!BuildConfig.HAS_UPDATER) return@launch
         _updateState.value = UpdateState.Checking
         val include = settings.includePrereleases.first()
         _updateState.value = updates.check(include)
@@ -299,11 +303,18 @@ class MainViewModel @Inject constructor(
         settings.setRenameBannerDismissed(true)
     }
 
-    fun installUpdate(info: UpdateInfo) = updateController.installUpdate(info)
+    fun installUpdate(info: UpdateInfo) {
+        if (!BuildConfig.HAS_UPDATER) return
+        updateController.installUpdate(info)
+    }
 
-    fun resetInstall() = updateController.resetInstall()
+    fun resetInstall() {
+        if (!BuildConfig.HAS_UPDATER) return
+        updateController.resetInstall()
+    }
 
     fun launchPermissionIntent(state: InstallState.NeedsPermission, launch: (Intent) -> Unit) {
+        if (!BuildConfig.HAS_UPDATER) return
         try {
             launch(state.intent)
             updateController.resetInstall()
