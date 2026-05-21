@@ -15,30 +15,22 @@ release version + date and opens a fresh `[Unreleased]`.
 
 ## [Unreleased]
 
-## [0.1.34-beta5] - 2026-05-20
+## [0.1.34] - 2026-05-21
 
-### Changed
-- **Settings → About** — regrouped the two GitHub links ("Source code" + new "Releases") as paired `SettingRow` entries directly above "Open-source licenses"; trademark disclaimer moved to the bottom of the card as footer text. Pure visual cleanup, no functional change.
-
-## [0.1.34-beta4] - 2026-05-20
-
-### Added
-- **Settings → Network interfaces** — read-only inventory of NICs with IPv4/IPv6 addressing (address, netmask, gateway, DHCP), hardware info (MAC, vendor, model, link speed, virtual-flag), and primary-interface marker. Per-interface expandable detail view. Live RX/TX byte counters are NOT included — those aren't exposed by Unraid's GraphQL API yet (separate upstream issue planned).
-
-## [0.1.34-beta3] - 2026-05-20
-
-### Changed
-- **Settings → Server plugins** now shows the real user-installed Unraid plugins (.plg inventory) as the top section via the upstream `installedUnraidPlugins` query, with the old section relabeled to **"Unraid API modules"** since that's what the upstream `plugins` field actually returns (Node.js modules extending unraid-api, not the .plg files). Recent-operations section unchanged.
-
-## [0.1.34-beta2] - 2026-05-20
+Stable promotion of the whole 0.1.34 cycle (beta1…beta5), maintainer
+device-accepted. This release adds two new read-only Settings screens
+for inspecting your Unraid server — **Server plugins** and
+**Network interfaces** — plus a Settings → About cleanup and the
+repo-rename housekeeping that closes out the 0.1.33 cycle's NOVA
+brand transition.
 
 ### Added
-- **Settings → Server plugins** — read-only inventory of installed Unraid plugins (name, version, API/CLI module flags) and the install-operation history (status pills for queued/running/succeeded/failed, expandable output log per operation). Phase A + B per the GraphQL plugin surface; no mutations or subscriptions in this cycle. See ADR-0017 polling pattern.
-
-## [0.1.34-beta1] - 2026-05-20
+- **Settings → Server plugins** — read-only inventory of installed `.plg` files (top section), Unraid API modules with name/version/module flags (middle section), and the install-operation history with status pills and expandable per-operation output log (bottom section). Powered by the upstream `installedUnraidPlugins`, `plugins`, and `pluginInstallOperations` GraphQL queries.
+- **Settings → Network interfaces** — read-only NIC inventory with IPv4 + IPv6 addressing (address, netmask, gateway, DHCP-state), hardware info (MAC, vendor, model, link speed, virtual-flag), and a marker for the primary management interface. Live RX/TX byte counters are not included — Unraid's GraphQL API doesn't expose those yet (tracked upstream).
 
 ### Changed
-- **Repo rename:** `nofuturekid/UnraidControl` → `nofuturekid/nova` (the final step of ADR-0039). README badge URLs, Live Interactive Preview URL, ADR-0033 reference URLs, in-app About URLs, and the `UpdateRepository.REPO` constant all flip to the new repo path. GitHub redirects continue serving old URLs for now, but the canonical path is `nofuturekid/nova`.
+- **Settings → About** — regrouped the two GitHub links ("Source code" and the new "Releases") as paired SettingRow entries directly above "Open-source licenses"; the trademark disclaimer moved to the bottom of the card as footer text.
+- **Repo rename housekeeping** — `nofuturekid/UnraidControl → nofuturekid/nova` (the final step of ADR-0039). README badge URLs, Live Interactive Preview URL, ADR-0033 reference URLs, in-app About URLs, and the `UpdateRepository.REPO` constant all flip to the new repo path.
 
 ## [0.1.33] - 2026-05-20
 
