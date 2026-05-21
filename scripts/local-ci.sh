@@ -14,8 +14,9 @@ set -euo pipefail
 # ─────────────────────────────────────────────────────────────────────
 # THE canonical CI task list. This is the single source of truth and must
 # stay in lockstep with .github/workflows/ci.yml:
-#   build-debug   → :app:assembleDebug :app:lintDebug
-#   build-release → :app:assembleRelease   (debug-signed locally when no
+#   build-debug   → :app:assembleDirectDebug :app:lintDirectDebug
+#   build-release → :app:assembleRelease     (both `direct` + `store`
+#                   flavors per ADR-0040; debug-signed locally when no
 #                   keystore is present — expected, see ADR/CONTRIBUTING)
 # generateApolloSources is a transitive dependency of assemble; it is
 # listed explicitly first so Apollo codegen failures surface crisply.
@@ -23,8 +24,8 @@ set -euo pipefail
 # ─────────────────────────────────────────────────────────────────────
 GRADLE_TASKS=(
   :app:generateApolloSources
-  :app:lintDebug
-  :app:assembleDebug
+  :app:lintDirectDebug
+  :app:assembleDirectDebug
   :app:assembleRelease
 )
 
@@ -43,8 +44,8 @@ if [[ "${IN_LOCAL_CI_CONTAINER:-}" == "1" ]]; then
   # CI does not run unit tests (none exist). Auto-include them if/when
   # the project grows a test source set, so this stays in lockstep.
   if [[ -d app/src/test ]]; then
-    GRADLE_TASKS+=(:app:testDebugUnitTest)
-    echo ">> test sources detected → adding :app:testDebugUnitTest"
+    GRADLE_TASKS+=(:app:testDirectDebugUnitTest)
+    echo ">> test sources detected → adding :app:testDirectDebugUnitTest"
   fi
   echo ">> ./gradlew ${GRADLE_TASKS[*]} ${GRADLE_FLAGS[*]}"
   exec ./gradlew "${GRADLE_TASKS[@]}" "${GRADLE_FLAGS[@]}"

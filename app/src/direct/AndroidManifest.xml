@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- Direct-flavor-only (ADR-0040). Drives the in-app updater's
+         PackageInstaller session; the `store` flavor (F-Droid + Play)
+         omits this permission and hides the Updates UI via
+         BuildConfig.HAS_UPDATER. -->
+    <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
+</manifest>

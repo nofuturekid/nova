@@ -95,6 +95,12 @@ jobs:
           echo "Found PR #$PR_NUM CI run $RUN_ID (head_sha=$PR_SHA)."
           echo "id=$RUN_ID" >> "$GITHUB_OUTPUT"
 
+      # The `app-release` artifact contains the `direct`-flavor APK only
+      # (ADR-0040). CI builds both flavors at release type but uploads
+      # only `direct` here — `store` is built by F-Droid themselves from
+      # source. The artifact name is unchanged; the file inside is now
+      # `app-direct-release.apk` (was `app-release.apk`), which the
+      # `Rename APK` step below picks up generically via `find … *.apk`.
       - name: Download release APK from CI run
         uses: actions/download-artifact@v8
         with:

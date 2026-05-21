@@ -138,14 +138,17 @@ jobs:
         with:
           log-accepted-android-sdk-licenses: false
 
+      # Debug build = the `direct` flavor variant (status-quo dev cycle).
+      # Store-flavor debug builds add no signal — same code path minus the
+      # updater UI — so we skip them at debug to keep CI lean (ADR-0040).
       - name: Assemble debug + lint
-        run: ./gradlew :app:assembleDebug :app:lintDebug --stacktrace
+        run: ./gradlew :app:assembleDirectDebug :app:lintDirectDebug --stacktrace
 
       - name: Upload debug APK
         uses: actions/upload-artifact@v7
         with:
           name: app-debug
-          path: app/build/outputs/apk/debug/*.apk
+          path: app/build/outputs/apk/direct/debug/*.apk
           retention-days: 30
           if-no-files-found: error
 
@@ -154,7 +157,7 @@ jobs:
         uses: actions/upload-artifact@v7
         with:
           name: lint-report
-          path: app/build/reports/lint-results-debug.html
+          path: app/build/reports/lint-results-directDebug.html
           retention-days: 14
           if-no-files-found: warn
 
@@ -195,7 +198,13 @@ jobs:
             echo "available=true" >> "$GITHUB_OUTPUT"
           fi
 
-      - name: Assemble release
+      # Release build = both flavors (ADR-0040). `assembleRelease`
+      # builds every release variant — currently direct + store —
+      # verifying both compile + sign every PR. Only the `direct` APK is
+      # uploaded to GitHub Releases (release.yml); the `store` APK is
+      # built by F-Droid themselves from source (and later by Play App
+      # Signing), so it's a compile-only gate here.
+      - name: Build release APKs (direct + store)
         if: steps.keystore.outputs.available == 'true'
         env:
           KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
@@ -203,29 +212,31 @@ jobs:
           KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
         run: ./gradlew :app:assembleRelease --stacktrace
 
-      - name: Verify release APK signature
+      - name: Verify release APK signature (direct flavor)
         if: steps.keystore.outputs.available == 'true'
         run: |
           BT="$ANDROID_HOME/build-tools"
           LATEST=$(find "$BT" -mindepth 1 -maxdepth 1 -printf '%f\n' | sort -V | tail -1)
-          APK=$(find app/build/outputs/apk/release -maxdepth 1 -name '*.apk' | sort | head -1)
+          APK=$(find app/build/outputs/apk/direct/release -maxdepth 1 -name '*.apk' | sort | head -1)
           "$BT/$LATEST/apksigner" verify --verbose "$APK"
 
-      - name: Upload release APK
+      # release.yml downloads this artifact (name `app-release`) to ship
+      # to GitHub Releases — only the `direct` flavor APK goes here.
+      - name: Upload release APK (direct flavor)
         if: steps.keystore.outputs.available == 'true'
         uses: actions/upload-artifact@v7
         with:
           name: app-release
-          path: app/build/outputs/apk/release/*.apk
+          path: app/build/outputs/apk/direct/release/*.apk
           retention-days: 90
           if-no-files-found: error
 
-      - name: Upload mapping
+      - name: Upload mapping (direct flavor)
         if: steps.keystore.outputs.available == 'true'
         uses: actions/upload-artifact@v7
         with:
           name: mapping
-          path: app/build/outputs/mapping/release/mapping.txt
+          path: app/build/outputs/mapping/directRelease/mapping.txt
           retention-days: 90
           if-no-files-found: warn
 
@@ -263,15 +274,19 @@ jobs:
         with:
           log-accepted-android-sdk-licenses: false
 
+      # Unit tests live in app/src/test/ (shared across flavors). The
+      # Gradle task name picks up the flavor: testDirectDebugUnitTest —
+      # same source set, same outcome (ADR-0040). Store-flavor unit tests
+      # are skipped: identical sources would produce identical results.
       - name: Run unit tests
-        run: ./gradlew :app:testDebugUnitTest --stacktrace
+        run: ./gradlew :app:testDirectDebugUnitTest --stacktrace
 
       - name: Upload test report
         if: always()
         uses: actions/upload-artifact@v7
         with:
           name: test-report
-          path: app/build/reports/tests/testDebugUnitTest
+          path: app/build/reports/tests/testDirectDebugUnitTest
           retention-days: 14
           if-no-files-found: warn
 

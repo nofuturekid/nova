@@ -16,10 +16,22 @@ android {
         applicationId = "io.github.nofuturekid.nova"
         minSdk = 26
         targetSdk = 36
-        versionCode = 95
-        versionName = "0.1.34"
+        versionCode = 96
+        versionName = "0.1.35-beta1"
 
         vectorDrawables { useSupportLibrary = true }
+    }
+
+    flavorDimensions += "distribution"
+    productFlavors {
+        create("direct") {
+            dimension = "distribution"
+            buildConfigField("boolean", "HAS_UPDATER", "true")
+        }
+        create("store") {
+            dimension = "distribution"
+            buildConfigField("boolean", "HAS_UPDATER", "false")
+        }
     }
 
     val releaseKeystore = rootProject.file("app/release.keystore")
