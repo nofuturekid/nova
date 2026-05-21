@@ -15,6 +15,11 @@ release version + date and opens a fresh `[Unreleased]`.
 
 ## [Unreleased]
 
+## [0.1.38-beta1] - 2026-05-21
+
+### Changed
+- **Visible affordance hints on tap-actionable cards/rows** — adds chevron indicators across the app so it's obvious which cards expand or drill in. In-place-expand rows (Settings → Server plugins → Recent operations, Settings → Network interfaces → per-NIC details) gain a chevron-down that rotates to chevron-up when expanded. Drill-in cards (Docker containers in both list and grid layouts; VMs in both list and grid layouts) gain a trailing chevron-right matching the existing Settings convention. No functional change — purely a "tap-here works" visual cue.
+
 ## [0.1.37] - 2026-05-21
 
 Stable promotion of the 0.1.37 cycle, maintainer device-accepted. A

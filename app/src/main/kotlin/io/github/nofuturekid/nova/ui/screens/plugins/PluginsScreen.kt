@@ -31,6 +31,7 @@ import io.github.nofuturekid.nova.data.model.Plugin
 import io.github.nofuturekid.nova.data.model.PluginInstallOperation
 import io.github.nofuturekid.nova.data.model.PluginInstallStatus
 import io.github.nofuturekid.nova.data.repository.DomainState
+import io.github.nofuturekid.nova.ui.components.ExpandIndicator
 import io.github.nofuturekid.nova.ui.components.Pill
 import io.github.nofuturekid.nova.ui.components.SectionLabel
 import io.github.nofuturekid.nova.ui.components.Tone
@@ -213,6 +214,7 @@ private fun OperationRow(op: PluginInstallOperation) {
                 modifier = Modifier.weight(1f),
             )
             Pill(op.status.label(), tone = op.status.tone())
+            ExpandIndicator(expanded = expanded)
         }
         Text(
             text = op.createdAt,

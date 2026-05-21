@@ -137,28 +137,36 @@ private fun VmTile(
     }
     val dim = vm.state != VmState.Running
     UnraidCard(padding = UnraidTheme.tokens.padTight, onClick = { onOpen(vm) }) {
-        Column(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalAlignment = Alignment.CenterHorizontally,
-        ) {
-            Box(
-                modifier = Modifier
-                    .size(40.dp)
-                    .clip(RoundedCornerShape(12.dp))
-                    .background(Brush.linearGradient(listOf(t.accent, Color(0xFF3B82F6))))
-                    .alpha(if (dim) 0.55f else 1f),
-                contentAlignment = Alignment.Center,
-            ) { UC.Vm(20.dp, onTone(t.accent)) }
-            Spacer(Modifier.height(8.dp))
-            Text(
-                text = vm.name,
-                color = t.text,
-                style = MaterialTheme.typography.labelMedium,
-                maxLines = 1,
-                overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
-            )
-            Spacer(Modifier.height(6.dp))
-            Pill(vm.state.name.lowercase(), tone = tone, dot = true)
+        Box(modifier = Modifier.fillMaxWidth()) {
+            Column(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalAlignment = Alignment.CenterHorizontally,
+            ) {
+                Box(
+                    modifier = Modifier
+                        .size(40.dp)
+                        .clip(RoundedCornerShape(12.dp))
+                        .background(Brush.linearGradient(listOf(t.accent, Color(0xFF3B82F6))))
+                        .alpha(if (dim) 0.55f else 1f),
+                    contentAlignment = Alignment.Center,
+                ) { UC.Vm(20.dp, onTone(t.accent)) }
+                Spacer(Modifier.height(8.dp))
+                Text(
+                    text = vm.name,
+                    color = t.text,
+                    style = MaterialTheme.typography.labelMedium,
+                    maxLines = 1,
+                    overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
+                )
+                Spacer(Modifier.height(6.dp))
+                Pill(vm.state.name.lowercase(), tone = tone, dot = true)
+            }
+            // Subtle tap-affordance chevron — bottom-right corner, matching
+            // the ContainerGridTile placement for visual consistency
+            // between the two grid layouts.
+            Box(modifier = Modifier.align(Alignment.BottomEnd)) {
+                UC.ChevR(14.dp, t.muted)
+            }
         }
     }
 }
@@ -258,6 +266,7 @@ private fun VmCard(
                     contentDescription = "Start ${vm.name}",
                 )
             }
+            UC.ChevR(tint = t.muted)
         }
     }
 }

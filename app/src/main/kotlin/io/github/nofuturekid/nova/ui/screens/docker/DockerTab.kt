@@ -294,6 +294,7 @@ private fun ContainerRow(
                     }
                 }
             }
+            UC.ChevR(tint = t.muted)
         }
     }
 }
@@ -308,47 +309,55 @@ private fun ContainerGridTile(c: Container, serverBaseUrl: String, onOpen: (Cont
         ContainerStatus.Exited  -> t.muted
     }
     UnraidCard(padding = UnraidTheme.tokens.padTight, onClick = { onOpen(c) }) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .alpha(if (dim) 0.55f else 1f),
-            horizontalAlignment = Alignment.CenterHorizontally,
-        ) {
-            Box(modifier = Modifier.fillMaxWidth()) {
-                Box(modifier = Modifier.align(Alignment.Center)) {
-                    ContainerIcon(
-                        name = c.name,
-                        color = parseColor(c.iconColorHex) ?: t.accent,
-                        size = 44.dp,
-                        iconUrl = c.iconUrl,
-                        serverBaseUrl = serverBaseUrl,
-                    )
-                }
-                Box(
-                    modifier = Modifier
-                        .align(Alignment.TopEnd)
-                        .size(8.dp)
-                        .clip(CircleShape)
-                        .background(statusColor),
-                )
-                if (c.updateStatus.hasUpdate()) {
+        Box(modifier = Modifier.fillMaxWidth()) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .alpha(if (dim) 0.55f else 1f),
+                horizontalAlignment = Alignment.CenterHorizontally,
+            ) {
+                Box(modifier = Modifier.fillMaxWidth()) {
+                    Box(modifier = Modifier.align(Alignment.Center)) {
+                        ContainerIcon(
+                            name = c.name,
+                            color = parseColor(c.iconColorHex) ?: t.accent,
+                            size = 44.dp,
+                            iconUrl = c.iconUrl,
+                            serverBaseUrl = serverBaseUrl,
+                        )
+                    }
                     Box(
                         modifier = Modifier
-                            .align(Alignment.TopStart)
+                            .align(Alignment.TopEnd)
                             .size(8.dp)
                             .clip(CircleShape)
-                            .background(t.info),
+                            .background(statusColor),
                     )
+                    if (c.updateStatus.hasUpdate()) {
+                        Box(
+                            modifier = Modifier
+                                .align(Alignment.TopStart)
+                                .size(8.dp)
+                                .clip(CircleShape)
+                                .background(t.info),
+                        )
+                    }
                 }
+                Spacer(Modifier.height(8.dp))
+                Text(
+                    text = c.name,
+                    color = t.text,
+                    style = MaterialTheme.typography.labelMedium,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
             }
-            Spacer(Modifier.height(8.dp))
-            Text(
-                text = c.name,
-                color = t.text,
-                style = MaterialTheme.typography.labelMedium,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-            )
+            // Subtle tap-affordance chevron — bottom-right corner so it
+            // doesn't compete with the centered icon + label. Status and
+            // update dots already occupy the top corners.
+            Box(modifier = Modifier.align(Alignment.BottomEnd)) {
+                UC.ChevR(14.dp, t.muted)
+            }
         }
     }
 }
