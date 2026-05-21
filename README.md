@@ -97,6 +97,7 @@ Unraid® is a registered trademark of Lime Technology, Inc. NOVA is an independe
 
 ## Privacy & data handling
 
+- **Full policy:** <https://github.com/nofuturekid/nova/blob/main/docs/privacy/POLICY.md>
 - **Your API key stays on your device.** It's encrypted at rest using Android Keystore via Google's Tink library, and explicitly excluded from cloud backup / device-transfer.
 - **No analytics, no telemetry, no third-party services.** The app talks only to your Unraid server's API and — when you press "Check now" in Settings — to GitHub's API to look for app updates.
 - **Update downloads** go directly from GitHub Releases to your device over HTTPS. The downloaded APK is verified by byte-size match and constant-time SHA-256 against the published release asset before any install attempt; mismatch fails closed. See [ADR-0034](./docs/adr/0034-update-integrity-and-data-at-rest.md) for the rationale.

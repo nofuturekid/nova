@@ -15,6 +15,9 @@ release version + date and opens a fresh `[Unreleased]`.
 
 ## [Unreleased]
 
+### Added
+- **Privacy Policy** — formal policy published at `docs/privacy/POLICY.md` and linked from Settings → About (new "Privacy Policy ›" row between "Releases" and "Open-source licenses"); README "Privacy & data handling" section gains a link to the full policy. No behavioural change — formalises the existing data-handling model (API-key on-device-encrypted, no telemetry, no third-party services in either flavor).
+
 ## [0.1.35-beta1] - 2026-05-21
 
 ### Added

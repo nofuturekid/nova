@@ -427,6 +427,30 @@ fun SettingsScreen(
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
+                            .clickable {
+                                ctx.startActivity(
+                                    Intent(Intent.ACTION_VIEW,
+                                        Uri.parse("https://github.com/nofuturekid/nova/blob/main/docs/privacy/POLICY.md"))
+                                )
+                            }
+                            .padding(vertical = 8.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Text(
+                            text = "Privacy Policy",
+                            color = t.text,
+                            style = MaterialTheme.typography.labelLarge,
+                        )
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
+                            contentDescription = null,
+                            tint = t.muted,
+                        )
+                    }
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
                             .clickable { onOpenAboutLibraries() }
                             .padding(vertical = 8.dp),
                         horizontalArrangement = Arrangement.SpaceBetween,
