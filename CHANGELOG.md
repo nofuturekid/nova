@@ -15,6 +15,11 @@ release version + date and opens a fresh `[Unreleased]`.
 
 ## [Unreleased]
 
+## [0.1.35-beta1] - 2026-05-21
+
+### Added
+- **Distribution flavors** — the app now builds in two product flavors: **`direct`** (status quo — GitHub Releases with the in-app updater intact) and **`store`** (F-Droid + future Play distribution, with the in-app updater UI hidden and `REQUEST_INSTALL_PACKAGES` excluded from the manifest). Same app from the user's perspective — same `applicationId`, same UI minus the Updates section in store builds. Per ADR-0040.
+
 ## [0.1.34] - 2026-05-21
 
 Stable promotion of the whole 0.1.34 cycle (beta1…beta5), maintainer

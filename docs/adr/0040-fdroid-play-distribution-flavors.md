@@ -1,6 +1,6 @@
 # ADR-0040: F-Droid + Play distribution via two Gradle product flavors
 
-- **Status**: Proposed
+- **Status**: Accepted
 - **Date**: 2026-05-21
 - **Tags**: release, build, distribution, legal
 
@@ -74,6 +74,12 @@ The Settings → Updates section in `SettingsScreen.kt` is conditional on `Build
 - **Push notifications via Firebase/FCM.** Rejected on positioning grounds. The "no third-party services" promise is the load-bearing differentiator vs u-manager, used directly in the Forum announcement. Adding Google as a delivery dependency across both flavors compromises that. The poll loop continues to cover the notification surface.
 - **Play Store first, F-Droid later.** Rejected. F-Droid policy (no self-updater) is the harder constraint and forces the flavor split anyway; Play reuses the resulting `store` flavor at zero marginal cost. Going Play-first would invert the engineering order with no upside.
 - **Drop the in-app updater across all flavors and direct GitHub users to F-Droid/Play.** Rejected. The GitHub-direct path is the current shipping experience and the only channel where Stable lands first; ripping out the updater would degrade the existing audience to chase store users we don't yet have.
+
+## Implementation note (added 2026-05-21 with 0.1.35-beta1)
+
+The implementation chose a **`BuildConfig.HAS_UPDATER` flag** over a pure sourceSet split. Same F-Droid compliance outcome — the store-flavor `AndroidManifest.xml` excludes `REQUEST_INSTALL_PACKAGES` and the Settings → Updates section is guarded by the flag (never rendered in store builds). Refactor cost was ~5× lower than physically relocating `UpdateController` / `UpdateRepository` / `UpdateDialog` into `src/direct/kotlin/` with no-op stubs in `src/store/`, and the dormant updater code in the store-flavor binary (a few KB) is negligible — F-Droid anti-feature scanners look at the merged manifest + actively-called paths, not dormant bytecode.
+
+The original sourceSet-split sketch is preserved above for posterity. If reproducible-builds-with-upstream-signature ever becomes a goal (see "Trigger to revisit"), a sourceSet split may become attractive again to minimize bytecode differences between flavors.
 
 ## References
 

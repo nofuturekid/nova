@@ -279,63 +279,68 @@ fun SettingsScreen(
                 }
             }
 
-            SectionLabel("Updates")
-            UnraidCard(padding = UnraidTheme.tokens.pad) {
-                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                    SettingRow(label = "Installed version") {
-                        Text(
-                            text = "v${BuildConfig.VERSION_NAME}",
-                            color = t.text,
-                            style = MaterialTheme.typography.labelLarge,
-                        )
-                    }
-                    val cs = checkState
-                    SettingRow(label = "Latest available") {
-                        when (cs) {
-                            is UpdateState.Checking ->
-                                Text("Checking…", color = t.muted, style = MaterialTheme.typography.bodyMedium)
-                            is UpdateState.UpToDate ->
-                                Text("Up to date", color = t.accent, style = MaterialTheme.typography.labelLarge)
-                            is UpdateState.Available ->
-                                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                                    Text("v${cs.info.version}", color = t.text, style = MaterialTheme.typography.labelLarge)
-                                    if (cs.info.isPrerelease) Pill("BETA", tone = Tone.Warn)
-                                    cs.info.publishedAtEpochMs?.let {
-                                        Text(
-                                            "· ${formatRelativeAge(it)}",
-                                            color = t.muted,
-                                            style = MaterialTheme.typography.bodyMedium,
-                                        )
-                                    }
-                                }
-                            is UpdateState.Error ->
-                                Text("Couldn't check", color = t.danger, style = MaterialTheme.typography.bodyMedium)
-                        }
-                    }
-                    SettingRow(label = "Last check") {
-                        Text(
-                            text = formatLastCheck(ui.lastUpdateCheck),
-                            color = t.muted,
-                            style = MaterialTheme.typography.bodyMedium,
-                        )
-                    }
-                    SettingRow(label = "Include pre-releases") {
-                        Toggle(value = ui.includePrereleases, onChange = vm::setIncludePrereleases)
-                    }
-                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        Spacer(Modifier.weight(1f))
-                        UnraidButton(
-                            onClick = { vm.checkNow() },
-                            label = "Check now",
-                            variant = BtnVariant.Tonal,
-                            leadingIcon = { UC.Refresh(14.dp, t.accent) },
-                        )
-                        if (cs is UpdateState.Available) {
-                            UnraidButton(
-                                onClick = { showUpdateDialog = true },
-                                label = "Install v${cs.info.version}",
-                                variant = BtnVariant.Filled,
+            // Updates section is direct-flavor-only (ADR-0040). The
+            // `store` flavor (F-Droid + Play) hides the section entirely;
+            // the underlying ViewModel methods stay compiled but dormant.
+            if (BuildConfig.HAS_UPDATER) {
+                SectionLabel("Updates")
+                UnraidCard(padding = UnraidTheme.tokens.pad) {
+                    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                        SettingRow(label = "Installed version") {
+                            Text(
+                                text = "v${BuildConfig.VERSION_NAME}",
+                                color = t.text,
+                                style = MaterialTheme.typography.labelLarge,
                             )
+                        }
+                        val cs = checkState
+                        SettingRow(label = "Latest available") {
+                            when (cs) {
+                                is UpdateState.Checking ->
+                                    Text("Checking…", color = t.muted, style = MaterialTheme.typography.bodyMedium)
+                                is UpdateState.UpToDate ->
+                                    Text("Up to date", color = t.accent, style = MaterialTheme.typography.labelLarge)
+                                is UpdateState.Available ->
+                                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                                        Text("v${cs.info.version}", color = t.text, style = MaterialTheme.typography.labelLarge)
+                                        if (cs.info.isPrerelease) Pill("BETA", tone = Tone.Warn)
+                                        cs.info.publishedAtEpochMs?.let {
+                                            Text(
+                                                "· ${formatRelativeAge(it)}",
+                                                color = t.muted,
+                                                style = MaterialTheme.typography.bodyMedium,
+                                            )
+                                        }
+                                    }
+                                is UpdateState.Error ->
+                                    Text("Couldn't check", color = t.danger, style = MaterialTheme.typography.bodyMedium)
+                            }
+                        }
+                        SettingRow(label = "Last check") {
+                            Text(
+                                text = formatLastCheck(ui.lastUpdateCheck),
+                                color = t.muted,
+                                style = MaterialTheme.typography.bodyMedium,
+                            )
+                        }
+                        SettingRow(label = "Include pre-releases") {
+                            Toggle(value = ui.includePrereleases, onChange = vm::setIncludePrereleases)
+                        }
+                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            Spacer(Modifier.weight(1f))
+                            UnraidButton(
+                                onClick = { vm.checkNow() },
+                                label = "Check now",
+                                variant = BtnVariant.Tonal,
+                                leadingIcon = { UC.Refresh(14.dp, t.accent) },
+                            )
+                            if (cs is UpdateState.Available) {
+                                UnraidButton(
+                                    onClick = { showUpdateDialog = true },
+                                    label = "Install v${cs.info.version}",
+                                    variant = BtnVariant.Filled,
+                                )
+                            }
                         }
                     }
                 }

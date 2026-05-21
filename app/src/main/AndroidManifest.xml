@@ -3,10 +3,9 @@
 
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
-    <!-- For the in-app updater: PackageInstaller sessions require this so the
-         app can install replacement APKs the user explicitly downloads.
-         User still has to grant the per-app 'install unknown apps' setting. -->
-    <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
+    <!-- REQUEST_INSTALL_PACKAGES is declared in src/direct/AndroidManifest.xml
+         only (ADR-0040): the `direct` distribution flavor carries the in-app
+         updater + PackageInstaller pipeline, the `store` flavor does not. -->
 
     <application
         android:name=".NovaApp"
