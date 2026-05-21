@@ -15,10 +15,15 @@ release version + date and opens a fresh `[Unreleased]`.
 
 ## [Unreleased]
 
-## [0.1.36-beta1] - 2026-05-21
+## [0.1.36] - 2026-05-21
+
+Stable promotion of the 0.1.36 cycle, maintainer device-accepted on
+the direct flavor. A targeted privacy/correctness fix closing the
+last GitHub-request paths in the `store` flavor — pre-work for the
+F-Droid metadata submission.
 
 ### Fixed
-- **Store flavor truly makes zero GitHub requests at runtime** — the 0.1.35 distribution-flavors split guarded the Settings → Updates UI, but `MainViewModel.init` (fires on every app launch via the Overview screen) and `SettingsViewModel.init` (fires every Settings-open) still called `checkForUpdate()` / `checkNow()` unconditionally. The Overview's update banner and `UpdateDialog` were also rendered unconditionally. All three layers (both ViewModel init blocks + all network-touching methods + Overview banner UI + dialog) are now guarded by `BuildConfig.HAS_UPDATER`. The store flavor now genuinely contacts only the user's own Unraid server — matching the Privacy Policy and ADR-0040 promises. Defense-in-depth guards on `installUpdate`/`resetInstall`/`launchPermissionIntent` in both ViewModels so any future caller is also safe. No behaviour change in the `direct` flavor.
+- **Store flavor truly makes zero GitHub requests at runtime** — the 0.1.35 distribution-flavors split (ADR-0040) guarded only the Settings → Updates UI. `MainViewModel.init` (every app launch via Overview) and `SettingsViewModel.init` (every Settings-open) still called `checkForUpdate()` / `checkNow()` unconditionally, and the Overview's update banner + `UpdateDialog` were rendered unconditionally. All three layers (both ViewModel init blocks + all network-touching methods + Overview banner + dialog) are now guarded by `BuildConfig.HAS_UPDATER`. The store flavor now genuinely contacts only the user's own Unraid server — matching the Privacy Policy and ADR-0040 promises. Defense-in-depth guards on `installUpdate`/`resetInstall`/`launchPermissionIntent` in both ViewModels. No behaviour change in the `direct` flavor.
 
 ## [0.1.35] - 2026-05-21
 
