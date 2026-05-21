@@ -28,6 +28,7 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import io.github.nofuturekid.nova.data.model.NetworkInterface
 import io.github.nofuturekid.nova.data.repository.DomainState
+import io.github.nofuturekid.nova.ui.components.ExpandIndicator
 import io.github.nofuturekid.nova.ui.components.Pill
 import io.github.nofuturekid.nova.ui.components.SectionLabel
 import io.github.nofuturekid.nova.ui.components.Tone
@@ -129,6 +130,7 @@ private fun InterfaceRow(iface: NetworkInterface) {
             iface.status?.takeIf { it.isNotBlank() }?.let { s ->
                 Pill(s.uppercase(), tone = s.statusTone())
             }
+            ExpandIndicator(expanded = expanded)
         }
         iface.ipAddress?.takeIf { it.isNotBlank() }?.let { ip ->
             Text(ip, color = t.muted, style = MaterialTheme.typography.labelSmall)
