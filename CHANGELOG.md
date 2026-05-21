@@ -15,6 +15,11 @@ release version + date and opens a fresh `[Unreleased]`.
 
 ## [Unreleased]
 
+## [0.1.37-beta1] - 2026-05-21
+
+### Changed
+- **Build: strip AGP's "Dependency metadata" extra signing block from the APK** — added the `dependenciesInfo { includeInApk = false; includeInBundle = false }` Gradle block (standard F-Droid compatibility shim). No functional impact on either flavor; no user-visible difference. Required because F-Droid's `check apk` rejects extra signing blocks beyond the standard JAR + APK signing schemes. Pre-work for the in-flight F-Droid submission ([gitlab.com/fdroid/fdroiddata!38801](https://gitlab.com/fdroid/fdroiddata/-/merge_requests/38801)).
+
 ## [0.1.36] - 2026-05-21
 
 Stable promotion of the 0.1.36 cycle, maintainer device-accepted on
