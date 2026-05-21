@@ -15,13 +15,15 @@ release version + date and opens a fresh `[Unreleased]`.
 
 ## [Unreleased]
 
-### Added
-- **Privacy Policy** — formal policy published at `docs/privacy/POLICY.md` and linked from Settings → About (new "Privacy Policy ›" row between "Releases" and "Open-source licenses"); README "Privacy & data handling" section gains a link to the full policy. No behavioural change — formalises the existing data-handling model (API-key on-device-encrypted, no telemetry, no third-party services in either flavor).
+## [0.1.35] - 2026-05-21
 
-## [0.1.35-beta1] - 2026-05-21
+Stable promotion of the 0.1.35 cycle, maintainer device-accepted. This
+release opens the F-Droid + Play distribution path (per ADR-0040) and
+ships a formal Privacy Policy referenced from both app and stores.
 
 ### Added
 - **Distribution flavors** — the app now builds in two product flavors: **`direct`** (status quo — GitHub Releases with the in-app updater intact) and **`store`** (F-Droid + future Play distribution, with the in-app updater UI hidden and `REQUEST_INSTALL_PACKAGES` excluded from the manifest). Same app from the user's perspective — same `applicationId`, same UI minus the Updates section in store builds. Per ADR-0040.
+- **Privacy Policy** — formal policy at [`docs/privacy/POLICY.md`](https://github.com/nofuturekid/nova/blob/main/docs/privacy/POLICY.md), linked from Settings → About (new "Privacy Policy ›" row between "Releases" and "Open-source licenses"); README "Privacy & data handling" section gains a link to the full policy. No behavioural change — formalises the existing data-handling model (API-key on-device-encrypted, no telemetry, no third-party services in either flavor).
 
 ## [0.1.34] - 2026-05-21
 
