@@ -15,6 +15,9 @@ release version + date and opens a fresh `[Unreleased]`.
 
 ## [Unreleased]
 
+### Added
+- **Fastlane metadata** for the F-Droid catalog — `fastlane/metadata/android/en-US/{title,short_description,full_description}.txt`. Required by F-Droid's app-inclusion review (MR [gitlab.com/fdroid/fdroiddata!38801](https://gitlab.com/fdroid/fdroiddata/-/merge_requests/38801)). No app-code change.
+
 ## [0.1.38] - 2026-05-21
 
 Stable promotion of the 0.1.38 cycle, maintainer device-accepted. UI
