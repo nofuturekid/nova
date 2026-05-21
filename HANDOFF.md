@@ -53,7 +53,8 @@ Native Android client for Unraid NAS servers (Kotlin + Jetpack Compose, Apollo G
 | v0.1.34-beta2 | pre-release | Settings → Server plugins (read-only inventory + install-ops history) |
 | v0.1.34-beta3 | pre-release | Settings → Server plugins: add real `.plg` inventory section + relabel API-modules section |
 | v0.1.34-beta4 | pre-release | Settings → Network interfaces (read-only NIC inventory: IPv4/IPv6 + hardware) |
-| v0.1.34-beta5 | pre-release | About-section regrouped (paired GitHub links, footer trademark) **(Latest)** |
+| v0.1.34-beta5 | pre-release | About-section regrouped (paired GitHub links, footer trademark) |
+| **v0.1.34** | **release** | Stable promotion of the 0.1.34 cycle — Settings → Server plugins (.plg inventory + API modules + install-ops history), Settings → Network interfaces (NIC inventory IPv4/IPv6 + hardware), Settings → About regrouped, repo-rename housekeeping; beta1–beta5 maintainer device-accepted 2026-05-21 **(Latest)** |
 
 ## Stack
 

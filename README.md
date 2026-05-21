@@ -57,6 +57,16 @@ It talks to your server through the official Unraid API (the Connect plugin's Gr
 - **Multiple servers** — switch between them; each remembers its own local and remote address
 - **Stay current** — the app checks GitHub for its own updates and installs them in place
 
+## What's not in yet
+
+NOVA surfaces what Unraid's GraphQL API exposes today. A few things commonly asked for aren't there yet — most because the upstream API hasn't added them:
+
+- **Plugin updates** — NOVA shows installed plugins and the install-job history, but Unraid's API doesn't expose "update available" status the way it does for Docker containers. Tracking: [unraid/api#2012](https://github.com/unraid/api/issues/2012).
+- **Live NIC traffic** — NOVA shows the static network-interface inventory (IPs, MAC, link speed, vendor) and the primary interface, but RX/TX byte counters / bandwidth aren't exposed by the API yet. Tracking: [unraid/api#1602](https://github.com/unraid/api/issues/1602) (Lime Technology bounty) + the in-flight implementation at [unraid/api#2003](https://github.com/unraid/api/pull/2003).
+- **User shares / SMB / NFS**, **UPS**, **disk SMART**, **parity-check scheduling** — not yet surfaced.
+
+If something on this list (or off it) matters to you, an issue or a 👍 on an existing one is the best signal.
+
 ## Look & feel
 
 A deliberately dark, glassy Material 3 design — dense cards, a single accent color, restrained motion. Tuned for quick checks, not for living in.
@@ -84,6 +94,13 @@ Requires an Unraid 7.x server with the API/Connect plugin enabled.
 ## Trademark attribution
 
 Unraid® is a registered trademark of Lime Technology, Inc. NOVA is an independent, community-built client; it uses the term solely to describe compatibility with the Unraid® operating system and is not affiliated with, endorsed by, or supported by Lime Technology. The project was previously named `UnraidControl`; the rename to NOVA in v0.1.33 was made to comply with the Unraid® Trademark Policy — see [ADR-0038](./docs/adr/0038-lime-trademark-compliance-rename-pending.md) and [ADR-0039](./docs/adr/0039-rename-to-nova.md).
+
+## Privacy & data handling
+
+- **Your API key stays on your device.** It's encrypted at rest using Android Keystore via Google's Tink library, and explicitly excluded from cloud backup / device-transfer.
+- **No analytics, no telemetry, no third-party services.** The app talks only to your Unraid server's API and — when you press "Check now" in Settings — to GitHub's API to look for app updates.
+- **Update downloads** go directly from GitHub Releases to your device over HTTPS. The downloaded APK is verified by byte-size match and constant-time SHA-256 against the published release asset before any install attempt; mismatch fails closed. See [ADR-0034](./docs/adr/0034-update-integrity-and-data-at-rest.md) for the rationale.
+- **Source is the spec.** Audit, fork, run yourself — GPL v3.
 
 ## Contributing & internals
 
