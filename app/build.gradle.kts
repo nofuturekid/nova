@@ -16,8 +16,8 @@ android {
         applicationId = "io.github.nofuturekid.nova"
         minSdk = 26
         targetSdk = 36
-        versionCode = 99
-        versionName = "0.1.36"
+        versionCode = 100
+        versionName = "0.1.37-beta1"
 
         vectorDrawables { useSupportLibrary = true }
     }
@@ -88,6 +88,17 @@ android {
     buildFeatures {
         compose = true
         buildConfig = true
+    }
+
+    // F-Droid compatibility (per ADR-0040 distribution split):
+    // Strip AGP's "Dependency metadata" signing block from the APK.
+    // F-Droid rejects extra signing blocks beyond the standard JAR + APK
+    // signing schemes — see check_apk in fdroidserver. No functional impact;
+    // affects only the dependency-graph metadata Google Play Console would
+    // otherwise read from the upload.
+    dependenciesInfo {
+        includeInApk = false
+        includeInBundle = false
     }
 
     packaging {
