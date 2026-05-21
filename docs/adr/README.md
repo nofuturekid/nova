@@ -74,3 +74,4 @@ ADRs live under `docs/` so the CI docs-only bypass applies — pure-ADR PRs comp
 | [0037](./0037-resilient-action-launchers.md) | Resilient action launchers — failed user actions surface, never crash | Accepted |
 | [0038](./0038-lime-trademark-compliance-rename-pending.md) | Lime Technology trademark compliance — rename required (pending name) | Accepted |
 | [0039](./0039-rename-to-nova.md) | Rename app to NOVA for Lime trademark compliance | Accepted |
+| [0040](./0040-fdroid-play-distribution-flavors.md) | F-Droid + Play distribution via two Gradle product flavors | Proposed |
