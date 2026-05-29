@@ -224,6 +224,7 @@ class UnraidRepository @Inject constructor(
         val previousSha256: String?,
     )
 
+    // Shared across all domain streams; safe because they all target the one active server's endpoint.
     private val _certPrompt = MutableStateFlow<CertPrompt?>(null)
     val certPrompt: StateFlow<CertPrompt?> = _certPrompt.asStateFlow()
 
@@ -371,10 +372,10 @@ class UnraidRepository @Inject constructor(
             else -> DomainState.Content(map(resp.data!!))
         }
     } catch (e: ApolloException) {
-        e.certIssue()?.let { throw e }   // let domainStream map it with server context
+        if (e.certIssue() != null) throw e   // let domainStream map it with server context
         DomainState.Error(e.message ?: "Network error")
     } catch (e: Exception) {
-        e.certIssue()?.let { throw e }
+        if (e.certIssue() != null) throw e
         DomainState.Error(e.message ?: "Unexpected error")
     }
 
@@ -573,5 +574,13 @@ class UnraidRepository @Inject constructor(
         _certPrompt.value = null
     }
 
+    /**
+     * Dismiss the certificate prompt without trusting. The affected server's
+     * streams stay in their error state (they already ended) and do NOT restart
+     * until the active server or connection mode changes again (e.g. the user
+     * toggles Local/Remote or re-selects the server). This is the intended
+     * "not now" behaviour — only trusting the cert (which writes a pin and thus
+     * re-emits activeWithKey) resumes polling.
+     */
     fun dismissCertPrompt() { _certPrompt.value = null }
 }
