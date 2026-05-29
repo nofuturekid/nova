@@ -1,8 +1,6 @@
 # ADR-0026: GraphQL subscriptions for select domains (hybrid with polling)
 
-- **Status**: Deprecated — piloted (E0+E1) then reverted. **Reversal is
-  provisional**, not a permanent rejection: revisit once an ADR-0027
-  test environment exists (see Trigger to revisit).
+- **Status**: Superseded by ADR-0042 for network throughput (network pilot); metrics/docker/array still pending.
 - **Date**: 2026-05-16
 - **Tags**: data, performance, resilience, api
 
