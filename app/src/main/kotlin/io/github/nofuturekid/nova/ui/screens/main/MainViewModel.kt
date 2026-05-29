@@ -32,6 +32,7 @@ import io.github.nofuturekid.nova.data.model.NotifType
 import io.github.nofuturekid.nova.data.model.Container
 import io.github.nofuturekid.nova.data.model.InstallState
 import io.github.nofuturekid.nova.data.model.LiveMetrics
+import io.github.nofuturekid.nova.data.model.NetworkThroughput
 import io.github.nofuturekid.nova.data.model.Notifications
 import io.github.nofuturekid.nova.data.model.Server
 import io.github.nofuturekid.nova.data.model.ServerInfo
@@ -213,6 +214,9 @@ class MainViewModel @Inject constructor(
 
     val metricsState: StateFlow<DomainState<LiveMetrics>> =
         gatedStream(overviewOnly(), unraid.metricsStream())
+
+    val networkThroughputState: StateFlow<DomainState<NetworkThroughput>> =
+        gatedStream(overviewOnly(), unraid.networkThroughputStream())
 
     val arrayState: StateFlow<DomainState<ArrayInfo>> =
         gatedStream(overviewOr(MainTab.Array), unraid.arrayStream())
