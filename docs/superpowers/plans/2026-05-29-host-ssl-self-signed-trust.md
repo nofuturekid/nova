@@ -312,6 +312,28 @@ class LocalPinningTrustManager(
 fun sslContextFor(tm: X509TrustManager): SSLContext =
     SSLContext.getInstance("TLS").apply { init(null, arrayOf<TrustManager>(tm), null) }
 
+/**
+ * The ONLY place "trust is relaxed" is decided. Pure + top-level so it is
+ * unit-testable and the local-only guarantee is provable: relaxed trust is
+ * returned ONLY for a Local-mode, opt-in, https endpoint. Everything else —
+ * remote mode, http, flag off — gets [TlsTrust.Default]. Pure (no I/O); the
+ * pin is passed in.
+ */
+fun trustFor(
+    mode: io.github.nofuturekid.nova.data.model.ConnectionMode,
+    trustSelfSignedLocal: Boolean,
+    url: String,
+    pin: String?,
+): TlsTrust =
+    if (mode == io.github.nofuturekid.nova.data.model.ConnectionMode.Local &&
+        trustSelfSignedLocal &&
+        url.startsWith("https", ignoreCase = true)
+    ) {
+        TlsTrust.PinnedSelfSigned(pin)
+    } else {
+        TlsTrust.Default
+    }
+
 /** A cert-trust problem surfaced from a failed connection, with fingerprints. */
 sealed interface CertIssue {
     data class Untrusted(val sha256: String) : CertIssue
@@ -334,16 +356,47 @@ fun Throwable.certIssue(): CertIssue? {
 
 > **ADR-0041 note:** the pinned client also uses a permissive `hostnameVerifier` (installed in Task 5). A self-signed LAN cert's CN/SAN rarely matches the IP/host, so hostname matching cannot be the anchor — the pinned fingerprint is. The verifier is safe because each pinned client is single-purpose (one server's local endpoint) and the `TrustManager` already gates on the exact cert.
 
-- [ ] **Step 2: Build to verify it compiles**
+- [ ] **Step 2: Write the scope-isolation test for `trustFor`**
+
+Append to `app/src/test/kotlin/io/github/nofuturekid/nova/data/api/TlsTrustDecisionTest.kt`:
+
+```kotlin
+    // WHY: the entire "only for local" guarantee lives in trustFor. Relaxed
+    // trust must appear ONLY for local + opt-in + https; never remote, http,
+    // or flag-off (otherwise self-signed trust could leak to the remote or
+    // GitHub-update path).
+    @Test fun trustFor_local_https_optIn_isPinned() {
+        val t = trustFor(ConnectionMode.Local, trustSelfSignedLocal = true, url = "https://192.168.11.2", pin = "AA")
+        assertEquals(TlsTrust.PinnedSelfSigned("AA"), t)
+    }
+    @Test fun trustFor_remote_isAlwaysDefault() {
+        assertEquals(TlsTrust.Default, trustFor(ConnectionMode.Remote, true, "https://x.unraid.net", "AA"))
+    }
+    @Test fun trustFor_local_http_isDefault() {
+        assertEquals(TlsTrust.Default, trustFor(ConnectionMode.Local, true, "http://192.168.11.2", null))
+    }
+    @Test fun trustFor_flagOff_isDefault() {
+        assertEquals(TlsTrust.Default, trustFor(ConnectionMode.Local, false, "https://192.168.11.2", "AA"))
+    }
+```
+
+Add the import at the top of the test file: `import io.github.nofuturekid.nova.data.model.ConnectionMode`.
+
+- [ ] **Step 3: Run the test to verify it fails then (after Step 1's `trustFor` exists) passes**
+
+Run: `./gradlew :app:testDebugUnitTest --tests "*.TlsTrustDecisionTest"`
+Expected: PASS (9 tests total: 5 decision + 4 scope).
+
+- [ ] **Step 4: Build to verify it compiles**
 
 Run: `./gradlew :app:compileDebugKotlin`
 Expected: BUILD SUCCESSFUL.
 
-- [ ] **Step 3: Commit**
+- [ ] **Step 5: Commit**
 
 ```bash
-git add app/src/main/kotlin/io/github/nofuturekid/nova/data/api/Tls.kt
-git commit -m "feat(tls): LocalPinningTrustManager + TlsTrust + cert-issue cause walk"
+git add app/src/main/kotlin/io/github/nofuturekid/nova/data/api/Tls.kt app/src/test/kotlin/io/github/nofuturekid/nova/data/api/TlsTrustDecisionTest.kt
+git commit -m "feat(tls): LocalPinningTrustManager, TlsTrust, trustFor (local-only, tested)"
 ```
 
 ---
@@ -549,17 +602,17 @@ data class CertPrompt(
 private val _certPrompt = MutableStateFlow<CertPrompt?>(null)
 val certPrompt: StateFlow<CertPrompt?> = _certPrompt.asStateFlow()
 
-/** Local-only, opt-in, https-only → pinned self-signed path; else default. */
+/** Local-only trust selection delegates to the pure top-level [trustFor]. */
 private fun trustFor(active: ActiveServer, url: String): TlsTrust =
-    if (active.mode == ConnectionMode.Local &&
-        active.server.trustSelfSignedLocal &&
-        url.startsWith("https", ignoreCase = true)
-    ) {
-        TlsTrust.PinnedSelfSigned(active.localCertPin)
-    } else {
-        TlsTrust.Default
-    }
+    io.github.nofuturekid.nova.data.api.trustFor(
+        mode = active.mode,
+        trustSelfSignedLocal = active.server.trustSelfSignedLocal,
+        url = url,
+        pin = active.localCertPin,
+    )
 ```
+
+> Add `import io.github.nofuturekid.nova.data.api.trustFor` (or fully-qualify as above). The local-only guarantee is proven by the Task 4 scope tests on the pure function.
 
 - [ ] **Step 2: Pass trust at every `build` site**
 
@@ -789,6 +842,7 @@ data class AddEditUiState(
     val remoteHost: String = "",
     val remoteSsl: Boolean = true,
     val trustSelfSignedLocal: Boolean = false,
+    val hasStoredPin: Boolean = false,
     val apiKey: String = "",
     val showKey: Boolean = false,
     val testState: TestState = TestState.Idle,
@@ -811,6 +865,7 @@ fun load(server: Server?) {
             remoteHost = remote.host,
             remoteSsl = remote.ssl,
             trustSelfSignedLocal = server?.trustSelfSignedLocal ?: false,
+            hasStoredPin = server?.id?.let { servers.pinFor(it) } != null,
             apiKey = server?.id?.let { servers.apiKeyFor(it) }.orEmpty(),
         )
     }
@@ -832,6 +887,17 @@ fun setTrustSelfSigned(v: Boolean) {
 }
 fun setApiKey(v: String)      { _state.value = _state.value.copy(apiKey = v, testState = TestState.Idle) }
 fun toggleKeyVisible()        { _state.value = _state.value.copy(showKey = !_state.value.showKey) }
+
+/** Forget the captured certificate for this server (deliberate rotation).
+ *  The next local connect re-runs first-use and re-prompts. */
+fun resetCertificate() {
+    val id = existingId
+    if (id.isBlank()) return
+    viewModelScope.launch {
+        servers.clearLocalCertPin(id)
+        _state.value = _state.value.copy(hasStoredPin = false)
+    }
+}
 ```
 
 - [ ] **Step 6: Compose URLs in `test()` and `save()`**
@@ -913,8 +979,19 @@ if (state.localSsl) {
         }
         androidx.compose.material3.Switch(checked = state.trustSelfSignedLocal, onCheckedChange = vm::setTrustSelfSigned)
     }
+    if (state.trustSelfSignedLocal && state.hasStoredPin) {
+        UnraidButton(
+            onClick = vm::resetCertificate,
+            label = "Reset certificate",
+            variant = BtnVariant.Text,
+            tone = Tone.Neutral,
+            leadingIcon = { UC.Refresh(14.dp, t.muted) },
+        )
+    }
 }
 ```
+
+> The Reset button appears only when editing a server that has a stored pin and the trust switch is on. It forgets the captured cert so the next local connect re-prompts (deliberate cert rotation). Match the file's button/spacing conventions.
 
 Update the `canSave` guard (lines 264-266) to use the host fields:
 
@@ -1062,9 +1139,9 @@ Expected: all unit tests PASS (incl. `TlsTrustDecisionTest`, `EndpointUrlTest`),
 - Tests: compose/parse round-trip, trust decision matrix, scope isolation → Tasks 3, 8 + scope note below
 - ADR-0041 + CHANGELOG → Task 11 ✓
 
-**Deviations from spec (surfaced, Rule 12):**
-1. **"Reset certificate" affordance** — the spec mentioned an explicit reset button in the edit sheet. The plan instead clears the pin when the trust switch is turned off (Task 6 `upsert`) and re-accepts via the change dialog (Task 9). This covers rotation with less UI. If you want the explicit button, it's a small add to Task 8 — flag during review.
-2. **Scope-isolation test** — the spec calls for a test proving relaxed trust never reaches the remote/GitHub client. `trustFor` enforces this by construction (returns `Default` unless mode==Local && flag && https), and `testConnection`'s GitHub/update path is untouched. A direct unit test on `trustFor` is worthwhile but `trustFor` is currently private. **Recommend** extracting `trustFor` to a top-level pure function in `Tls.kt` (signature `fun trustFor(mode: ConnectionMode, trustSelfSignedLocal: Boolean, url: String, pin: String?): TlsTrust`) and unit-testing it (local+https+flag→Pinned; remote→Default; local+http→Default; flag-off→Default). Add this as a sub-step if you accept it.
+**Deviations from spec — both RESOLVED per maintainer (2026-05-29):**
+1. **"Reset certificate" affordance** — KEPT as the spec intended. Explicit Reset button added to Task 8 (`resetCertificate()` + `hasStoredPin` state), shown when editing a server that has a stored pin with the trust switch on. Flag-off-clears (Task 6 `upsert`) and change-dialog re-accept (Task 9) remain as complementary paths.
+2. **Scope-isolation test** — DONE. `trustFor` extracted to a pure top-level function in `Tls.kt` (Task 4) with signature `fun trustFor(mode: ConnectionMode, trustSelfSignedLocal: Boolean, url: String, pin: String?): TlsTrust`, unit-tested for the matrix (local+https+flag→Pinned; remote→Default; local+http→Default; flag-off→Default). `UnraidRepository` delegates to it (Task 7).
 
 **Placeholder scan:** none — every code step has concrete code; commands have expected output.
 
