@@ -37,7 +37,6 @@ private object Keys {
     val IncludePrereleases  = booleanPreferencesKey("include_prereleases")
     val LastUpdateCheck     = longPreferencesKey("last_update_check")
     val DismissedUpdateTag  = stringPreferencesKey("dismissed_update_tag")
-    val RenameBannerDismissed = booleanPreferencesKey("rename_banner_dismissed")
     val CertPins              = stringPreferencesKey("local_cert_pins_json")
 }
 
@@ -159,7 +158,6 @@ class SettingsStore @Inject constructor(
     val includePrereleases: Flow<Boolean> = ds.data.map { it[Keys.IncludePrereleases] ?: false }
     val lastUpdateCheck: Flow<Long?> = ds.data.map { it[Keys.LastUpdateCheck] }
     val dismissedUpdateTag: Flow<String?> = ds.data.map { it[Keys.DismissedUpdateTag] }
-    val renameBannerDismissed: Flow<Boolean> = ds.data.map { it[Keys.RenameBannerDismissed] ?: false }
 
     suspend fun setIncludePrereleases(value: Boolean) {
         ds.edit { it[Keys.IncludePrereleases] = value }
@@ -174,9 +172,5 @@ class SettingsStore @Inject constructor(
             if (tag == null) prefs.remove(Keys.DismissedUpdateTag)
             else prefs[Keys.DismissedUpdateTag] = tag
         }
-    }
-
-    suspend fun setRenameBannerDismissed(value: Boolean) {
-        ds.edit { it[Keys.RenameBannerDismissed] = value }
     }
 }

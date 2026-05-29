@@ -39,4 +39,27 @@ class EndpointUrlTest {
     @Test fun parse_stripsTrailingPath() {
         assertEquals(EndpointUrl("192.168.11.2", ssl = false), EndpointUrl.parse("http://192.168.11.2/", defaultSsl = true))
     }
+
+    // WHY: a stored URL with a mixed-case scheme must still parse host + ssl
+    // correctly (the old four-exact-prefix strip left "Https://host" as the host).
+    @Test fun parse_mixedCaseScheme() {
+        assertEquals(EndpointUrl("tower.local", ssl = true), EndpointUrl.parse("Https://tower.local", defaultSsl = false))
+        assertEquals(EndpointUrl("192.168.11.2", ssl = false), EndpointUrl.parse("HTTP://192.168.11.2", defaultSsl = true))
+    }
+
+    // WHY: if the user pastes a full URL into the host field, compose must not
+    // produce a double scheme like "https://http://host"; it strips the pasted
+    // scheme (and any path) and applies the SSL toggle.
+    @Test fun compose_stripsPastedSchemeAndPath() {
+        assertEquals("https://192.168.11.2", EndpointUrl.compose("http://192.168.11.2", ssl = true))
+        assertEquals("https://192.168.11.2:8443", EndpointUrl.compose("https://192.168.11.2:8443/graphql", ssl = true))
+    }
+
+    // WHY: save() derives hostname from the host field; a pasted URL must not
+    // yield "http:" as the hostname.
+    @Test fun normalizeHost_stripsSchemeAndPath() {
+        assertEquals("192.168.11.2", EndpointUrl.normalizeHost("http://192.168.11.2/graphql"))
+        assertEquals("tower.local", EndpointUrl.normalizeHost("  tower.local  "))
+        assertEquals("", EndpointUrl.normalizeHost(""))
+    }
 }

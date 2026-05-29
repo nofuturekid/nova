@@ -99,6 +99,7 @@ class AddEditServerViewModel @Inject constructor(
                 remoteSsl = remote.ssl,
                 trustSelfSignedLocal = server?.trustSelfSignedLocal ?: false,
                 hasStoredPin = server?.id?.let { servers.pinFor(it) } != null,
+                pendingLocalCertSha256 = server?.id?.let { servers.pinFor(it) },
                 apiKey = server?.id?.let { servers.apiKeyFor(it) }.orEmpty(),
             )
         }
@@ -193,7 +194,7 @@ class AddEditServerViewModel @Inject constructor(
         viewModelScope.launch {
             val localUrl = EndpointUrl.compose(s.localHost, s.localSsl)
             val remoteUrl = EndpointUrl.compose(s.remoteHost, s.remoteSsl)
-            val hostname = s.localHost.substringBefore('/').ifBlank { s.remoteHost }
+            val hostname = EndpointUrl.normalizeHost(s.localHost).ifBlank { EndpointUrl.normalizeHost(s.remoteHost) }
             val saved = servers.upsert(
                 Server(
                     id = existingId,

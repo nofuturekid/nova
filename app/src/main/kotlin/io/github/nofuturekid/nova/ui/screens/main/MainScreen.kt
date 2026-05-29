@@ -77,7 +77,6 @@ import io.github.nofuturekid.nova.ui.screens.container.ContainerDetailSheet
 import io.github.nofuturekid.nova.ui.screens.docker.DockerTab
 import io.github.nofuturekid.nova.ui.screens.notifications.NotificationsSheet
 import io.github.nofuturekid.nova.ui.screens.overview.OverviewTab
-import io.github.nofuturekid.nova.ui.screens.rename.RenameBanner
 import io.github.nofuturekid.nova.ui.screens.update.UpdateBanner
 import io.github.nofuturekid.nova.ui.screens.update.UpdateDialog
 import io.github.nofuturekid.nova.ui.screens.vms.VmDetailSheet
@@ -186,11 +185,6 @@ fun MainScreen(
             notificationBadge = (notificationsState as? DomainState.Content)?.value?.badgeCount ?: 0,
             onOpenNotifications = { showNotifications = true },
         )
-
-        val renameDismissed by vm.renameBannerDismissed.collectAsState()
-        if (!renameDismissed) {
-            RenameBanner(onDismiss = { vm.dismissRenameBanner() })
-        }
 
         if (BuildConfig.HAS_UPDATER) {
             val update = updateState
