@@ -2,6 +2,7 @@ package io.github.nofuturekid.nova.data.repository
 
 import com.apollographql.apollo.ApolloClient
 import com.apollographql.apollo.api.Query
+import com.apollographql.apollo.api.Subscription
 import com.apollographql.apollo.exception.ApolloException
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
@@ -29,10 +30,13 @@ import io.github.nofuturekid.nova.data.api.toPluginOperations
 import io.github.nofuturekid.nova.data.api.toPlugins
 import io.github.nofuturekid.nova.data.api.toServerInfo
 import io.github.nofuturekid.nova.data.api.toVms
+import io.github.nofuturekid.nova.data.api.toIfaceSamples
 import io.github.nofuturekid.nova.data.model.ArrayInfo
 import io.github.nofuturekid.nova.data.model.ConnectionMode
 import io.github.nofuturekid.nova.data.model.Container
 import io.github.nofuturekid.nova.data.model.LiveMetrics
+import io.github.nofuturekid.nova.data.model.NetworkThroughput
+import io.github.nofuturekid.nova.data.model.selectThroughput
 import io.github.nofuturekid.nova.data.model.LogLine
 import io.github.nofuturekid.nova.data.model.NetworkInterface
 import io.github.nofuturekid.nova.data.model.Notifications
@@ -40,6 +44,7 @@ import io.github.nofuturekid.nova.data.model.Plugin
 import io.github.nofuturekid.nova.data.model.PluginInstallOperation
 import io.github.nofuturekid.nova.data.model.ServerInfo
 import io.github.nofuturekid.nova.data.model.Vm
+import io.github.nofuturekid.nova.graphql.SystemMetricsNetworkSubscription
 import io.github.nofuturekid.nova.graphql.ArchiveAllNotificationsMutation
 import io.github.nofuturekid.nova.graphql.ArchiveNotificationMutation
 import io.github.nofuturekid.nova.graphql.DeleteArchivedNotificationsMutation
@@ -195,6 +200,25 @@ class UnraidRepository @Inject constructor(
             runCatching { recalculate(c) }
             nudge()
         }
+
+        /**
+         * Test-only seam for the subscription substrate's per-sample → [DomainState]
+         * mapping. Drives the same mapping logic (frame → Content) that the production
+         * [subscriptionStream] applies, without requiring Apollo types or a live WS
+         * connection. Mirrors the [pollDomainForTest] convention (same-module `internal`).
+         *
+         * The test supplies a scripted list of frames (e.g. [IfaceSample] lists) and a
+         * mapping function (e.g. [selectThroughput]); this seam emits exactly one
+         * [DomainState.Content] per frame, tagged with [baseUrl], and then completes.
+         */
+        internal fun <S, T> subscriptionStreamForTest(
+            baseUrl: String,
+            frames: List<S>,
+            map: (S) -> T,
+        ): kotlinx.coroutines.flow.Flow<DomainState<T>> =
+            kotlinx.coroutines.flow.flow {
+                for (f in frames) emit(DomainState.Content(map(f), baseUrl))
+            }
     }
 
     /**
@@ -324,17 +348,7 @@ class UnraidRepository @Inject constructor(
                     return@flow
                 }
                 if (active.apiKey.isBlank()) {
-                    // ADR-0035: a stored-but-undecryptable key is NOT the
-                    // same as "no key". Don't flatten it to "missing" —
-                    // tell the user it can no longer be decrypted so they
-                    // re-enter it via the existing Add/Edit server flow.
-                    val msg = if (active.keyState is ApiKeyResult.Undecryptable) {
-                        "Saved API key can no longer be decrypted — " +
-                            "re-enter it for ${active.server.name}"
-                    } else {
-                        "Missing API key for ${active.server.name}"
-                    }
-                    emit(DomainState.Error(msg))
+                    emit(DomainState.Error(blankKeyMessage(active)))
                     return@flow
                 }
                 val url = activeUrl(active)
@@ -354,6 +368,84 @@ class UnraidRepository @Inject constructor(
                     }
                 }
             }
+        }
+
+    /**
+     * Generic WebSocket subscription stream.
+     *
+     * Mirrors [domainStream]: keyed on `servers.activeWithKey`, emits `NoServer`
+     * when no active server and `Error` when the API key is blank/undecryptable
+     * (same messages via [blankKeyMessage]). For a valid server, collects
+     * `apolloFactory.buildWs(url, key, trust).subscription(op).toFlow()` and
+     * maps each response to `DomainState.Content(map(data), url)`.
+     *
+     * Cold: the WS socket opens when the flow is collected and closes when
+     * collection is cancelled (gate flip / leaving Overview / app background).
+     * Apollo's WS transport auto-reconnects and re-sends the connection payload
+     * on drops; a sustained failure surfaces `DomainState.Error`. There is no
+     * poll fallback for this consumer — on WS failure the card shows unavailable.
+     */
+    private fun <D : Subscription.Data, T> subscriptionStream(
+        op: Subscription<D>,
+        map: (D) -> T,
+    ): Flow<DomainState<T>> = servers.activeWithKey
+        .distinctUntilChanged()
+        .flatMapLatest { active ->
+            flow {
+                if (active == null) { emit(DomainState.NoServer); return@flow }
+                if (active.apiKey.isBlank()) {
+                    emit(DomainState.Error(blankKeyMessage(active))); return@flow
+                }
+                val url = activeUrl(active)
+                val client = apolloFactory.buildWs(url, active.apiKey, trustFor(active, url))
+                try {
+                    client.subscription(op).toFlow().collect { resp ->
+                        val d = resp.data
+                        if (d != null) {
+                            emit(DomainState.Content(map(d), url))
+                        } else if (resp.exception != null) {
+                            emit(DomainState.Error(resp.exception!!.message ?: "Live connection error"))
+                        }
+                    }
+                } catch (e: Throwable) {
+                    if (e is kotlinx.coroutines.CancellationException) throw e
+                    emit(DomainState.Error(e.message ?: "Live connection error"))
+                }
+            }
+        }
+
+    /**
+     * Live network throughput from the `systemMetricsNetwork` subscription.
+     *
+     * Resolves the primary NIC name once (tolerate failure — [selectThroughput]
+     * has a fallback for null), then opens a subscription stream and applies
+     * [selectThroughput] to each frame. The WS socket lives only while the
+     * flow is collected (gated by the caller via [gatedStream] in the ViewModel).
+     */
+    fun networkThroughputStream(): Flow<DomainState<NetworkThroughput>> {
+        val primaryFlow = flow { emit(runCatching { resolvePrimaryIface() }.getOrNull()) }
+        return primaryFlow.flatMapLatest { primary ->
+            subscriptionStream(SystemMetricsNetworkSubscription()) { data ->
+                selectThroughput(data.toIfaceSamples(), primary)
+            }
+        }
+    }
+
+    private suspend fun resolvePrimaryIface(): String? =
+        activeClient()?.query(GetNetworkInterfacesQuery())?.execute()
+            ?.data?.info?.primaryNetwork?.name
+
+    /** Blank/undecryptable API key error message (ADR-0035). Shared between
+     *  [domainStream] and [subscriptionStream] — single definition, no drift. */
+    private fun blankKeyMessage(active: ActiveServer): String =
+        // ADR-0035: a stored-but-undecryptable key is NOT the same as "no key".
+        // Don't flatten it to "missing" — tell the user it can no longer be
+        // decrypted so they re-enter it via the existing Add/Edit server flow.
+        if (active.keyState is ApiKeyResult.Undecryptable) {
+            "Saved API key can no longer be decrypted — " +
+                "re-enter it for ${active.server.name}"
+        } else {
+            "Missing API key for ${active.server.name}"
         }
 
     /** Single Apollo query → DomainState wrapper. The base URL is filled in

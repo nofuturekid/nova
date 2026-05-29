@@ -12,3 +12,6 @@ captures/
 
 # Claude Code: share project settings, keep personal overrides local
 .claude/settings.local.json
+
+# Superpowers brainstorm artifacts
+.superpowers/

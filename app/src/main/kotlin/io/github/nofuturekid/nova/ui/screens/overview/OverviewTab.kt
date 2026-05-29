@@ -30,6 +30,7 @@ import io.github.nofuturekid.nova.data.model.ArrayState
 import io.github.nofuturekid.nova.data.model.Container
 import io.github.nofuturekid.nova.data.model.ContainerStatus
 import io.github.nofuturekid.nova.data.model.LiveMetrics
+import io.github.nofuturekid.nova.data.model.NetworkThroughput
 import io.github.nofuturekid.nova.data.model.Server
 import io.github.nofuturekid.nova.data.model.ServerInfo
 import io.github.nofuturekid.nova.data.model.Vm
@@ -46,6 +47,7 @@ import io.github.nofuturekid.nova.ui.components.UnraidProgress
 import io.github.nofuturekid.nova.ui.screens.ErrorState
 import io.github.nofuturekid.nova.ui.screens.LoadingState
 import io.github.nofuturekid.nova.ui.screens.NoServerState
+import io.github.nofuturekid.nova.ui.util.formatBytesPerSec
 import io.github.nofuturekid.nova.ui.theme.JetBrainsMono
 import io.github.nofuturekid.nova.ui.theme.UnraidAlpha
 import io.github.nofuturekid.nova.ui.theme.UnraidTheme
@@ -66,6 +68,7 @@ fun OverviewTab(
     vmsState: DomainState<List<Vm>>,
     server: Server?,
     onAddServer: () -> Unit,
+    networkThroughput: NetworkThroughput? = null,
 ) {
     // Any single NoServer → no server picked.
     if (infoState is DomainState.NoServer || metricsState is DomainState.NoServer ||
@@ -94,7 +97,7 @@ fun OverviewTab(
         return
     }
 
-    OverviewContent(info, metrics, array, containers, vms, server)
+    OverviewContent(info, metrics, array, containers, vms, server, networkThroughput)
 }
 
 @Composable
@@ -105,6 +108,7 @@ private fun OverviewContent(
     containers: List<Container>?,
     vms: List<Vm>?,
     server: Server?,
+    networkThroughput: NetworkThroughput? = null,
 ) {
     val t = UnraidTheme.colors
 
@@ -132,7 +136,11 @@ private fun OverviewContent(
         cpuSeries.value = cpuSeries.value.drop(1) + cpuPercent.toFloat()
         val pct = if (memTotalGb > 0) ((memUsedGb / memTotalGb) * 100).toFloat() else 0f
         ramSeries.value = ramSeries.value.drop(1) + pct
-        netSeries.value = netSeries.value.drop(1) + 0f
+    }
+    LaunchedEffect(networkThroughput) {
+        val total = ((networkThroughput?.rxBytesPerSec ?: 0.0) +
+                     (networkThroughput?.txBytesPerSec ?: 0.0)).toFloat()
+        netSeries.value = netSeries.value.drop(1) + total
     }
 
     val arrTotalTb = array?.totalTb ?: 0.0
@@ -262,8 +270,12 @@ private fun OverviewContent(
                 iconColor = t.muted,
                 icon = { UC.Network(18.dp, t.muted) },
                 label = "Network",
-                value = "%.1f Mbps".format(0.0),
-                sub = "↓ 0.0  ·  ↑ 0.0 Mbps",
+                value = networkThroughput
+                    ?.let { formatBytesPerSec(it.rxBytesPerSec + it.txBytesPerSec) }
+                    ?: "—",
+                sub = networkThroughput
+                    ?.let { "↓ ${formatBytesPerSec(it.rxBytesPerSec)}  ·  ↑ ${formatBytesPerSec(it.txBytesPerSec)}" }
+                    ?: "live unavailable",
                 series = netSeries.value,
                 seriesColor = Color(0xFFA78BFA),
                 max = null,

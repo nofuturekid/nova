@@ -25,6 +25,7 @@ scalar URL
 schema {
     query: Query
     mutation: Mutation
+    subscription: Subscription
 }
 
 type Query {
@@ -440,4 +441,22 @@ type ParityCheckMutations {
     pause: JSON!
     resume: JSON!
     cancel: JSON!
+}
+
+# ── Subscriptions ─────────────────────────────────────────────────────
+# Live-verified 2026-05-29 against real Unraid server. See ADR-0042.
+
+type Subscription {
+    systemMetricsNetwork: NetworkUtilization!
+}
+
+type NetworkUtilization {
+    id: PrefixedID!
+    interfaces: [NetworkInterfaceUtilization!]!
+}
+
+type NetworkInterfaceUtilization {
+    iface: String
+    rxBytesPerSec: Float
+    txBytesPerSec: Float
 }
