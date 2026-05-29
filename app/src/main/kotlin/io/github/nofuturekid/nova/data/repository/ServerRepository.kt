@@ -40,18 +40,19 @@ class ServerRepository @Inject constructor(
     }
 
     val activeWithKey: Flow<ActiveServer?> =
-        combine(activeServer, connectionMode) { s, mode -> s to mode }.map { (s, mode) ->
-            s?.let {
-                val result = keys.getResult(it.id)
-                ActiveServer(
-                    server = it,
-                    mode = mode,
-                    apiKey = (result as? ApiKeyResult.Present)?.key.orEmpty(),
-                    keyState = result,
-                    localCertPin = store.pinFor(it.id),
-                )
+        combine(activeServer, connectionMode, store.certPins) { s, mode, pins -> Triple(s, mode, pins) }
+            .map { (s, mode, pins) ->
+                s?.let {
+                    val result = keys.getResult(it.id)
+                    ActiveServer(
+                        server = it,
+                        mode = mode,
+                        apiKey = (result as? ApiKeyResult.Present)?.key.orEmpty(),
+                        keyState = result,
+                        localCertPin = pins[it.id],
+                    )
+                }
             }
-        }
 
     suspend fun upsert(input: Server, apiKey: String): Server {
         val current = store.servers.first()
