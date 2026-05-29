@@ -46,3 +46,11 @@ A **permissive hostname verifier** is installed on the single-purpose local-endp
 - ADR-0005 — Pre-release tag convention (`v0.1.39-beta1`).
 - ADR-0013 — Version naming (pre-release suffix in `versionName`).
 - `TlsTrust`, `trustFor`, `LocalPinningTrustManager`, `TlsTrustDecisionTest`, `EndpointUrlTest` — implementation in this branch.
+
+---
+
+## Amendment — 2026-05-29 (0.1.39-beta2)
+
+**Apollo Kotlin 5 `execute()` does not throw on TLS/network errors.** In Apollo Kotlin 5, `ApolloCall.execute()` returns all fetch-level failures (TLS handshake, socket errors, etc.) in `ApolloResponse.exception` rather than throwing. `hasErrors()` reflects only GraphQL-body errors. The `beta1` implementation inspected only thrown exceptions, so a self-signed TLS rejection was never caught as a cert-trust scenario — it was misclassified as an empty/null response and the fingerprint dialog never fired. Fixed in `beta2` by introducing a pure `classifyResponse(resp)` function that inspects `resp.exception` directly; both `fetch` and `testConnection` route through it, so all error paths are classified consistently.
+
+**Per-endpoint Test decision.** The connection test was reworked into two independent **Local** and **Remote** test panels in the connection sheet. The Local test now surfaces the self-signed certificate fingerprint dialog inline (right in the sheet) when `trustSelfSignedLocal` is on and no pin is stored yet; accepting the fingerprint there stores the pin immediately, so saving the server config does not prompt a second time (`pendingLocalCertSha256` carries the in-flight fingerprint from the test into the save path). Remote endpoints always use full CA validation — the Local-only TOFU trust grant from the original ADR decision is unchanged. Both the Test path and the Overview's first-connect path converge on the same per-server pin store, so there is no double-prompt and no duplicate pin.
