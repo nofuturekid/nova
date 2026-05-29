@@ -1,0 +1,9 @@
+subscription SystemMetricsNetwork {
+  systemMetricsNetwork {
+    interfaces {
+      iface
+      rxBytesPerSec
+      txBytesPerSec
+    }
+  }
+}
