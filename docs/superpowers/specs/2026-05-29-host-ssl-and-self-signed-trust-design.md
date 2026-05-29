@@ -187,3 +187,84 @@ Later, cert changes:
 - Remote self-signed trust (deliberately excluded).
 - Importing a custom CA cert file.
 - mDNS host discovery.
+
+---
+
+## Amendment — 2026-05-29 PM (0.1.39-beta2): cert prompt never fired + Test rework
+
+`0.1.39-beta1` shipped but on-device the **trust dialog never appeared** and the
+overview showed nothing. Root cause (systematic-debugging):
+
+**The app uses Apollo Kotlin 5, where `ApolloCall.execute()` no longer THROWS on
+network/TLS errors — the exception is returned in `ApolloResponse.exception`
+(and `data == null`); `hasErrors()` reflects only GraphQL-body errors.** The
+beta1 `fetch`/`testConnection` only inspected thrown exceptions
+(`catch (ApolloException)`) — a stale Apollo-v3 mental model. So a self-signed
+TLS failure landed in `resp.exception`, fell through `resp.data == null →
+DomainState.Error("Empty GraphQL response")`, the `catch` rethrow of cert issues
+never ran, `_certPrompt` was never set → no dialog. This compiled green and the
+isolated unit tests (`decidePinnedTrust`/`trustFor`/`certIssue`) all passed; it
+was the integration assumption that was wrong (the [[live-graphql-validation]]
+class of gap). Confirmed: `ApolloNetworkException(message, platformCause)` DOES
+set the standard `cause` (`cause = platformCause as? Throwable`), so
+`resp.exception.certIssue()` (cause-walk) reaches our typed exception.
+
+Two on-device observations folded in: Test reported success even with an
+invalid API key (the server's `Ping` query is unauthenticated → Test only
+proves reachability, never validated the key); and Test silently accepted the
+self-signed cert (`acceptFirstUse=true`) so no dialog ever showed there.
+
+### Decision (approved 2026-05-29): the trust dialog appears wherever the user first connects
+
+- **A — Core fix (root cause):** `fetch` (and `testConnection`) must inspect
+  `resp.exception`. In `fetch`: a cert-issue exception is rethrown so
+  `domainStream` maps it to `_certPrompt` → the **overview** shows the dialog on
+  first live connect (the path when the user does NOT use Test). Other
+  exceptions become a real `DomainState.Error(message)` (no more "Empty GraphQL
+  response" masking network errors). Extract the response→outcome mapping into a
+  **pure `classify(exception, hasErrors, dataNull)` function** so the root-cause
+  fix is unit-testable on the JVM with a synthetic `ApolloException` whose cause
+  chain carries a `CertificateUntrustedException`.
+- **B — `testConnection` returns a structured result**, not `String?`:
+  `sealed TestOutcome { Ok; Failed(message); CertUntrusted(sha256);
+  CertChanged(pinned, presented) }`. It inspects `resp.exception` and stops the
+  silent `acceptFirstUse=true` accept, so Test reports honest failures and can
+  surface the cert.
+- **C — Test per endpoint:** the single shared test panel is replaced by a
+  **"Test" affordance in each of the Local and Remote blocks**, each with its own
+  state. The Local test uses the local-trust path (SSL+trust on); the Remote
+  test always does full CA validation. (Decision: per-endpoint, option 1.)
+- **D — Trust dialog at Test + pin-on-save:** the VM holds
+  `pendingLocalCertSha256: String?`. A Local test returning `CertUntrusted`/
+  `CertChanged` shows a **fingerprint confirm dialog in the sheet** (styled like
+  the app's `ConfirmDialog`); on confirm, `pending = fp` and the test re-runs
+  with `PinnedSelfSigned(pending)` → matches → Ok. On **save**: after `upsert`
+  (which mints the id for a new server), if `pending != null` and trust is on,
+  `setLocalCertPin(savedId, pending)`. So confirming at Test means the overview
+  loads with no second prompt.
+- **E — Convergence:** Test path (D) and overview path (A) write the same pin
+  (keyed by serverId) → never a double prompt. Use Test → dialog in the sheet;
+  skip Test → dialog in the overview.
+
+### Affected units (delta from beta1)
+- `UnraidRepository.fetch` — inspect `resp.exception`; pure `classify(...)` helper.
+- `UnraidRepository.testConnection` — return `TestOutcome`; inspect
+  `resp.exception`. **`acceptFirstUse=true` is removed entirely**: the Local test
+  always builds `PinnedSelfSigned(pendingLocalCertSha256, acceptFirstUse=false)`,
+  so the FIRST test (pending=null) surfaces `CertUntrusted(fp)` for the in-sheet
+  dialog, and the post-confirm re-test (pending=fp) matches the pin → `Ok`.
+- `AddEditServerViewModel` — per-endpoint test state (local/remote);
+  `pendingLocalCertSha256`; sheet cert dialog state; pin-on-save.
+- `AddEditServerSheet` — two per-endpoint Test affordances; in-sheet cert dialog.
+- Tests — pure `classify(...)` unit tests (cert/error/empty/ok), incl. a synthetic
+  `ApolloException` carrying a `CertificateUntrustedException` in its cause chain.
+
+### Not changing
+- The local-only trust scope (`trustFor`), `LocalPinningTrustManager`, the pin
+  store, `EndpointUrl`, and the MainScreen/`_certPrompt` overview dialog all
+  stand; this amendment makes the overview dialog actually fire and adds the
+  Test-time entry point.
+
+Ships as `0.1.39-beta2`. ADR-0041 gets a short amendment (Apollo-5 `execute()`
+semantics + the per-endpoint Test decision). On-device acceptance + promote-to-
+stable remain the maintainer gate.
