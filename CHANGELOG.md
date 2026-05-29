@@ -15,6 +15,19 @@ release version + date and opens a fresh `[Unreleased]`.
 
 ## [Unreleased]
 
+## [0.1.39-beta3] - 2026-05-29
+
+Pre-release for device acceptance. Three small cleanups on top of `beta2`.
+
+### Fixed
+- **Re-testing a saved local server no longer asks you to re-confirm its certificate** — the stored certificate pin is reused automatically, so the fingerprint dialog no longer appears again when you tap Test on a server you have already trusted.
+
+### Removed
+- **The "renaming to NOVA" migration notice is gone** — this banner was a 0.1.34 one-time migration helper; it should never have appeared on a fresh install. Removed.
+
+### Changed
+- **You can paste a full address (with `http://` or `https://`) into the host field** — the host input now strips the scheme (and normalises its case) so pasting a URL from your browser works without getting an error.
+
 ## [0.1.39-beta2] - 2026-05-29
 
 Pre-release for device acceptance. Fixes a regression from `0.1.39-beta1` where the
