@@ -1,5 +1,6 @@
 package io.github.nofuturekid.nova.data.api
 
+import io.github.nofuturekid.nova.data.model.ConnectionMode
 import java.security.KeyStore
 import java.security.MessageDigest
 import java.security.cert.CertificateException
@@ -74,7 +75,13 @@ class LocalPinningTrustManager(
 ) : X509TrustManager {
 
     override fun checkServerTrusted(chain: Array<out X509Certificate>, authType: String) {
-        val defaultTrusts = runCatching { default.checkServerTrusted(chain, authType) }.isSuccess
+        if (chain.isEmpty()) throw CertificateException("Empty certificate chain")
+        val defaultTrusts = try {
+            default.checkServerTrusted(chain, authType)
+            true
+        } catch (_: CertificateException) {
+            false
+        }
         val presented = sha256Hex(chain[0])
         when (val d = decidePinnedTrust(defaultTrusts, pinnedSha256, presented)) {
             is TrustDecision.Accept -> return
@@ -101,12 +108,12 @@ fun sslContextFor(tm: X509TrustManager): SSLContext =
  * pin is passed in.
  */
 fun trustFor(
-    mode: io.github.nofuturekid.nova.data.model.ConnectionMode,
+    mode: ConnectionMode,
     trustSelfSignedLocal: Boolean,
     url: String,
     pin: String?,
 ): TlsTrust =
-    if (mode == io.github.nofuturekid.nova.data.model.ConnectionMode.Local &&
+    if (mode == ConnectionMode.Local &&
         trustSelfSignedLocal &&
         url.startsWith("https", ignoreCase = true)
     ) {

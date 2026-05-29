@@ -2,7 +2,9 @@ package io.github.nofuturekid.nova.data.api
 
 import io.github.nofuturekid.nova.data.model.ConnectionMode
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertThrows
 import org.junit.Test
+import java.security.cert.CertificateException
 
 class TlsTrustDecisionTest {
 
@@ -51,5 +53,22 @@ class TlsTrustDecisionTest {
     }
     @Test fun trustFor_flagOff_isDefault() {
         assertEquals(TlsTrust.Default, trustFor(ConnectionMode.Local, false, "https://192.168.11.2", "AA"))
+    }
+
+    // WHY: an empty/malformed chain must be a clean rejection (CertificateException),
+    // never an unchecked ArrayIndexOutOfBoundsException that the SSL engine might mishandle.
+    @Test fun emptyChain_throwsCertificateException() {
+        val tm = LocalPinningTrustManager(systemDefaultTrustManager(), pinnedSha256 = null, acceptFirstUse = false)
+        assertThrows(CertificateException::class.java) {
+            tm.checkServerTrusted(emptyArray(), "RSA")
+        }
+    }
+
+    // WHY: cert issues arrive wrapped by Apollo/OkHttp, so the cause-walk must
+    // find them at depth, not only as direct causes.
+    @Test fun certIssue_findsDeeplNestedCertException() {
+        val inner = CertificateChangedException("AA", "BB")
+        val wrapped = RuntimeException("x", java.io.IOException("y", inner))
+        assertEquals(CertIssue.Changed("AA", "BB"), wrapped.certIssue())
     }
 }
