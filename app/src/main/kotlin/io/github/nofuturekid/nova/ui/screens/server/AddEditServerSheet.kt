@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Switch
@@ -47,6 +48,7 @@ import io.github.nofuturekid.nova.ui.components.UnraidButton
 import io.github.nofuturekid.nova.ui.components.UnraidField
 import io.github.nofuturekid.nova.ui.components.UnraidIconButton
 import io.github.nofuturekid.nova.ui.theme.UnraidAlpha
+import io.github.nofuturekid.nova.ui.theme.UnraidDims
 import io.github.nofuturekid.nova.ui.theme.UnraidTheme
 import javax.inject.Inject
 
@@ -373,11 +375,23 @@ fun AddEditServerSheet(
                 },
             )
 
-            TestConnectionPanel(
-                state = state.testState,
-                onTest = vm::test,
-                message = state.testMessage,
-            )
+            if (state.localHost.isNotBlank()) {
+                TestConnectionPanel(
+                    title = "Test local connection",
+                    state = state.localTest,
+                    onTest = vm::testLocal,
+                    message = state.localTestMsg,
+                )
+                Spacer(Modifier.height(8.dp))
+            }
+            if (state.remoteHost.isNotBlank()) {
+                TestConnectionPanel(
+                    title = "Test remote connection",
+                    state = state.remoteTest,
+                    onTest = vm::testRemote,
+                    message = state.remoteTestMsg,
+                )
+            }
 
             Spacer(Modifier.height(8.dp))
 
@@ -410,12 +424,61 @@ fun AddEditServerSheet(
                 )
             }
             Spacer(Modifier.height(24.dp))
+
+            state.certDialogSha256?.let { fp ->
+                AlertDialog(
+                    onDismissRequest = vm::dismissCertDialog,
+                    shape = RoundedCornerShape(UnraidDims.radDialog),
+                    containerColor = t.surface2,
+                    titleContentColor = t.text,
+                    textContentColor = t.muted,
+                    title = {
+                        Text(
+                            text = if (state.certDialogPrevious == null) "Trust this certificate?" else "Certificate changed",
+                            style = MaterialTheme.typography.titleLarge,
+                        )
+                    },
+                    text = {
+                        Column {
+                            Text(
+                                text = if (state.certDialogPrevious == null)
+                                    "This server presented a self-signed certificate. Trust it for the local connection?"
+                                else
+                                    "The certificate changed. Only trust this if you changed it yourself.",
+                                style = MaterialTheme.typography.bodyMedium,
+                            )
+                            Spacer(Modifier.height(8.dp))
+                            state.certDialogPrevious?.let {
+                                Text("Was: $it", style = MaterialTheme.typography.labelSmall, color = t.muted)
+                                Spacer(Modifier.height(4.dp))
+                            }
+                            Text("SHA-256: $fp", style = MaterialTheme.typography.labelSmall, color = t.muted)
+                        }
+                    },
+                    confirmButton = {
+                        UnraidButton(
+                            onClick = vm::confirmLocalCert,
+                            label = if (state.certDialogPrevious == null) "Trust" else "Trust new",
+                            variant = BtnVariant.Text,
+                            tone = Tone.Accent,
+                        )
+                    },
+                    dismissButton = {
+                        UnraidButton(
+                            onClick = vm::dismissCertDialog,
+                            label = "Cancel",
+                            variant = BtnVariant.Text,
+                            tone = Tone.Neutral,
+                        )
+                    },
+                )
+            }
         }
     }
 }
 
 @Composable
-private fun TestConnectionPanel(state: TestState, onTest: () -> Unit, message: String?) {
+private fun TestConnectionPanel(title: String, state: TestState, onTest: () -> Unit, message: String?) {
     val t = UnraidTheme.colors
     val bg = when (state) {
         TestState.Ok   -> t.accent.copy(alpha = UnraidAlpha.softFill)
@@ -439,7 +502,7 @@ private fun TestConnectionPanel(state: TestState, onTest: () -> Unit, message: S
         Column(modifier = Modifier.weight(1f)) {
             Text(
                 text = when (state) {
-                    TestState.Idle    -> "Test connection"
+                    TestState.Idle    -> title
                     TestState.Testing -> "Connecting…"
                     TestState.Ok      -> "Connected"
                     TestState.Fail    -> "Failed to connect"
