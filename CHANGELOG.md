@@ -15,40 +15,17 @@ release version + date and opens a fresh `[Unreleased]`.
 
 ## [Unreleased]
 
-## [0.1.39-beta3] - 2026-05-29
+## [0.1.39] - 2026-05-29
 
-Pre-release for device acceptance. Three small cleanups on top of `beta2`.
-
-### Fixed
-- **Re-testing a saved local server no longer asks you to re-confirm its certificate** — the stored certificate pin is reused automatically, so the fingerprint dialog no longer appears again when you tap Test on a server you have already trusted.
-
-### Removed
-- **The "renaming to NOVA" migration notice is gone** — this banner was a 0.1.34 one-time migration helper; it should never have appeared on a fresh install. Removed.
-
-### Changed
-- **You can paste a full address (with `http://` or `https://`) into the host field** — the host input now strips the scheme (and normalises its case) so pasting a URL from your browser works without getting an error.
-
-## [0.1.39-beta2] - 2026-05-29
-
-Pre-release for device acceptance. Fixes a regression from `0.1.39-beta1` where the
-self-signed certificate trust dialog never appeared, and reworks the connection test
-into separate per-endpoint tests.
-
-### Fixed
-- **The prompt to trust a self-signed certificate now actually appears** — in `beta1` the dialog silently never fired. Root cause: Apollo Kotlin 5 returns TLS/network failures in `ApolloResponse.exception` instead of throwing; the `beta1` code only checked thrown exceptions, so a self-signed TLS rejection was misclassified as an empty response and the fingerprint dialog was never surfaced. Fixed with a `classifyResponse` function that always inspects `resp.exception`. The prompt now appears either right when you tap **Test** in the connection sheet, or on first connect from the overview — whichever happens first.
-
-### Changed
-- **The connection sheet now tests Local and Remote addresses separately** — the Test button is replaced with two independent **Test Local** and **Test Remote** panels. The Local test surfaces the fingerprint dialog inline in the sheet; accepting it there pins the certificate immediately so saving the server does not ask again. Remote addresses always use full CA validation.
-
-## [0.1.39-beta1] - 2026-05-29
-
-Pre-release for device acceptance. Two related changes to how the app connects
-to your Unraid server: a cleaner host-entry form and support for local servers
-running HTTPS with a self-signed certificate.
+Stable promotion of the 0.1.39 cycle (beta1…beta3), maintainer
+device-accepted. This release reworks how you add and connect to a server
+— a clean host-entry form replaces the free-text URL field — and adds
+opt-in trust for local servers running HTTPS with a self-signed certificate
+(ADR-0041).
 
 ### Added
-- **Add a server by entering just its address and flipping an SSL switch** — the old free-text URL field (where you had to type `http://` or `https://` yourself) is replaced with a host/IP field, an optional port field, and a simple SSL toggle. The app composes the URL for you. Existing saved servers are unaffected — no re-entry needed.
-- **Connect to a local server that uses a self-signed HTTPS certificate** — a new "Trust self-signed certificate (local only)" switch appears in the Local connection settings when SSL is on. Enable it, attempt a connection, and the app shows you the certificate's SHA-256 fingerprint; tap **Trust** once and the app remembers it. If the certificate ever changes (e.g. you regenerated it), the app blocks and asks you to review and re-accept the new fingerprint. A **"Reset certificate"** button in settings forgets the stored pin. This trust is local-endpoint-only — remote connections always require a valid CA-signed certificate.
+- **Add a server by entering just its address and flipping an SSL switch** — the old free-text URL field (where you had to type `http://` or `https://` yourself) is replaced with a host/IP field, an optional port field, and a simple SSL toggle. The app composes the URL for you. Existing saved servers are unaffected — no re-entry needed. You can also paste a full address (with `http://` or `https://`) and the app strips the scheme for you.
+- **Connect to a local server that uses a self-signed HTTPS certificate** — a new "Trust self-signed certificate (local only)" switch appears in the Local connection settings when SSL is on. Enable it, tap **Test Local**, and the app shows you the certificate's SHA-256 fingerprint; tap **Trust** once and the app remembers it. Re-testing a server reuses the stored pin automatically — no re-confirmation needed. If the certificate ever changes (e.g. you regenerated it), the app blocks and asks you to review and re-accept the new fingerprint. A **"Reset certificate"** button in settings forgets the stored pin. This trust is local-endpoint-only — remote connections always require a valid CA-signed certificate.
 
 ## [0.1.38] - 2026-05-21
 
