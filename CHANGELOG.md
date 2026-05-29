@@ -15,8 +15,15 @@ release version + date and opens a fresh `[Unreleased]`.
 
 ## [Unreleased]
 
+## [0.1.39-beta1] - 2026-05-29
+
+Pre-release for device acceptance. Two related changes to how the app connects
+to your Unraid server: a cleaner host-entry form and support for local servers
+running HTTPS with a self-signed certificate.
+
 ### Added
-- **Fastlane metadata** for the F-Droid catalog — `fastlane/metadata/android/en-US/{title,short_description,full_description}.txt`. Required by F-Droid's app-inclusion review (MR [gitlab.com/fdroid/fdroiddata!38801](https://gitlab.com/fdroid/fdroiddata/-/merge_requests/38801)). No app-code change.
+- **Add a server by entering just its address and flipping an SSL switch** — the old free-text URL field (where you had to type `http://` or `https://` yourself) is replaced with a host/IP field, an optional port field, and a simple SSL toggle. The app composes the URL for you. Existing saved servers are unaffected — no re-entry needed.
+- **Connect to a local server that uses a self-signed HTTPS certificate** — a new "Trust self-signed certificate (local only)" switch appears in the Local connection settings when SSL is on. Enable it, attempt a connection, and the app shows you the certificate's SHA-256 fingerprint; tap **Trust** once and the app remembers it. If the certificate ever changes (e.g. you regenerated it), the app blocks and asks you to review and re-accept the new fingerprint. A **"Reset certificate"** button in settings forgets the stored pin. This trust is local-endpoint-only — remote connections always require a valid CA-signed certificate.
 
 ## [0.1.38] - 2026-05-21
 

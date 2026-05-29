@@ -257,6 +257,17 @@ class MainViewModel @Inject constructor(
         settings.renameBannerDismissed
             .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), false)
 
+    // ── Certificate trust (TOFU, ADR-0041) ───────────────────────────
+
+    val certPrompt: StateFlow<UnraidRepository.CertPrompt?> =
+        unraid.certPrompt.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
+
+    fun trustCertificate(serverId: String, sha256: String) = viewModelScope.launch {
+        unraid.trustLocalCertificate(serverId, sha256)
+    }
+
+    fun dismissCertPrompt() = unraid.dismissCertPrompt()
+
     init {
         if (BuildConfig.HAS_UPDATER) {
             checkForUpdate()

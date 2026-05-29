@@ -24,6 +24,7 @@ data class ActiveServer(
      * (distinct re-enter prompt); [ApiKeyResult.Present] → key usable.
      */
     val keyState: ApiKeyResult,
+    val localCertPin: String? = null,
 )
 
 @Singleton
@@ -39,17 +40,19 @@ class ServerRepository @Inject constructor(
     }
 
     val activeWithKey: Flow<ActiveServer?> =
-        combine(activeServer, connectionMode) { s, mode -> s to mode }.map { (s, mode) ->
-            s?.let {
-                val result = keys.getResult(it.id)
-                ActiveServer(
-                    server = it,
-                    mode = mode,
-                    apiKey = (result as? ApiKeyResult.Present)?.key.orEmpty(),
-                    keyState = result,
-                )
+        combine(activeServer, connectionMode, store.certPins) { s, mode, pins -> Triple(s, mode, pins) }
+            .map { (s, mode, pins) ->
+                s?.let {
+                    val result = keys.getResult(it.id)
+                    ActiveServer(
+                        server = it,
+                        mode = mode,
+                        apiKey = (result as? ApiKeyResult.Present)?.key.orEmpty(),
+                        keyState = result,
+                        localCertPin = pins[it.id],
+                    )
+                }
             }
-        }
 
     suspend fun upsert(input: Server, apiKey: String): Server {
         val current = store.servers.first()
@@ -60,6 +63,7 @@ class ServerRepository @Inject constructor(
             keys.put(resolved.id, apiKey)
         }
         if (store.activeServerId.first() == null) store.setActiveServer(resolved.id)
+        if (!resolved.trustSelfSignedLocal) store.clearPin(resolved.id)
         return resolved
     }
 
@@ -67,6 +71,7 @@ class ServerRepository @Inject constructor(
         val current = store.servers.first().filter { it.id != id }
         store.setServers(current)
         keys.remove(id)
+        store.clearPin(id)
         if (store.activeServerId.first() == id) {
             store.setActiveServer(nextActiveAfterDelete(current))
         }
@@ -82,6 +87,10 @@ class ServerRepository @Inject constructor(
 
     /** Returns the stored API key for a server, or null if none. */
     suspend fun apiKeyFor(id: String): String? = keys.get(id)
+
+    suspend fun setLocalCertPin(serverId: String, sha256: String) = store.setPin(serverId, sha256)
+    suspend fun clearLocalCertPin(serverId: String) = store.clearPin(serverId)
+    suspend fun pinFor(serverId: String): String? = store.pinFor(serverId)
 
     companion object {
         /**

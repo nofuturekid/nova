@@ -21,6 +21,7 @@ import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
@@ -62,11 +63,14 @@ import io.github.nofuturekid.nova.data.model.UpdateState
 import io.github.nofuturekid.nova.data.model.Vm
 import io.github.nofuturekid.nova.data.model.hasUpdate
 import io.github.nofuturekid.nova.data.repository.DomainState
+import io.github.nofuturekid.nova.data.repository.UnraidRepository
+import io.github.nofuturekid.nova.ui.components.BtnVariant
 import io.github.nofuturekid.nova.ui.components.ConfirmDialog
 import io.github.nofuturekid.nova.ui.components.ConfirmRequest
 import io.github.nofuturekid.nova.ui.components.Pill
 import io.github.nofuturekid.nova.ui.components.Tone
 import io.github.nofuturekid.nova.ui.components.UC
+import io.github.nofuturekid.nova.ui.components.UnraidButton
 import io.github.nofuturekid.nova.ui.components.UnraidIconButton
 import io.github.nofuturekid.nova.ui.screens.array.ArrayTab
 import io.github.nofuturekid.nova.ui.screens.container.ContainerDetailSheet
@@ -417,6 +421,65 @@ fun MainScreen(
     }
 
     ConfirmDialog(request = confirm, onDismiss = { confirm = null })
+
+    val certPrompt by vm.certPrompt.collectAsState()
+    certPrompt?.let { p ->
+        val t = UnraidTheme.colors
+        AlertDialog(
+            onDismissRequest = { vm.dismissCertPrompt() },
+            shape = RoundedCornerShape(UnraidDims.radDialog),
+            containerColor = t.surface2,
+            titleContentColor = t.text,
+            textContentColor = t.muted,
+            title = {
+                Text(
+                    text = if (p.previousSha256 == null) "Trust this certificate?" else "Certificate changed",
+                    style = MaterialTheme.typography.titleLarge,
+                )
+            },
+            text = {
+                Column {
+                    Text(
+                        text = if (p.previousSha256 == null)
+                            "${p.serverName} presented a self-signed certificate. Trust it for the local connection?"
+                        else
+                            "${p.serverName}'s certificate changed. Only trust this if you changed it yourself.",
+                        style = MaterialTheme.typography.bodyMedium,
+                    )
+                    Spacer(Modifier.height(8.dp))
+                    if (p.previousSha256 != null) {
+                        Text(
+                            text = "Was: ${p.previousSha256}",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = t.muted,
+                        )
+                        Spacer(Modifier.height(4.dp))
+                    }
+                    Text(
+                        text = "SHA-256: ${p.presentedSha256}",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = t.muted,
+                    )
+                }
+            },
+            confirmButton = {
+                UnraidButton(
+                    onClick = { vm.trustCertificate(p.serverId, p.presentedSha256) },
+                    label = if (p.previousSha256 == null) "Trust" else "Trust new",
+                    variant = BtnVariant.Text,
+                    tone = Tone.Accent,
+                )
+            },
+            dismissButton = {
+                UnraidButton(
+                    onClick = { vm.dismissCertPrompt() },
+                    label = "Cancel",
+                    variant = BtnVariant.Text,
+                    tone = Tone.Neutral,
+                )
+            },
+        )
+    }
 
     if (BuildConfig.HAS_UPDATER) {
         val u = updateState

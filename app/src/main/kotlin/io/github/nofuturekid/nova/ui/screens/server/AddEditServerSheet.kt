@@ -14,6 +14,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.rememberModalBottomSheetState
@@ -34,6 +35,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import io.github.nofuturekid.nova.data.model.EndpointUrl
 import io.github.nofuturekid.nova.data.model.Server
 import io.github.nofuturekid.nova.data.repository.ServerRepository
 import io.github.nofuturekid.nova.data.repository.UnraidRepository
@@ -51,8 +53,12 @@ enum class TestState { Idle, Testing, Ok, Fail }
 
 data class AddEditUiState(
     val name: String = "",
-    val localUrl: String = "",
-    val remoteUrl: String = "",
+    val localHost: String = "",
+    val localSsl: Boolean = false,
+    val remoteHost: String = "",
+    val remoteSsl: Boolean = true,
+    val trustSelfSignedLocal: Boolean = false,
+    val hasStoredPin: Boolean = false,
     val apiKey: String = "",
     val showKey: Boolean = false,
     val testState: TestState = TestState.Idle,
@@ -72,39 +78,60 @@ class AddEditServerViewModel @Inject constructor(
 
     fun load(server: Server?) {
         existingId = server?.id ?: ""
-        // apiKeyFor is suspend (DataStore + Tink, ADR-0024); resolve the
-        // stored key off-thread and publish the state when it's ready.
         viewModelScope.launch {
+            val local = EndpointUrl.parse(server?.localUrl.orEmpty(), defaultSsl = false)
+            val remote = EndpointUrl.parse(server?.remoteUrl.orEmpty(), defaultSsl = true)
             _state.value = AddEditUiState(
                 name = server?.name.orEmpty(),
-                localUrl = server?.localUrl.orEmpty(),
-                remoteUrl = server?.remoteUrl.orEmpty(),
-                // Pre-populate the actual stored key when editing so the user
-                // can see, copy, or modify it. Falls back to empty for a new
-                // server. Earlier versions used a '••••' placeholder which got
-                // typed-onto and then saved as the literal new key.
+                localHost = local.host,
+                localSsl = local.ssl,
+                remoteHost = remote.host,
+                remoteSsl = remote.ssl,
+                trustSelfSignedLocal = server?.trustSelfSignedLocal ?: false,
+                hasStoredPin = server?.id?.let { servers.pinFor(it) } != null,
                 apiKey = server?.id?.let { servers.apiKeyFor(it) }.orEmpty(),
             )
         }
     }
 
-    fun setName(v: String)    { _state.value = _state.value.copy(name = v, testState = TestState.Idle) }
-    fun setLocal(v: String)   { _state.value = _state.value.copy(localUrl = v, testState = TestState.Idle) }
-    fun setRemote(v: String)  { _state.value = _state.value.copy(remoteUrl = v, testState = TestState.Idle) }
-    fun setApiKey(v: String)  { _state.value = _state.value.copy(apiKey = v, testState = TestState.Idle) }
-    fun toggleKeyVisible()    { _state.value = _state.value.copy(showKey = !_state.value.showKey) }
+    fun setName(v: String)      { _state.value = _state.value.copy(name = v, testState = TestState.Idle) }
+    fun setLocalHost(v: String) { _state.value = _state.value.copy(localHost = v, testState = TestState.Idle) }
+    fun setLocalSsl(v: Boolean) { _state.value = _state.value.copy(localSsl = v, testState = TestState.Idle) }
+    fun setRemoteHost(v: String){ _state.value = _state.value.copy(remoteHost = v, testState = TestState.Idle) }
+    fun setRemoteSsl(v: Boolean){ _state.value = _state.value.copy(remoteSsl = v, testState = TestState.Idle) }
+    fun setTrustSelfSigned(v: Boolean) {
+        // Turning trust off forgets any captured cert on save (handled in upsert);
+        // here just flip the intent.
+        _state.value = _state.value.copy(trustSelfSignedLocal = v, testState = TestState.Idle)
+    }
+    fun setApiKey(v: String)    { _state.value = _state.value.copy(apiKey = v, testState = TestState.Idle) }
+    fun toggleKeyVisible()      { _state.value = _state.value.copy(showKey = !_state.value.showKey) }
+
+    /** Forget the captured certificate for this server (deliberate rotation).
+     *  The next local connect re-runs first-use and re-prompts. */
+    fun resetCertificate() {
+        val id = existingId
+        if (id.isBlank()) return
+        viewModelScope.launch {
+            servers.clearLocalCertPin(id)
+            _state.value = _state.value.copy(hasStoredPin = false)
+        }
+    }
 
     fun test() {
         val s = _state.value
-        if (s.localUrl.isBlank() && s.remoteUrl.isBlank()) return
+        val localUrl = EndpointUrl.compose(s.localHost, s.localSsl)
+        val remoteUrl = EndpointUrl.compose(s.remoteHost, s.remoteSsl)
+        if (localUrl.isBlank() && remoteUrl.isBlank()) return
         if (s.apiKey.isBlank() || s.apiKey.all { it == '•' }) {
             _state.value = s.copy(testState = TestState.Fail, testMessage = "Enter the API key first")
             return
         }
         _state.value = s.copy(testState = TestState.Testing, testMessage = null)
         viewModelScope.launch {
-            val url = s.localUrl.ifBlank { s.remoteUrl }
-            val err = unraid.testConnection(url, s.apiKey)
+            val url = localUrl.ifBlank { remoteUrl }
+            val allowSelfSigned = s.trustSelfSignedLocal && url == localUrl
+            val err = unraid.testConnection(url, s.apiKey, allowSelfSigned)
             _state.value = _state.value.copy(
                 testState = if (err == null) TestState.Ok else TestState.Fail,
                 testMessage = err,
@@ -116,17 +143,17 @@ class AddEditServerViewModel @Inject constructor(
         val s = _state.value
         if (s.name.isBlank()) return
         viewModelScope.launch {
-            val hostname = s.localUrl
-                .removePrefix("http://").removePrefix("https://")
-                .substringBefore('/')
-                .ifBlank { s.remoteUrl }
+            val localUrl = EndpointUrl.compose(s.localHost, s.localSsl)
+            val remoteUrl = EndpointUrl.compose(s.remoteHost, s.remoteSsl)
+            val hostname = s.localHost.substringBefore('/').ifBlank { s.remoteHost }
             servers.upsert(
                 Server(
                     id = existingId,
                     name = s.name.trim(),
                     hostname = hostname,
-                    localUrl = s.localUrl.trim(),
-                    remoteUrl = s.remoteUrl.trim(),
+                    localUrl = localUrl,
+                    remoteUrl = remoteUrl,
+                    trustSelfSignedLocal = s.trustSelfSignedLocal,
                 ),
                 apiKey = s.apiKey,
             )
@@ -201,24 +228,82 @@ fun AddEditServerSheet(
                 placeholder = "Tower",
                 leadingIcon = { UC.Server(18.dp, t.muted) },
             )
+
+            // Local endpoint
             UnraidField(
-                label = "Local URL",
-                value = state.localUrl,
-                onChange = vm::setLocal,
-                placeholder = "http://192.168.1.10",
+                label = "Local host",
+                value = state.localHost,
+                onChange = vm::setLocalHost,
+                placeholder = "192.168.11.2",
                 leadingIcon = { UC.Wifi(18.dp, t.muted) },
-                helper = "Used on home network",
+                helper = "Used on home network · add :port if non-default",
                 keyboardType = KeyboardType.Uri,
             )
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
+            ) {
+                Text(
+                    "Use SSL (HTTPS)",
+                    color = t.text,
+                    style = MaterialTheme.typography.bodyMedium,
+                    modifier = Modifier.weight(1f),
+                )
+                Switch(checked = state.localSsl, onCheckedChange = vm::setLocalSsl)
+            }
+            if (state.localSsl) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            "Trust self-signed certificate",
+                            color = t.text,
+                            style = MaterialTheme.typography.bodyMedium,
+                        )
+                        Text(
+                            "Local connection only · you confirm the certificate once",
+                            color = t.muted,
+                            style = MaterialTheme.typography.labelSmall,
+                        )
+                    }
+                    Switch(checked = state.trustSelfSignedLocal, onCheckedChange = vm::setTrustSelfSigned)
+                }
+                if (state.trustSelfSignedLocal && state.hasStoredPin) {
+                    UnraidButton(
+                        onClick = vm::resetCertificate,
+                        label = "Reset certificate",
+                        variant = BtnVariant.Text,
+                        tone = Tone.Neutral,
+                        leadingIcon = { UC.Refresh(14.dp, t.muted) },
+                    )
+                }
+            }
+
+            // Remote endpoint
             UnraidField(
-                label = "Remote URL (Unraid Connect)",
-                value = state.remoteUrl,
-                onChange = vm::setRemote,
-                placeholder = "https://your-server.unraid.net",
+                label = "Remote host (Unraid Connect)",
+                value = state.remoteHost,
+                onChange = vm::setRemoteHost,
+                placeholder = "your-server.unraid.net",
                 leadingIcon = { UC.Cloud(18.dp, t.muted) },
                 helper = "Optional · used when away from home",
                 keyboardType = KeyboardType.Uri,
             )
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
+            ) {
+                Text(
+                    "Use SSL (HTTPS)",
+                    color = t.text,
+                    style = MaterialTheme.typography.bodyMedium,
+                    modifier = Modifier.weight(1f),
+                )
+                Switch(checked = state.remoteSsl, onCheckedChange = vm::setRemoteSsl)
+            }
+
             UnraidField(
                 label = "API Key",
                 value = state.apiKey,
@@ -262,7 +347,7 @@ fun AddEditServerSheet(
                 )
                 Spacer(Modifier.width(4.dp))
                 val canSave = state.name.isNotBlank() &&
-                    (state.localUrl.isNotBlank() || state.remoteUrl.isNotBlank()) &&
+                    (state.localHost.isNotBlank() || state.remoteHost.isNotBlank()) &&
                     state.apiKey.isNotBlank()
                 UnraidButton(
                     onClick = { vm.save(onSaved) },

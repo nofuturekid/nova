@@ -69,31 +69,52 @@ class ApolloClientFactory @Inject constructor() {
     private val clients = ConcurrentHashMap<String, ApolloClient>()
 
     /** Build a per-server client. URL must already be the base address (no trailing /graphql). */
-    fun build(baseUrl: String, apiKey: String): ApolloClient =
-        cached("short", baseHttpClient, baseUrl, apiKey)
+    fun build(baseUrl: String, apiKey: String, trust: TlsTrust = TlsTrust.Default): ApolloClient =
+        cached("short", baseHttpClient, baseUrl, apiKey, trust)
 
     /** Same as [build] but uses the long-running OkHttp client (10-min
      *  read/write). Use exclusively for mutations that pull images or
      *  do other multi-minute server-side work. */
-    fun buildLongRunning(baseUrl: String, apiKey: String): ApolloClient =
-        cached("long", longRunningHttpClient, baseUrl, apiKey)
+    fun buildLongRunning(baseUrl: String, apiKey: String, trust: TlsTrust = TlsTrust.Default): ApolloClient =
+        cached("long", longRunningHttpClient, baseUrl, apiKey, trust)
 
     private fun cached(
         variant: String,
         base: OkHttpClient,
         baseUrl: String,
         apiKey: String,
+        trust: TlsTrust,
     ): ApolloClient {
         val endpoint = baseUrl.trimEnd('/') + "/graphql"
-        // computeIfAbsent is atomic on ConcurrentHashMap — no duplicate build
-        // under concurrent poll streams.
-        return clients.computeIfAbsent("$variant|$endpoint|$apiKey") {
-            buildOn(base, endpoint, apiKey)
+        // Trust is part of the key: a Default and a PinnedSelfSigned client for the
+        // same endpoint must not collide, and changing the pin must yield a fresh
+        // client (so the new fingerprint snapshot takes effect). Old entries are
+        // bounded and harmless (ADR-0028 lifecycle ownership).
+        val trustKey = when (trust) {
+            TlsTrust.Default -> "d"
+            is TlsTrust.PinnedSelfSigned -> "p:${trust.pinnedSha256 ?: "none"}:${trust.acceptFirstUse}"
+        }
+        return clients.computeIfAbsent("$variant|$endpoint|$apiKey|$trustKey") {
+            buildOn(base, endpoint, apiKey, trust)
         }
     }
 
-    private fun buildOn(base: OkHttpClient, endpoint: String, apiKey: String): ApolloClient {
+    private fun buildOn(base: OkHttpClient, endpoint: String, apiKey: String, trust: TlsTrust): ApolloClient {
         val keyed = base.newBuilder()
+            .apply {
+                if (trust is TlsTrust.PinnedSelfSigned) {
+                    val tm = LocalPinningTrustManager(
+                        default = systemDefaultTrustManager(),
+                        pinnedSha256 = trust.pinnedSha256,
+                        acceptFirstUse = trust.acceptFirstUse,
+                    )
+                    sslSocketFactory(sslContextFor(tm).socketFactory, tm)
+                    // Pin is the anchor; this client only ever talks to one server's
+                    // local endpoint (see ADR-0041). Self-signed LAN certs rarely
+                    // match the host, so hostname matching is intentionally bypassed.
+                    hostnameVerifier { _, _ -> true }
+                }
+            }
             .addInterceptor { chain ->
                 val req = chain.request().newBuilder()
                     .addHeader("x-api-key", apiKey)

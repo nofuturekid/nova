@@ -9,6 +9,7 @@ data class Server(
     val hostname: String,
     val localUrl: String,
     val remoteUrl: String,
+    val trustSelfSignedLocal: Boolean = false,
 )
 
 enum class ConnectionMode { Local, Remote }
