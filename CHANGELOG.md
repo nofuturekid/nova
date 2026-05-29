@@ -15,6 +15,9 @@ release version + date and opens a fresh `[Unreleased]`.
 
 ## [Unreleased]
 
+### Added
+- The Network card on the dashboard now shows live upload/download speed in real time.
+
 ## [0.1.39] - 2026-05-29
 
 Stable promotion of the 0.1.39 cycle (beta1…beta3), maintainer
