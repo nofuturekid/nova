@@ -6,6 +6,9 @@ import com.apollographql.apollo.exception.ApolloException
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flatMapLatest
@@ -13,6 +16,9 @@ import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.withTimeoutOrNull
 import io.github.nofuturekid.nova.data.api.ApolloClientFactory
+import io.github.nofuturekid.nova.data.api.CertIssue
+import io.github.nofuturekid.nova.data.api.TlsTrust
+import io.github.nofuturekid.nova.data.api.certIssue
 import io.github.nofuturekid.nova.data.local.ApiKeyResult
 import io.github.nofuturekid.nova.data.api.toArrayInfo
 import io.github.nofuturekid.nova.data.api.toContainers
@@ -210,6 +216,26 @@ class UnraidRepository @Inject constructor(
         }
         .distinctUntilChanged()
 
+    /** A pending certificate-trust decision for the active server, or null. */
+    data class CertPrompt(
+        val serverId: String,
+        val serverName: String,
+        val presentedSha256: String,
+        val previousSha256: String?,
+    )
+
+    private val _certPrompt = MutableStateFlow<CertPrompt?>(null)
+    val certPrompt: StateFlow<CertPrompt?> = _certPrompt.asStateFlow()
+
+    /** Local-only trust selection delegates to the pure top-level [trustFor]. */
+    private fun trustFor(active: ActiveServer, url: String): TlsTrust =
+        io.github.nofuturekid.nova.data.api.trustFor(
+            mode = active.mode,
+            trustSelfSignedLocal = active.server.trustSelfSignedLocal,
+            url = url,
+            pin = active.localCertPin,
+        )
+
     // ── Domain polling streams ────────────────────────────────────────
     //
     // Each is a cold Flow keyed off the active server + connection mode.
@@ -311,8 +337,21 @@ class UnraidRepository @Inject constructor(
                     return@flow
                 }
                 val url = activeUrl(active)
-                val client = apolloFactory.build(url, active.apiKey)
-                pollDomain(intervalMs, nudge) { fetch(client, url) }
+                val client = apolloFactory.build(url, active.apiKey, trustFor(active, url))
+                try {
+                    pollDomain(intervalMs, nudge) { fetch(client, url) }
+                } catch (e: Throwable) {
+                    val issue = e.certIssue()
+                    if (issue != null) {
+                        _certPrompt.value = when (issue) {
+                            is CertIssue.Untrusted -> CertPrompt(active.server.id, active.server.name, issue.sha256, null)
+                            is CertIssue.Changed -> CertPrompt(active.server.id, active.server.name, issue.presented, issue.pinned)
+                        }
+                        emit(DomainState.Error("Certificate not trusted — confirm it to connect"))
+                    } else {
+                        throw e
+                    }
+                }
             }
         }
 
@@ -332,8 +371,10 @@ class UnraidRepository @Inject constructor(
             else -> DomainState.Content(map(resp.data!!))
         }
     } catch (e: ApolloException) {
+        e.certIssue()?.let { throw e }   // let domainStream map it with server context
         DomainState.Error(e.message ?: "Network error")
     } catch (e: Exception) {
+        e.certIssue()?.let { throw e }
         DomainState.Error(e.message ?: "Unexpected error")
     }
 
@@ -350,7 +391,7 @@ class UnraidRepository @Inject constructor(
         val active = servers.activeWithKey.first() ?: return
         if (active.apiKey.isBlank()) return
         val url = activeUrl(active)
-        val client = apolloFactory.build(url, active.apiKey)
+        val client = apolloFactory.build(url, active.apiKey, trustFor(active, url))
         // Fire all five queries in sequence; errors are ignored — the polling
         // streams will surface them on their own cadence.
         runCatching { client.query(GetServerInfoQuery()).execute() }
@@ -365,11 +406,15 @@ class UnraidRepository @Inject constructor(
         ConnectionMode.Remote -> active.server.remoteUrl.ifBlank { active.server.localUrl }
     }
 
-    private fun buildClient(active: ActiveServer): ApolloClient =
-        apolloFactory.build(activeUrl(active), active.apiKey)
+    private fun buildClient(active: ActiveServer): ApolloClient {
+        val url = activeUrl(active)
+        return apolloFactory.build(url, active.apiKey, trustFor(active, url))
+    }
 
-    private fun buildLongRunningClient(active: ActiveServer): ApolloClient =
-        apolloFactory.buildLongRunning(activeUrl(active), active.apiKey)
+    private fun buildLongRunningClient(active: ActiveServer): ApolloClient {
+        val url = activeUrl(active)
+        return apolloFactory.buildLongRunning(url, active.apiKey, trustFor(active, url))
+    }
 
     // ── Mutations ─────────────────────────────────────────────────────
     private suspend fun activeClient(): ApolloClient? {
@@ -499,8 +544,19 @@ class UnraidRepository @Inject constructor(
      * the endpoint is actually GraphQL — without depending on whether our
      * hand-written schema matches the live server's field names.
      */
-    suspend fun testConnection(baseUrl: String, apiKey: String): String? = try {
-        val resp = apolloFactory.build(baseUrl, apiKey)
+    suspend fun testConnection(
+        baseUrl: String,
+        apiKey: String,
+        allowSelfSigned: Boolean = false,
+    ): String? = try {
+        val trust = if (allowSelfSigned && baseUrl.startsWith("https", ignoreCase = true)) {
+            // Pre-save reachability probe: accept-and-report (no pin yet); the real
+            // pin is captured on first live connect via the confirm dialog.
+            TlsTrust.PinnedSelfSigned(pinnedSha256 = null, acceptFirstUse = true)
+        } else {
+            TlsTrust.Default
+        }
+        val resp = apolloFactory.build(baseUrl, apiKey, trust)
             .query(PingQuery()).execute()
         when {
             resp.hasErrors() -> resp.errors?.firstOrNull()?.message ?: "GraphQL error"
@@ -509,4 +565,13 @@ class UnraidRepository @Inject constructor(
         }
     } catch (e: ApolloException) { e.message ?: "Network error" }
       catch (e: Exception) { e.message ?: "Unknown error" }
+
+    /** Persist the presented cert as this server's pin and clear the prompt. The
+     *  pin change restarts the polling streams (via activeWithKey). */
+    suspend fun trustLocalCertificate(serverId: String, sha256: String) {
+        servers.setLocalCertPin(serverId, sha256)
+        _certPrompt.value = null
+    }
+
+    fun dismissCertPrompt() { _certPrompt.value = null }
 }
