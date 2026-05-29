@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Switch
@@ -38,6 +39,7 @@ import kotlinx.coroutines.launch
 import io.github.nofuturekid.nova.data.model.EndpointUrl
 import io.github.nofuturekid.nova.data.model.Server
 import io.github.nofuturekid.nova.data.repository.ServerRepository
+import io.github.nofuturekid.nova.data.repository.TestOutcome
 import io.github.nofuturekid.nova.data.repository.UnraidRepository
 import io.github.nofuturekid.nova.ui.components.BtnVariant
 import io.github.nofuturekid.nova.ui.components.Tone
@@ -46,6 +48,7 @@ import io.github.nofuturekid.nova.ui.components.UnraidButton
 import io.github.nofuturekid.nova.ui.components.UnraidField
 import io.github.nofuturekid.nova.ui.components.UnraidIconButton
 import io.github.nofuturekid.nova.ui.theme.UnraidAlpha
+import io.github.nofuturekid.nova.ui.theme.UnraidDims
 import io.github.nofuturekid.nova.ui.theme.UnraidTheme
 import javax.inject.Inject
 
@@ -61,8 +64,15 @@ data class AddEditUiState(
     val hasStoredPin: Boolean = false,
     val apiKey: String = "",
     val showKey: Boolean = false,
-    val testState: TestState = TestState.Idle,
-    val testMessage: String? = null,
+    val localTest: TestState = TestState.Idle,
+    val localTestMsg: String? = null,
+    val remoteTest: TestState = TestState.Idle,
+    val remoteTestMsg: String? = null,
+    // Fingerprint captured at Test, pinned on save (null until confirmed).
+    val pendingLocalCertSha256: String? = null,
+    // When non-null, the sheet shows the cert-trust confirm dialog.
+    val certDialogSha256: String? = null,
+    val certDialogPrevious: String? = null,
 )
 
 @HiltViewModel
@@ -94,17 +104,15 @@ class AddEditServerViewModel @Inject constructor(
         }
     }
 
-    fun setName(v: String)      { _state.value = _state.value.copy(name = v, testState = TestState.Idle) }
-    fun setLocalHost(v: String) { _state.value = _state.value.copy(localHost = v, testState = TestState.Idle) }
-    fun setLocalSsl(v: Boolean) { _state.value = _state.value.copy(localSsl = v, testState = TestState.Idle) }
-    fun setRemoteHost(v: String){ _state.value = _state.value.copy(remoteHost = v, testState = TestState.Idle) }
-    fun setRemoteSsl(v: Boolean){ _state.value = _state.value.copy(remoteSsl = v, testState = TestState.Idle) }
+    fun setName(v: String)      { _state.value = _state.value.copy(name = v) }
+    fun setLocalHost(v: String) { _state.value = _state.value.copy(localHost = v, localTest = TestState.Idle, localTestMsg = null, pendingLocalCertSha256 = null) }
+    fun setLocalSsl(v: Boolean) { _state.value = _state.value.copy(localSsl = v, localTest = TestState.Idle, localTestMsg = null, pendingLocalCertSha256 = null) }
+    fun setRemoteHost(v: String){ _state.value = _state.value.copy(remoteHost = v, remoteTest = TestState.Idle, remoteTestMsg = null) }
+    fun setRemoteSsl(v: Boolean){ _state.value = _state.value.copy(remoteSsl = v, remoteTest = TestState.Idle, remoteTestMsg = null) }
     fun setTrustSelfSigned(v: Boolean) {
-        // Turning trust off forgets any captured cert on save (handled in upsert);
-        // here just flip the intent.
-        _state.value = _state.value.copy(trustSelfSignedLocal = v, testState = TestState.Idle)
+        _state.value = _state.value.copy(trustSelfSignedLocal = v, localTest = TestState.Idle, localTestMsg = null, pendingLocalCertSha256 = null)
     }
-    fun setApiKey(v: String)    { _state.value = _state.value.copy(apiKey = v, testState = TestState.Idle) }
+    fun setApiKey(v: String)    { _state.value = _state.value.copy(apiKey = v, localTest = TestState.Idle, remoteTest = TestState.Idle, localTestMsg = null, remoteTestMsg = null) }
     fun toggleKeyVisible()      { _state.value = _state.value.copy(showKey = !_state.value.showKey) }
 
     /** Forget the captured certificate for this server (deliberate rotation).
@@ -118,25 +126,65 @@ class AddEditServerViewModel @Inject constructor(
         }
     }
 
-    fun test() {
+    private fun keyMissing(s: AddEditUiState): Boolean =
+        s.apiKey.isBlank() || s.apiKey.all { it == '•' }
+
+    fun testLocal() {
         val s = _state.value
-        val localUrl = EndpointUrl.compose(s.localHost, s.localSsl)
-        val remoteUrl = EndpointUrl.compose(s.remoteHost, s.remoteSsl)
-        if (localUrl.isBlank() && remoteUrl.isBlank()) return
-        if (s.apiKey.isBlank() || s.apiKey.all { it == '•' }) {
-            _state.value = s.copy(testState = TestState.Fail, testMessage = "Enter the API key first")
+        val url = EndpointUrl.compose(s.localHost, s.localSsl)
+        if (url.isBlank()) return
+        if (keyMissing(s)) {
+            _state.value = s.copy(localTest = TestState.Fail, localTestMsg = "Enter the API key first")
             return
         }
-        _state.value = s.copy(testState = TestState.Testing, testMessage = null)
+        _state.value = s.copy(localTest = TestState.Testing, localTestMsg = null)
         viewModelScope.launch {
-            val url = localUrl.ifBlank { remoteUrl }
-            val allowSelfSigned = s.trustSelfSignedLocal && url == localUrl
-            val err = unraid.testConnection(url, s.apiKey, allowSelfSigned)
-            _state.value = _state.value.copy(
-                testState = if (err == null) TestState.Ok else TestState.Fail,
-                testMessage = err,
-            )
+            val allowSelfSigned = s.localSsl && s.trustSelfSignedLocal
+            when (val out = unraid.testConnection(url, s.apiKey, allowSelfSigned, s.pendingLocalCertSha256)) {
+                TestOutcome.Ok -> _state.value = _state.value.copy(localTest = TestState.Ok, localTestMsg = null)
+                is TestOutcome.Failed -> _state.value = _state.value.copy(localTest = TestState.Fail, localTestMsg = out.message)
+                is TestOutcome.CertUntrusted -> _state.value = _state.value.copy(
+                    localTest = TestState.Idle, certDialogSha256 = out.sha256, certDialogPrevious = null,
+                )
+                is TestOutcome.CertChanged -> _state.value = _state.value.copy(
+                    localTest = TestState.Idle, certDialogSha256 = out.presented, certDialogPrevious = out.pinned,
+                )
+            }
         }
+    }
+
+    fun testRemote() {
+        val s = _state.value
+        val url = EndpointUrl.compose(s.remoteHost, s.remoteSsl)
+        if (url.isBlank()) return
+        if (keyMissing(s)) {
+            _state.value = s.copy(remoteTest = TestState.Fail, remoteTestMsg = "Enter the API key first")
+            return
+        }
+        _state.value = s.copy(remoteTest = TestState.Testing, remoteTestMsg = null)
+        viewModelScope.launch {
+            // Remote always uses full CA validation (allowSelfSigned = false). A
+            // self-signed remote cert therefore comes back as Failed, never a prompt.
+            when (val out = unraid.testConnection(url, s.apiKey, allowSelfSigned = false)) {
+                TestOutcome.Ok -> _state.value = _state.value.copy(remoteTest = TestState.Ok, remoteTestMsg = null)
+                is TestOutcome.Failed -> _state.value = _state.value.copy(remoteTest = TestState.Fail, remoteTestMsg = out.message)
+                is TestOutcome.CertUntrusted -> _state.value = _state.value.copy(remoteTest = TestState.Fail, remoteTestMsg = "Certificate not trusted (remote requires a valid certificate)")
+                is TestOutcome.CertChanged -> _state.value = _state.value.copy(remoteTest = TestState.Fail, remoteTestMsg = "Certificate changed")
+            }
+        }
+    }
+
+    /** User tapped "Trust" in the in-sheet cert dialog: remember the fingerprint
+     *  (pinned on save) and re-run the local test, which now matches the pin. */
+    fun confirmLocalCert() {
+        val s = _state.value
+        val fp = s.certDialogSha256 ?: return
+        _state.value = s.copy(pendingLocalCertSha256 = fp, certDialogSha256 = null, certDialogPrevious = null)
+        testLocal()
+    }
+
+    fun dismissCertDialog() {
+        _state.value = _state.value.copy(certDialogSha256 = null, certDialogPrevious = null)
     }
 
     fun save(onDone: () -> Unit) {
@@ -146,7 +194,7 @@ class AddEditServerViewModel @Inject constructor(
             val localUrl = EndpointUrl.compose(s.localHost, s.localSsl)
             val remoteUrl = EndpointUrl.compose(s.remoteHost, s.remoteSsl)
             val hostname = s.localHost.substringBefore('/').ifBlank { s.remoteHost }
-            servers.upsert(
+            val saved = servers.upsert(
                 Server(
                     id = existingId,
                     name = s.name.trim(),
@@ -157,6 +205,13 @@ class AddEditServerViewModel @Inject constructor(
                 ),
                 apiKey = s.apiKey,
             )
+            // If the user confirmed a self-signed cert at Test time, pin it now
+            // (upsert minted the id for a new server). upsert() already clears the
+            // pin when trust is off, so only persist when trust is on.
+            val pending = s.pendingLocalCertSha256
+            if (s.trustSelfSignedLocal && pending != null) {
+                servers.setLocalCertPin(saved.id, pending)
+            }
             onDone()
         }
     }
@@ -320,11 +375,23 @@ fun AddEditServerSheet(
                 },
             )
 
-            TestConnectionPanel(
-                state = state.testState,
-                onTest = vm::test,
-                message = state.testMessage,
-            )
+            if (state.localHost.isNotBlank()) {
+                TestConnectionPanel(
+                    title = "Test local connection",
+                    state = state.localTest,
+                    onTest = vm::testLocal,
+                    message = state.localTestMsg,
+                )
+                Spacer(Modifier.height(8.dp))
+            }
+            if (state.remoteHost.isNotBlank()) {
+                TestConnectionPanel(
+                    title = "Test remote connection",
+                    state = state.remoteTest,
+                    onTest = vm::testRemote,
+                    message = state.remoteTestMsg,
+                )
+            }
 
             Spacer(Modifier.height(8.dp))
 
@@ -357,12 +424,61 @@ fun AddEditServerSheet(
                 )
             }
             Spacer(Modifier.height(24.dp))
+
+            state.certDialogSha256?.let { fp ->
+                AlertDialog(
+                    onDismissRequest = vm::dismissCertDialog,
+                    shape = RoundedCornerShape(UnraidDims.radDialog),
+                    containerColor = t.surface2,
+                    titleContentColor = t.text,
+                    textContentColor = t.muted,
+                    title = {
+                        Text(
+                            text = if (state.certDialogPrevious == null) "Trust this certificate?" else "Certificate changed",
+                            style = MaterialTheme.typography.titleLarge,
+                        )
+                    },
+                    text = {
+                        Column {
+                            Text(
+                                text = if (state.certDialogPrevious == null)
+                                    "This server presented a self-signed certificate. Trust it for the local connection?"
+                                else
+                                    "The certificate changed. Only trust this if you changed it yourself.",
+                                style = MaterialTheme.typography.bodyMedium,
+                            )
+                            Spacer(Modifier.height(8.dp))
+                            state.certDialogPrevious?.let {
+                                Text("Was: $it", style = MaterialTheme.typography.labelSmall, color = t.muted)
+                                Spacer(Modifier.height(4.dp))
+                            }
+                            Text("SHA-256: $fp", style = MaterialTheme.typography.labelSmall, color = t.muted)
+                        }
+                    },
+                    confirmButton = {
+                        UnraidButton(
+                            onClick = vm::confirmLocalCert,
+                            label = if (state.certDialogPrevious == null) "Trust" else "Trust new",
+                            variant = BtnVariant.Text,
+                            tone = Tone.Accent,
+                        )
+                    },
+                    dismissButton = {
+                        UnraidButton(
+                            onClick = vm::dismissCertDialog,
+                            label = "Cancel",
+                            variant = BtnVariant.Text,
+                            tone = Tone.Neutral,
+                        )
+                    },
+                )
+            }
         }
     }
 }
 
 @Composable
-private fun TestConnectionPanel(state: TestState, onTest: () -> Unit, message: String?) {
+private fun TestConnectionPanel(title: String, state: TestState, onTest: () -> Unit, message: String?) {
     val t = UnraidTheme.colors
     val bg = when (state) {
         TestState.Ok   -> t.accent.copy(alpha = UnraidAlpha.softFill)
@@ -386,7 +502,7 @@ private fun TestConnectionPanel(state: TestState, onTest: () -> Unit, message: S
         Column(modifier = Modifier.weight(1f)) {
             Text(
                 text = when (state) {
-                    TestState.Idle    -> "Test connection"
+                    TestState.Idle    -> title
                     TestState.Testing -> "Connecting…"
                     TestState.Ok      -> "Connected"
                     TestState.Fail    -> "Failed to connect"

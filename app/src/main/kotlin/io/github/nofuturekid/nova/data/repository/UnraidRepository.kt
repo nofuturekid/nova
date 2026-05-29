@@ -364,15 +364,19 @@ class UnraidRepository @Inject constructor(
         map: (D) -> T,
     ): DomainState<T> = try {
         val resp = client.query(query).execute()
-        when {
-            resp.hasErrors() -> DomainState.Error(
-                resp.errors?.joinToString { it.message } ?: "Unknown GraphQL error"
-            )
-            resp.data == null -> DomainState.Error("Empty GraphQL response")
-            else -> DomainState.Content(map(resp.data!!))
+        when (val c = classifyResponse(
+            exception = resp.exception,
+            hasErrors = resp.hasErrors(),
+            errorMessage = resp.errors?.joinToString { it.message },
+            dataIsNull = resp.data == null,
+        )) {
+            is RespClass.Cert -> throw resp.exception!!   // surface to domainStream (cause chain carries the typed cert exception)
+            is RespClass.Failed -> DomainState.Error(c.message)
+            RespClass.Empty -> DomainState.Error("Empty GraphQL response")
+            RespClass.Ok -> DomainState.Content(map(resp.data!!))
         }
     } catch (e: ApolloException) {
-        if (e.certIssue() != null) throw e   // let domainStream map it with server context
+        if (e.certIssue() != null) throw e   // defensive: if execute() ever throws
         DomainState.Error(e.message ?: "Network error")
     } catch (e: Exception) {
         if (e.certIssue() != null) throw e
@@ -540,32 +544,47 @@ class UnraidRepository @Inject constructor(
     }
 
     /**
-     * Pings the server with the minimal possible GraphQL query (`{ __typename }`).
-     * Confirms TCP reachability, TLS handshake, auth header acceptance and that
-     * the endpoint is actually GraphQL — without depending on whether our
-     * hand-written schema matches the live server's field names.
+     * Probe a server endpoint. Returns a structured [TestOutcome]. For the local
+     * endpoint with self-signed trust enabled, pass [allowSelfSigned] = true and
+     * the already-confirmed [pinnedSha256] (null on the first probe): the first
+     * probe surfaces [TestOutcome.CertUntrusted] so the sheet can show the
+     * fingerprint dialog; after the user confirms, a re-probe with the pin matches.
      */
     suspend fun testConnection(
         baseUrl: String,
         apiKey: String,
         allowSelfSigned: Boolean = false,
-    ): String? = try {
+        pinnedSha256: String? = null,
+    ): TestOutcome = try {
         val trust = if (allowSelfSigned && baseUrl.startsWith("https", ignoreCase = true)) {
-            // Pre-save reachability probe: accept-and-report (no pin yet); the real
-            // pin is captured on first live connect via the confirm dialog.
-            TlsTrust.PinnedSelfSigned(pinnedSha256 = null, acceptFirstUse = true)
+            TlsTrust.PinnedSelfSigned(pinnedSha256, acceptFirstUse = false)
         } else {
             TlsTrust.Default
         }
-        val resp = apolloFactory.build(baseUrl, apiKey, trust)
-            .query(PingQuery()).execute()
-        when {
-            resp.hasErrors() -> resp.errors?.firstOrNull()?.message ?: "GraphQL error"
-            resp.data == null -> "Empty GraphQL response"
-            else -> null
+        val resp = apolloFactory.build(baseUrl, apiKey, trust).query(PingQuery()).execute()
+        when (val c = classifyResponse(
+            exception = resp.exception,
+            hasErrors = resp.hasErrors(),
+            errorMessage = resp.errors?.firstOrNull()?.message,
+            dataIsNull = resp.data == null,
+        )) {
+            is RespClass.Cert -> when (val i = c.issue) {
+                is CertIssue.Untrusted -> TestOutcome.CertUntrusted(i.sha256)
+                is CertIssue.Changed -> TestOutcome.CertChanged(i.pinned, i.presented)
+            }
+            is RespClass.Failed -> TestOutcome.Failed(c.message)
+            RespClass.Empty -> TestOutcome.Failed("No response from server")
+            RespClass.Ok -> TestOutcome.Ok
         }
-    } catch (e: ApolloException) { e.message ?: "Network error" }
-      catch (e: Exception) { e.message ?: "Unknown error" }
+    } catch (e: ApolloException) {
+        when (val i = e.certIssue()) {
+            is CertIssue.Untrusted -> TestOutcome.CertUntrusted(i.sha256)
+            is CertIssue.Changed -> TestOutcome.CertChanged(i.pinned, i.presented)
+            null -> TestOutcome.Failed(e.message ?: "Network error")
+        }
+    } catch (e: Exception) {
+        TestOutcome.Failed(e.message ?: "Unknown error")
+    }
 
     /** Persist the presented cert as this server's pin and clear the prompt. The
      *  pin change restarts the polling streams (via activeWithKey). */

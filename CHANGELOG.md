@@ -15,6 +15,18 @@ release version + date and opens a fresh `[Unreleased]`.
 
 ## [Unreleased]
 
+## [0.1.39-beta2] - 2026-05-29
+
+Pre-release for device acceptance. Fixes a regression from `0.1.39-beta1` where the
+self-signed certificate trust dialog never appeared, and reworks the connection test
+into separate per-endpoint tests.
+
+### Fixed
+- **The prompt to trust a self-signed certificate now actually appears** — in `beta1` the dialog silently never fired. Root cause: Apollo Kotlin 5 returns TLS/network failures in `ApolloResponse.exception` instead of throwing; the `beta1` code only checked thrown exceptions, so a self-signed TLS rejection was misclassified as an empty response and the fingerprint dialog was never surfaced. Fixed with a `classifyResponse` function that always inspects `resp.exception`. The prompt now appears either right when you tap **Test** in the connection sheet, or on first connect from the overview — whichever happens first.
+
+### Changed
+- **The connection sheet now tests Local and Remote addresses separately** — the Test button is replaced with two independent **Test Local** and **Test Remote** panels. The Local test surfaces the fingerprint dialog inline in the sheet; accepting it there pins the certificate immediately so saving the server does not ask again. Remote addresses always use full CA validation.
+
 ## [0.1.39-beta1] - 2026-05-29
 
 Pre-release for device acceptance. Two related changes to how the app connects
