@@ -10,6 +10,7 @@ import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
@@ -37,6 +38,7 @@ private object Keys {
     val LastUpdateCheck     = longPreferencesKey("last_update_check")
     val DismissedUpdateTag  = stringPreferencesKey("dismissed_update_tag")
     val RenameBannerDismissed = booleanPreferencesKey("rename_banner_dismissed")
+    val CertPins              = stringPreferencesKey("local_cert_pins_json")
 }
 
 /** Shared layout mode for the Docker / VMs / Array list views. Each
@@ -55,6 +57,25 @@ class SettingsStore @Inject constructor(
         prefs[Keys.Servers]?.let {
             runCatching { json.decodeFromString<List<Server>>(it) }.getOrDefault(emptyList())
         } ?: emptyList()
+    }
+
+    /** server id → pinned local-cert SHA-256 (colon-separated hex). */
+    val certPins: Flow<Map<String, String>> = ds.data.map { prefs ->
+        prefs[Keys.CertPins]?.let {
+            runCatching { json.decodeFromString<Map<String, String>>(it) }.getOrDefault(emptyMap())
+        } ?: emptyMap()
+    }
+
+    suspend fun pinFor(serverId: String): String? = certPins.first()[serverId]
+
+    suspend fun setPin(serverId: String, sha256: String) {
+        val next = certPins.first().toMutableMap().apply { put(serverId, sha256) }
+        ds.edit { it[Keys.CertPins] = json.encodeToString(next) }
+    }
+
+    suspend fun clearPin(serverId: String) {
+        val next = certPins.first().toMutableMap().apply { remove(serverId) }
+        ds.edit { it[Keys.CertPins] = json.encodeToString(next) }
     }
 
     val activeServerId: Flow<String?> = ds.data.map { it[Keys.ActiveServer] }
