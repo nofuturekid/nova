@@ -9,6 +9,7 @@ import io.github.nofuturekid.nova.data.model.Disk
 import io.github.nofuturekid.nova.data.model.DiskStatus
 import io.github.nofuturekid.nova.data.model.DiskType
 import io.github.nofuturekid.nova.data.model.LiveMetrics
+import io.github.nofuturekid.nova.data.model.IfaceSample
 import io.github.nofuturekid.nova.data.model.NetworkInterface
 import io.github.nofuturekid.nova.data.model.NotifImportance
 import io.github.nofuturekid.nova.data.model.NotifType
@@ -31,6 +32,7 @@ import io.github.nofuturekid.nova.graphql.GetPluginOperationsQuery
 import io.github.nofuturekid.nova.graphql.GetPluginsQuery
 import io.github.nofuturekid.nova.graphql.GetServerInfoQuery
 import io.github.nofuturekid.nova.graphql.GetVmsQuery
+import io.github.nofuturekid.nova.graphql.SystemMetricsNetworkSubscription
 import io.github.nofuturekid.nova.graphql.fragment.NotificationFields
 import io.github.nofuturekid.nova.graphql.type.ArrayDiskStatus
 import io.github.nofuturekid.nova.graphql.type.ArrayDiskType
@@ -276,6 +278,17 @@ fun GetNetworkInterfacesQuery.Data.toNetworkInterfaces(): List<NetworkInterface>
         )
     }
 }
+
+// ── Network throughput subscription ──────────────────────────────────
+
+fun SystemMetricsNetworkSubscription.Data.toIfaceSamples(): List<IfaceSample> =
+    systemMetricsNetwork.interfaces.map {
+        IfaceSample(
+            iface = it.iface,
+            rxBytesPerSec = it.rxBytesPerSec ?: 0.0,
+            txBytesPerSec = it.txBytesPerSec ?: 0.0,
+        )
+    }
 
 private fun GPluginInstallStatus.toDomain(): PluginInstallStatus = when (this) {
     GPluginInstallStatus.FAILED    -> PluginInstallStatus.Failed
