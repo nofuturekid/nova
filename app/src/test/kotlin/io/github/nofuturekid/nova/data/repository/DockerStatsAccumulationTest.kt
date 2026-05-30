@@ -1,6 +1,8 @@
 package io.github.nofuturekid.nova.data.repository
 
+import io.github.nofuturekid.nova.data.api.toContainerLiveStat
 import io.github.nofuturekid.nova.data.model.ContainerLiveStats
+import io.github.nofuturekid.nova.graphql.DockerContainerStatsSubscription
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.test.runTest
@@ -9,8 +11,41 @@ import org.junit.Test
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class DockerStatsAccumulationTest {
-    private fun stat(cpu: Double, mem: Double, usage: String) =
-        ContainerLiveStats(cpuPercent = cpu, memPercent = mem, memUsage = usage)
+    private fun stat(cpu: Double, mem: Double, usage: String) = ContainerLiveStats(
+        cpuPercent = cpu,
+        memPercent = mem,
+        memUsage = usage,
+        netIO = "",
+        blockIO = "",
+    )
+
+    /** WHY: the subscription op selects netIO + blockIO (since beta2), but the
+     *  mapper used to drop them — so the container detail sheet could never show
+     *  network / disk I/O. This pins that BOTH carry through verbatim (they're
+     *  preformatted "RX / TX" and "read / write" strings); a regression that
+     *  re-drops either fails here. */
+    @Test fun mapper_carries_netio_and_blockio_through() {
+        val data = DockerContainerStatsSubscription.Data(
+            dockerContainerStats = DockerContainerStatsSubscription.DockerContainerStats(
+                id = "c1",
+                cpuPercent = 2.6,
+                memUsage = "236.1MiB / 2.00GiB",
+                memPercent = 11.5,
+                netIO = "2.17GiB / 12.7MiB",
+                blockIO = "206.5MiB / 0B",
+            ),
+        )
+        assertEquals(
+            "c1" to ContainerLiveStats(
+                cpuPercent = 2.6,
+                memPercent = 11.5,
+                memUsage = "236.1MiB / 2.00GiB",
+                netIO = "2.17GiB / 12.7MiB",
+                blockIO = "206.5MiB / 0B",
+            ),
+            data.toContainerLiveStat(),
+        )
+    }
 
     /** WHY: each subscription frame carries ONE container; the overlay must
      *  ACCUMULATE — after b arrives, a is still present. A regression to

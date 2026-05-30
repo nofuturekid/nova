@@ -15,6 +15,11 @@ release version + date and opens a fresh `[Unreleased]`.
 
 ## [Unreleased]
 
+## [0.1.40-beta6] - 2026-05-30
+
+### Fixed
+- The container detail view now shows live CPU, memory, network and disk I/O (previously it showed 0).
+
 ## [0.1.40-beta5] - 2026-05-30
 
 ### Changed
