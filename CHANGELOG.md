@@ -15,6 +15,11 @@ release version + date and opens a fresh `[Unreleased]`.
 
 ## [Unreleased]
 
+## [0.1.40-beta4] - 2026-05-30
+
+### Changed
+- The temperature card now shows CPU and system temperature as two separate lines.
+
 ## [0.1.40-beta3] - 2026-05-30
 
 ### Fixed

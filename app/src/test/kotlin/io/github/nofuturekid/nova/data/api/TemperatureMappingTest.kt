@@ -7,6 +7,7 @@ import io.github.nofuturekid.nova.graphql.type.SensorType as GSensorType
 import io.github.nofuturekid.nova.graphql.type.TemperatureStatus as GTemperatureStatus
 import io.github.nofuturekid.nova.graphql.type.TemperatureUnit as GTemperatureUnit
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Test
 
 class TemperatureMappingTest {
@@ -39,10 +40,11 @@ class TemperatureMappingTest {
             ),
         )
         val out = data.toTemperature()
-        assertEquals("coretemp CPU Temp", out.hottestName)
-        assertEquals(52.0, out.hottestValue, 1e-6)
-        assertEquals((52.0 + 38.85 + 42.0) / 3.0, out.average, 1e-6)
-        assertEquals(0, out.criticalCount) // fan's false CRITICAL filtered out
+        // CPU line = the only CPU-typed sensor; the fan (1753) can never win it.
+        assertEquals(52.0, out.cpuC!!, 1e-6)
+        // System line = mean of kept NON-CPU temps (NVME + in-band MB) only.
+        assertEquals(40.425, out.systemC!!, 1e-6)
+        assertFalse(out.cpuCritical) // fan's false CRITICAL filtered out
         assertEquals(TemperatureUnit.Celsius, out.unit)
     }
 

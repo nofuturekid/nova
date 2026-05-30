@@ -77,6 +77,24 @@ the lower floor drops voltage rails but only for the untyped `CUSTOM` catch-all.
 Empty kept set → `Temperature.UNKNOWN`. The mislabeling should be reported
 upstream to `unraid/api`; the band is the client-side guard until it is fixed.
 
+### CPU vs system split on the card (beta4)
+
+On-device feedback on beta3 was that the single headline (~41°) read like a
+*system* temperature, burying the CPU — the number that actually matters. So
+the card now plots TWO lines on one shared scale: **CPU** (the hottest CPU-typed
+sensor — `CPU_CORE`/`CPU_PACKAGE` — `cpuC`, `null` if none) and **System** (the
+mean of the kept *non-CPU* sensors, `systemC`, `null` if none). `selectTemperature`
+keeps the exact beta3 filter + plausibility band, then partitions the kept set;
+`Temperature` now carries `cpuC`/`systemC`/`unit` plus `cpuStatus` (the chosen
+CPU sensor's health) instead of the old single `average`/`hottest`/count fields.
+The card accent is CPU-driven (amber on a `WARNING` CPU sensor, red on
+`CRITICAL`), so a system-only box never escalates; the headline is the CPU temp
+(falling back to system when no CPU sensor exists) and the subtitle labels both
+sides (`CPU 52° · System 41°`, omitting a side whose value is `null`). `Sparkline`
+gained an optional second series drawn on the primary's value scale so the two
+lines are directly comparable; a `null` second series is byte-for-byte the old
+single-line behaviour, leaving the CPU/Mem/Network cards untouched.
+
 ## Consequences
 
 **Positive:** the most aggressive poll (metrics, 2 s) becomes push for CPU/Mem

@@ -2,6 +2,7 @@ package io.github.nofuturekid.nova.data.model
 
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -12,27 +13,28 @@ class TemperatureTest {
         // never an authoritative 0-degree reading (which would mislead).
         assertFalse(t.available)
         assertEquals(TemperatureUnit.Unknown, t.unit)
-        assertEquals(0, t.warningCount)
-        assertEquals(0, t.criticalCount)
-        assertEquals("", t.hottestName)
+        assertNull(t.cpuC)
+        assertNull(t.systemC)
+        assertFalse(t.cpuWarning)
+        assertFalse(t.cpuCritical)
     }
 
     @Test fun a_real_reading_is_available_even_at_zero_degrees() {
-        // WHY: the `available` flag — not the numeric average — distinguishes a
+        // WHY: the `available` flag — not the numeric value — distinguishes a
         // real reading from absence. A typed sensor at 0 °C is plausible and kept.
         val t = selectTemperature(
             listOf(sample("CPU Core", SensorType.CpuCore, 0.0)),
         )
         assertTrue(t.available)
-        assertEquals(0.0, t.average, EPS)
+        assertEquals(0.0, t.cpuC!!, EPS)
     }
 
-    @Test fun real_server_fixture_excludes_fan_and_voltages_keeps_temps() {
-        // WHY (the whole point of beta3): the server reports a fan tach and
-        // voltage rails as CELSIUS sensors (all type CUSTOM). A fan must NEVER
-        // be shown as the hottest temperature, and its bogus CRITICAL status
-        // must NOT inflate the critical count. Fixture shaped like the real
-        // 2026-05-30 server data.
+    @Test fun real_server_fixture_splits_cpu_from_system_and_excludes_junk() {
+        // WHY (the whole point of beta4, building on beta3): the server reports a
+        // fan tach and voltage rails as CELSIUS sensors (all type CUSTOM). A fan
+        // must NEVER appear, its bogus CRITICAL must not escalate the card, and —
+        // new in beta4 — the CPU must be SEPARABLE from the system so the card can
+        // plot them as two lines. Fixture shaped like the real 2026-05-30 server.
         val out = selectTemperature(
             listOf(
                 // ── junk that must be filtered out ──
@@ -45,52 +47,101 @@ class TemperatureTest {
                 sample("it8613 MB Temp", SensorType.Custom, 42.0), // CUSTOM but in band
             ),
         )
-        // The fan (max value 1753) must not win "hottest"; the real CPU does.
-        assertEquals("coretemp CPU Temp", out.hottestName)
-        assertEquals(52.0, out.hottestValue, EPS)
-        // Average over ONLY the kept temps — the fan/voltages are gone.
-        assertEquals((52.0 + 38.85 + 42.0) / 3.0, out.average, EPS)
-        // The fan's false CRITICAL was filtered out, so the count is 0.
-        assertEquals(0, out.criticalCount)
-        assertEquals(0, out.warningCount)
+        // CPU line = the only CPU-typed sensor; the fan (1753) can never win it.
+        assertEquals(52.0, out.cpuC!!, EPS)
+        // System line = mean of the kept NON-CPU temps only (NVME + in-band MB).
+        // Fan (>130) and voltages (<8) are excluded, so they cannot pollute it.
+        assertEquals(40.425, out.systemC!!, EPS)
+        // The fan's false CRITICAL was filtered out → the CPU sensor is Normal.
+        assertFalse(out.cpuCritical)
+        assertFalse(out.cpuWarning)
         assertEquals(TemperatureUnit.Celsius, out.unit)
+        assertTrue(out.available)
+    }
+
+    @Test fun cpu_line_is_the_hottest_cpu_typed_sensor() {
+        // WHY: a multi-core/package box exposes several CPU sensors; the card's
+        // CPU number must be the HOTTEST of them (the one that throttles), not an
+        // average — and a non-CPU sensor hotter than the CPU must not steal it.
+        val out = selectTemperature(
+            listOf(
+                sample("Package", SensorType.CpuPackage, 55.0),
+                sample("Core 0", SensorType.CpuCore, 61.0),
+                sample("Core 1", SensorType.CpuCore, 58.0),
+                sample("NVMe", SensorType.Nvme, 70.0), // hotter, but NOT a CPU sensor
+            ),
+        )
+        assertEquals(61.0, out.cpuC!!, EPS)
+        assertEquals(70.0, out.systemC!!, EPS)
+    }
+
+    @Test fun cpu_status_drives_the_accent_signal() {
+        // WHY: the card accent escalates on the CPU's health (the meaningful
+        // number), so a WARNING/CRITICAL CPU sensor must surface as cpuWarning/
+        // cpuCritical — and the chosen (hottest) CPU sensor's status is the one used.
+        val warn = selectTemperature(
+            listOf(sample("CPU", SensorType.CpuCore, 88.0, TemperatureStatus.Warning)),
+        )
+        assertTrue(warn.cpuWarning)
+        assertFalse(warn.cpuCritical)
+
+        val crit = selectTemperature(
+            listOf(sample("CPU", SensorType.CpuPackage, 99.0, TemperatureStatus.Critical)),
+        )
+        assertTrue(crit.cpuCritical)
+        assertFalse(crit.cpuWarning)
+    }
+
+    @Test fun no_cpu_sensor_yields_null_cpu_and_normal_status() {
+        // WHY: a box with only ambient/disk sensors has no CPU number; the card
+        // must omit the CPU side (cpuC null) and NEVER escalate the accent off a
+        // non-CPU sensor — cpuStatus stays Normal regardless of system heat.
+        val out = selectTemperature(
+            listOf(
+                sample("NVMe", SensorType.Nvme, 95.0, TemperatureStatus.Critical),
+                sample("MB Temp", SensorType.Custom, 42.0),
+            ),
+        )
+        assertNull(out.cpuC)
+        assertFalse(out.cpuCritical)
+        assertFalse(out.cpuWarning)
+        assertEquals((95.0 + 42.0) / 2.0, out.systemC!!, EPS)
+        assertTrue(out.available)
+    }
+
+    @Test fun no_non_cpu_sensor_yields_null_system() {
+        // WHY: a CPU-only frame has no system ambient; the card must omit the
+        // System side (systemC null) while still showing the CPU line.
+        val out = selectTemperature(
+            listOf(
+                sample("Core 0", SensorType.CpuCore, 50.0),
+                sample("Package", SensorType.CpuPackage, 48.0),
+            ),
+        )
+        assertEquals(50.0, out.cpuC!!, EPS)
+        assertNull(out.systemC)
         assertTrue(out.available)
     }
 
     @Test fun custom_in_band_kept_but_typed_over_cap_dropped() {
         // WHY: the lower floor only gates CUSTOM (a typed low reading is real);
-        // the upper cap gates ALL types (no real temperature exceeds 130 °C).
+        // the upper cap gates ALL types (no real temperature exceeds 130 °C). The
+        // glitch CPU core (999) is dropped, so it cannot become the CPU line.
         val out = selectTemperature(
             listOf(
-                sample("MB Temp", SensorType.Custom, 42.0),    // CUSTOM, in band → kept
-                sample("Ambient", SensorType.Ambient, 6.0),    // typed below floor → kept
+                sample("MB Temp", SensorType.Custom, 42.0),    // CUSTOM, in band → kept (system)
+                sample("Ambient", SensorType.Ambient, 6.0),    // typed below floor → kept (system)
                 sample("Glitch Core", SensorType.CpuCore, 999.0), // typed but > cap → dropped
             ),
         )
-        // hottest is the in-band MB temp, NOT the 999 glitch.
-        assertEquals("MB Temp", out.hottestName)
-        assertEquals(42.0, out.hottestValue, EPS)
-        assertEquals((42.0 + 6.0) / 2.0, out.average, EPS)
-    }
-
-    @Test fun warning_and_critical_counts_come_from_kept_set_only() {
-        // WHY: counts must reflect only sensors that survived the filter, so the
-        // card accent escalates on real heat, not on a mislabeled fan/voltage.
-        val out = selectTemperature(
-            listOf(
-                sample("CPU Temp", SensorType.CpuCore, 88.0, TemperatureStatus.Warning),
-                sample("NVMe", SensorType.Nvme, 95.0, TemperatureStatus.Critical),
-                sample("Fan", SensorType.Custom, 1800.0, TemperatureStatus.Critical), // dropped
-            ),
-        )
-        assertEquals(1, out.warningCount)
-        assertEquals(1, out.criticalCount)
-        assertEquals("NVMe", out.hottestName)
+        // The 999 glitch is filtered, so there is NO valid CPU sensor.
+        assertNull(out.cpuC)
+        assertEquals((42.0 + 6.0) / 2.0, out.systemC!!, EPS)
     }
 
     @Test fun empty_input_maps_to_unknown_sentinel() {
-        // WHY: a null root → empty list, and an all-junk frame both yield NO real
-        // temperature; that must read as 'unavailable', never a fabricated 0°.
+        // WHY: a null root → empty list must read as 'unavailable', never a
+        // fabricated 0°.
         assertEquals(Temperature.UNKNOWN, selectTemperature(emptyList()))
     }
 
