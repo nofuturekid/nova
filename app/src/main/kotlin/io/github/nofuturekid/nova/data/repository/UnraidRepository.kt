@@ -10,11 +10,14 @@ import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.channelFlow
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.transformLatest
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.withTimeoutOrNull
 import io.github.nofuturekid.nova.data.api.ApolloClientFactory
 import io.github.nofuturekid.nova.data.api.CertIssue
@@ -108,6 +111,18 @@ class UnraidRepository @Inject constructor(
 
         /** Consecutive poll failures before the UI drops to an Error state. */
         const val TRANSIENT_ERROR_TOLERANCE = 3
+
+        /**
+         * Grace window before [subscriptionOrPoll] degrades a live subscription to
+         * its HTTP poll fallback. Chosen at 3x [POLL_METRICS_MS] (6 s): long enough
+         * that a single missed ~1 Hz frame, a brief WS reconnect, or one jittery
+         * delivery does NOT yank the card onto the poll path (that would defeat the
+         * live update); short enough that a genuine sustained WS outage degrades to
+         * the poll within ~6 s, well under the user's annoyance threshold and never
+         * leaving a blank card (ADR-0026). If [POLL_METRICS_MS] ever changes, revisit
+         * this 3-cycle ratio.
+         */
+        const val SUB_FALLBACK_GRACE_MS = 6_000L
 
         /**
          * The transient-error-tolerant poll loop, factored out so it has
@@ -219,6 +234,68 @@ class UnraidRepository @Inject constructor(
             kotlinx.coroutines.flow.flow {
                 for (f in frames) emit(DomainState.Content(map(f), baseUrl))
             }
+
+        /**
+         * Generic subscription-with-poll-fallback combinator (ADR-0026 / ADR-0043).
+         *
+         * [sub] is primary: its [DomainState.Content] frames are forwarded as-is, and
+         * [DomainState.NoServer] is forwarded immediately (no server at all — never
+         * worth burning the grace window on a poll that also has no server). The
+         * stream degrades to [poll] when the sub yields a [DomainState.Error] (or
+         * [DomainState.Loading], or no first frame) held continuously for [graceMs].
+         * It returns to [sub] the instant the sub recovers a [DomainState.Content]
+         * frame — that recovered frame is emitted directly. [poll] is collected ONLY
+         * while in the fallback state — never while the sub is healthy (no
+         * double-collect: the HTTP poll must not run alongside a working WS).
+         *
+         * This is the NEW substrate capability over ADR-0042's bare
+         * [subscriptionStream] (the network balloon had no query path, so no
+         * fallback). It is a pure [DomainState] combinator — no Apollo types, no live
+         * WS — so the unit test drives this exact production body on the virtual
+         * scheduler (Rule 9), with [graceMs] timed by suspending primitives only (no
+         * wall-clock) for determinism.
+         *
+         * `internal` (same-module), not `private`, mirroring the
+         * [pollDomainForTest] / [subscriptionStreamForTest] seam convention so the
+         * test reaches it without a repository instance.
+         */
+        internal fun <T> subscriptionOrPoll(
+            sub: Flow<DomainState<T>>,
+            poll: Flow<DomainState<T>>,
+            graceMs: Long = SUB_FALLBACK_GRACE_MS,
+        ): Flow<DomainState<T>> = channelFlow {
+            // Latest sub state; null until the sub's first frame. A child coroutine
+            // keeps this fresh while the main body decides routing.
+            val subState = MutableStateFlow<DomainState<T>?>(null)
+            launch { sub.collect { subState.value = it } }
+
+            // Route on the latest sub state. transformLatest cancels the prior branch
+            // whenever subState changes: a fresh sub Content cancels any in-flight
+            // poll collection (recovery), and an Error/null branch is replaced the
+            // moment a new state arrives.
+            subState.transformLatest { latest ->
+                when (latest) {
+                    is DomainState.Content<T> -> emit(latest)        // healthy: poll NOT collected
+                    DomainState.NoServer -> emit(DomainState.NoServer) // no server: immediate passthrough
+                    else -> {
+                        // null (no first Content yet), Error, or Loading: wait out the
+                        // grace window for a Content to (re)appear. On recovery, emit
+                        // that Content DIRECTLY (do not rely on a transformLatest
+                        // re-fire — that can drop the frame). On grace expiry, degrade
+                        // to poll; collecting inside this lambda means the poll is
+                        // cancelled the instant subState changes back to Content.
+                        val recovered = withTimeoutOrNull(graceMs) {
+                            subState.first { it is DomainState.Content<T> }
+                        }
+                        if (recovered != null) {
+                            emit(recovered)
+                        } else {
+                            poll.collect { emit(it) }
+                        }
+                    }
+                }
+            }.collect { send(it) }
+        }
     }
 
     /**
