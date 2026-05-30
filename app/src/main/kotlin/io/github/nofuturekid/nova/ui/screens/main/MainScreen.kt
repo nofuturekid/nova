@@ -112,6 +112,7 @@ fun MainScreen(
     val dockerState by vm.dockerState.collectAsState()
     val vmsState by vm.vmsState.collectAsState()
     val notificationsState by vm.notificationsState.collectAsState()
+    val displayThresholds by vm.displayThresholds.collectAsState()
     val scope = rememberCoroutineScope()
 
     // Pause polling when app is backgrounded (ADR-0017). Bound to the
@@ -228,6 +229,8 @@ fun MainScreen(
                         onAddServer = onAddServer,
                         networkThroughput = (networkState as? DomainState.Content)?.value,
                         temperature = (temperatureState as? DomainState.Content)?.value,
+                        cpuWarnC = displayThresholds?.cpuWarnC,
+                        cpuCritC = displayThresholds?.cpuCritC,
                     )
                     MainTab.Array    -> ArrayTab(
                         state = arrayState,
@@ -275,6 +278,8 @@ fun MainScreen(
                                 onConfirm = { vm.cancelParityCheck(); confirm = null },
                             )
                         },
+                        globalDiskWarnC = displayThresholds?.diskWarnC,
+                        globalDiskCritC = displayThresholds?.diskCritC,
                     )
                     MainTab.Docker   -> DockerTab(
                         state = dockerState,

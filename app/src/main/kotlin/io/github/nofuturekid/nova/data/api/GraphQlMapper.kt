@@ -7,6 +7,7 @@ import io.github.nofuturekid.nova.data.model.ContainerLiveStats
 import io.github.nofuturekid.nova.data.model.ContainerStatus
 import io.github.nofuturekid.nova.data.model.ContainerUpdateStatus
 import io.github.nofuturekid.nova.data.model.Disk
+import io.github.nofuturekid.nova.data.model.DisplayThresholds
 import io.github.nofuturekid.nova.data.model.DiskStatus
 import io.github.nofuturekid.nova.data.model.DiskType
 import io.github.nofuturekid.nova.data.model.LiveMetrics
@@ -30,6 +31,7 @@ import io.github.nofuturekid.nova.data.model.Vm
 import io.github.nofuturekid.nova.data.model.VmState
 import io.github.nofuturekid.nova.data.model.selectTemperature
 import io.github.nofuturekid.nova.graphql.GetArrayQuery
+import io.github.nofuturekid.nova.graphql.GetDisplayQuery
 import io.github.nofuturekid.nova.graphql.GetDockerContainersQuery
 import io.github.nofuturekid.nova.graphql.GetMetricsQuery
 import io.github.nofuturekid.nova.graphql.GetNetworkInterfacesQuery
@@ -86,6 +88,25 @@ fun GetServerInfoQuery.Data.toServerInfo(): ServerInfo {
         memTotalGb = totalMemBytes.bytesToGib(),
     )
 }
+
+// ── Display (global temperature thresholds) ──────────────────────────
+
+/**
+ * Maps the `display` query response to [DisplayThresholds].
+ *
+ * Mapping: hot → diskWarnC, max → diskCritC, warning → cpuWarnC, critical → cpuCritC.
+ * All nullable — the server may return null for the entire display block.
+ *
+ * WHY: global thresholds prevent false disk-temp alarms when per-disk thresholds
+ * are not configured (the common case). See ADR-0045 beta9 update.
+ */
+fun GetDisplayQuery.Data.toDisplayThresholds(): DisplayThresholds =
+    DisplayThresholds(
+        diskWarnC = display?.hot,
+        diskCritC = display?.max,
+        cpuWarnC  = display?.warning,
+        cpuCritC  = display?.critical,
+    )
 
 // ── Metrics ──────────────────────────────────────────────────────────
 

@@ -72,6 +72,8 @@ fun OverviewTab(
     onAddServer: () -> Unit,
     networkThroughput: NetworkThroughput? = null,
     temperature: Temperature? = null,
+    cpuWarnC: Int? = null,
+    cpuCritC: Int? = null,
 ) {
     // Any single NoServer → no server picked.
     if (infoState is DomainState.NoServer || metricsState is DomainState.NoServer ||
@@ -100,7 +102,7 @@ fun OverviewTab(
         return
     }
 
-    OverviewContent(info, metrics, array, containers, vms, server, networkThroughput, temperature)
+    OverviewContent(info, metrics, array, containers, vms, server, networkThroughput, temperature, cpuWarnC, cpuCritC)
 }
 
 @Composable
@@ -113,6 +115,8 @@ private fun OverviewContent(
     server: Server?,
     networkThroughput: NetworkThroughput? = null,
     temperature: Temperature? = null,
+    cpuWarnC: Int? = null,
+    cpuCritC: Int? = null,
 ) {
     val t = UnraidTheme.colors
 
@@ -296,12 +300,15 @@ private fun OverviewContent(
         }
         item {
             val temp = temperature?.takeIf { it.available }
-            // Accent is CPU-driven: the CPU is the meaningful number, so a
-            // system-only box never escalates. M3 error role on critical.
+            // Accent is CPU-driven: prefer global display thresholds (cpuWarnC/cpuCritC)
+            // from dynamix display settings when available; fall back to the sensor-derived
+            // status flags (temp.cpuCritical / temp.cpuWarning) when not yet loaded.
             val cpuColor = when {
                 temp == null -> t.muted
-                temp.cpuCritical -> t.danger
-                temp.cpuWarning -> t.warn
+                cpuCritC != null && temp.cpuC != null && temp.cpuC >= cpuCritC -> t.danger
+                cpuWarnC != null && temp.cpuC != null && temp.cpuC >= cpuWarnC -> t.warn
+                cpuCritC == null && cpuWarnC == null && temp.cpuCritical -> t.danger
+                cpuCritC == null && cpuWarnC == null && temp.cpuWarning  -> t.warn
                 else -> t.accent
             }
             // System line: a distinct M3-consistent secondary (info/blue) so the

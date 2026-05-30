@@ -15,6 +15,11 @@ release version + date and opens a fresh `[Unreleased]`.
 
 ## [Unreleased]
 
+## [0.1.40-beta9] - 2026-05-30
+
+### Fixed
+- Disk and CPU temperature warnings now use your Unraid global temperature thresholds (and per-disk overrides) instead of fixed defaults. A 52 °C disk was previously shown as overheating when the user's configured critical threshold is 60 °C; it now correctly shows as normal.
+
 ## [0.1.40-beta8] - 2026-05-30
 
 ### Fixed

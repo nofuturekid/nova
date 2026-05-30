@@ -29,6 +29,7 @@ import io.github.nofuturekid.nova.data.local.LayoutMode
 import io.github.nofuturekid.nova.data.model.AppSettings
 import io.github.nofuturekid.nova.data.model.ArrayInfo
 import io.github.nofuturekid.nova.data.model.ConnectionMode
+import io.github.nofuturekid.nova.data.model.DisplayThresholds
 import io.github.nofuturekid.nova.data.model.NotifType
 import io.github.nofuturekid.nova.data.model.Container
 import io.github.nofuturekid.nova.data.model.ContainerLiveStats
@@ -248,6 +249,19 @@ class MainViewModel @Inject constructor(
     // Bell is global (not tab-bound) — gate only on app visibility.
     val notificationsState: StateFlow<DomainState<Notifications>> =
         gatedStream(_appVisible, unraid.notificationsStream())
+
+    // Global display thresholds — needed by Overview (CPU card) and Array tab
+    // (disk coloring). Gated on overview-or-array so it polls whenever either
+    // of those tabs is active. Display settings change rarely → 60 s poll.
+    val displayState: StateFlow<DomainState<DisplayThresholds>> =
+        gatedStream(overviewOr(MainTab.Array), unraid.displayStream())
+
+    /** Unwrapped display thresholds for the UI — null until the first poll
+     *  succeeds. Mirrors the dockerLiveStats pattern. */
+    val displayThresholds: StateFlow<DisplayThresholds?> =
+        displayState
+            .map { (it as? DomainState.Content)?.value }
+            .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
 
     // ── In-flight container updates (ADR-0016) ────────────────────────
     //
