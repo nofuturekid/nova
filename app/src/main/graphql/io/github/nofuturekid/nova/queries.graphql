@@ -66,9 +66,9 @@ query GetArray {
     array {
         state
         capacity { kilobytes { total used free } }
-        parities  { id name device size status temp type }
-        disks     { id name device size status temp fsSize fsFree fsUsed type }
-        caches    { id name device size status temp fsSize fsFree fsUsed type }
+        parities  { id name device size status temp type isSpinning rotational numErrors warning critical }
+        disks     { id name device size status temp fsSize fsFree fsUsed type isSpinning rotational numErrors warning critical }
+        caches    { id name device size status temp fsSize fsFree fsUsed type isSpinning rotational numErrors warning critical }
         parityCheckStatus { progress speed errors running paused }
     }
 }

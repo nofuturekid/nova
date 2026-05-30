@@ -315,6 +315,11 @@ type ArrayDisk {
     fsFree: BigInt
     fsUsed: BigInt
     type: ArrayDiskType!
+    isSpinning: Boolean
+    rotational: Boolean
+    numErrors: BigInt
+    warning: Int
+    critical: Int
 }
 
 type ParityCheck {
