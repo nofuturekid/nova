@@ -15,62 +15,46 @@ release version + date and opens a fresh `[Unreleased]`.
 
 ## [Unreleased]
 
-## [0.1.40-beta10] - 2026-05-30
+## [0.1.40] - 2026-05-30
 
-### Changed
-- The Array tab now separates array disks from cache/pool disks into distinct "Array" and "Cache" sections (List and Grid layouts).
-
-### Fixed
-- A ZFS mirror's second disk is now shown as a pool member (with a "Pool" label and its raw size) instead of an empty disk with a misleading 0% usage bar.
-
-## [0.1.40-beta9] - 2026-05-30
-
-### Fixed
-- Disk and CPU temperature warnings now use your Unraid global temperature thresholds (and per-disk overrides) instead of fixed defaults. A 52 °C disk was previously shown as overheating when the user's configured critical threshold is 60 °C; it now correctly shows as normal.
-
-## [0.1.40-beta8] - 2026-05-30
-
-### Fixed
-- Sleeping (spun-down) array disks now show a moon icon and "Standby" instead of "0°". The server returns null temperature for a spun-down disk; the previous release coalesced that to 0 and displayed it as a real temperature reading.
+Stable promotion of the whole 0.1.40 cycle (beta1…beta10), maintainer
+device-accepted. This release brings live, real-time server metrics to
+the dashboard and Docker tab, a new temperature card, per-container
+resource stats, and a batch of Array-tab accuracy improvements.
 
 ### Added
-- Array disk cards now show per-disk temperature thresholds from Unraid (warning/critical) when configured, falling back to the previous hardcoded defaults (42 °C / 50 °C) when not set.
-- Disk errors (I/O error count) are now shown as a danger pill directly on each disk card in both grid and list layouts.
-
-## [0.1.40-beta7] - 2026-05-30
+- **Live, real-time server metrics** — the dashboard's CPU and Memory
+  cards, the Network card's upload/download speed, and per-container
+  CPU/memory on the Docker tab now update live in real time via the
+  server, instead of refreshing every couple of seconds. If the live
+  connection drops, every card automatically falls back to the usual
+  periodic refresh, so nothing goes blank.
+- **Temperature card on the dashboard** — shows your server's current
+  CPU and system temperature live on two separate lines, with the hottest
+  sensor highlighted; it turns amber or red when a sensor crosses your
+  warning or critical threshold.
+- **Per-container resource stats** — the container detail view now shows
+  live CPU and memory usage plus cumulative Network and Disk I/O totals
+  (labelled as running totals, since they are counted since the container
+  started).
 
 ### Changed
-- The container detail view now labels Network and Disk I/O as running totals (they are cumulative since the container started, not live rates).
-
-## [0.1.40-beta6] - 2026-05-30
+- **Array tab separates Array from Cache/pool disks** — array disks and
+  cache/pool disks now appear in distinct "Array" and "Cache" sections
+  in both List and Grid layouts.
 
 ### Fixed
-- The container detail view now shows live CPU, memory, network and disk I/O (previously it showed 0).
-
-## [0.1.40-beta5] - 2026-05-30
-
-### Changed
-- The live network card now keeps updating via a periodic refresh if the real-time connection drops, instead of showing unavailable.
-
-## [0.1.40-beta4] - 2026-05-30
-
-### Changed
-- The temperature card now shows CPU and system temperature as two separate lines.
-
-## [0.1.40-beta3] - 2026-05-30
-
-### Fixed
-- The temperature card mistook the CPU fan speed and voltage sensors for temperatures (showed ~91° / a 1753° "CPU Fan"); it now reads only real temperature sensors.
-
-## [0.1.40-beta2] - 2026-05-30
-
-### Added
-- The Network card on the dashboard now shows live upload/download speed in real time.
-- A new CPU-temperature card on the dashboard shows your server's current temperature live, with the hottest sensor highlighted; it turns amber or red if a sensor crosses a warning or critical threshold.
-- The Docker tab now shows live CPU and memory usage for each running container, updating in real time.
-
-### Changed
-- The dashboard's CPU and Memory cards now update live, in real time, instead of refreshing every couple of seconds. If the live connection drops, they automatically fall back to the usual 2-second refresh so the cards never go blank.
+- **Sleeping disks show "Standby"** — spun-down array disks now show a
+  moon icon and "Standby" instead of a misleading "0°" temperature.
+- **Disk errors are surfaced** — each disk card now shows its I/O error
+  count as a danger pill in both grid and list layouts.
+- **Temperature warnings use your Unraid thresholds** — disk and CPU
+  temperature warnings now respect your Unraid global thresholds (and
+  per-disk overrides) instead of fixed defaults, so a disk within your
+  configured limits is no longer flagged as overheating.
+- **ZFS pool members shown correctly** — a ZFS mirror's second disk now
+  appears as a pool member (with a "Pool" label and its raw size) instead
+  of an empty disk with a misleading 0% usage bar.
 
 ## [0.1.39] - 2026-05-29
 
