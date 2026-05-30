@@ -35,14 +35,12 @@ query GetMetrics {
         cpu { percentTotal }
         memory { total used buffcache }
         temperature {
-            summary {
-                average
-                hottest {
-                    name
-                    current { value unit }
-                }
-                warningCount
-                criticalCount
+            sensors {
+                name
+                type
+                current { value unit status }
+                warning
+                critical
             }
         }
     }

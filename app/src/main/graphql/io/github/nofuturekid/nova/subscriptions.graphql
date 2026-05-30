@@ -24,17 +24,16 @@ subscription SystemMetricsMemory {
 
 subscription SystemMetricsTemperature {
   systemMetricsTemperature {
-    summary {
-      average
-      hottest {
-        name
-        current {
-          value
-          unit
-        }
+    sensors {
+      name
+      type
+      current {
+        value
+        unit
+        status
       }
-      warningCount
-      criticalCount
+      warning
+      critical
     }
   }
 }

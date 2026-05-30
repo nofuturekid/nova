@@ -19,14 +19,16 @@ import io.github.nofuturekid.nova.data.model.ParityCheck
 import io.github.nofuturekid.nova.data.model.Plugin
 import io.github.nofuturekid.nova.data.model.PluginInstallOperation
 import io.github.nofuturekid.nova.data.model.PluginInstallStatus
+import io.github.nofuturekid.nova.data.model.SensorType
 import io.github.nofuturekid.nova.data.model.ServerInfo
 import io.github.nofuturekid.nova.data.model.Temperature
-import io.github.nofuturekid.nova.data.model.TempSummarySample
+import io.github.nofuturekid.nova.data.model.TemperatureStatus
 import io.github.nofuturekid.nova.data.model.TemperatureUnit
+import io.github.nofuturekid.nova.data.model.TempSensorSample
 import io.github.nofuturekid.nova.data.model.UnraidNotification
 import io.github.nofuturekid.nova.data.model.Vm
 import io.github.nofuturekid.nova.data.model.VmState
-import io.github.nofuturekid.nova.data.model.toTemperature
+import io.github.nofuturekid.nova.data.model.selectTemperature
 import io.github.nofuturekid.nova.graphql.GetArrayQuery
 import io.github.nofuturekid.nova.graphql.GetDockerContainersQuery
 import io.github.nofuturekid.nova.graphql.GetMetricsQuery
@@ -50,6 +52,8 @@ import io.github.nofuturekid.nova.graphql.type.ContainerState as GContainerState
 import io.github.nofuturekid.nova.graphql.type.NotificationImportance as GNotifImportance
 import io.github.nofuturekid.nova.graphql.type.NotificationType as GNotifType
 import io.github.nofuturekid.nova.graphql.type.PluginInstallStatus as GPluginInstallStatus
+import io.github.nofuturekid.nova.graphql.type.SensorType as GSensorType
+import io.github.nofuturekid.nova.graphql.type.TemperatureStatus as GTemperatureStatus
 import io.github.nofuturekid.nova.graphql.type.TemperatureUnit as GTemperatureUnit
 import io.github.nofuturekid.nova.graphql.type.VmState as GVmState
 
@@ -332,32 +336,59 @@ fun SystemMetricsMemorySubscription.Data.toMemoryTriple(): Triple<Long, Long, Lo
     Triple(systemMetricsMemory.total, systemMetricsMemory.used, systemMetricsMemory.buffcache)
 
 // ── Temperature subscription + poll (shared mapper) ──────────────────
+//
+// The server mislabels voltage rails and fan tachs as CELSIUS sensors, so the
+// server-computed summary is garbage. Both paths select the raw `sensors`
+// list, project it to the Apollo-free [TempSensorSample] seam, and let
+// [selectTemperature] filter + recompute (beta3, ADR-0043). A null root or an
+// empty list degrades to [Temperature.UNKNOWN].
 
 fun SystemMetricsTemperatureSubscription.Data.toTemperature(): Temperature =
-    toTemperature(systemMetricsTemperature?.summary?.toSample())
+    selectTemperature(
+        systemMetricsTemperature?.sensors.orEmpty().map { s ->
+            TempSensorSample(
+                name = s.name,
+                type = s.type.toDomain(),
+                value = s.current.value,
+                unit = s.current.unit.toDomain(),
+                status = s.current.status.toDomain(),
+            )
+        },
+    )
 
 fun GetMetricsQuery.Data.toTemperature(): Temperature =
-    toTemperature(metrics?.temperature?.summary?.toSample())
-
-private fun SystemMetricsTemperatureSubscription.Summary.toSample(): TempSummarySample =
-    TempSummarySample(
-        average = average,
-        unit = hottest?.current?.unit?.toDomain() ?: TemperatureUnit.Unknown,
-        hottestName = hottest?.name,
-        hottestValue = hottest?.current?.value,
-        warningCount = warningCount,
-        criticalCount = criticalCount,
+    selectTemperature(
+        metrics?.temperature?.sensors.orEmpty().map { s ->
+            TempSensorSample(
+                name = s.name,
+                type = s.type.toDomain(),
+                value = s.current.value,
+                unit = s.current.unit.toDomain(),
+                status = s.current.status.toDomain(),
+            )
+        },
     )
 
-private fun GetMetricsQuery.Summary.toSample(): TempSummarySample =
-    TempSummarySample(
-        average = average,
-        unit = hottest?.current?.unit?.toDomain() ?: TemperatureUnit.Unknown,
-        hottestName = hottest?.name,
-        hottestValue = hottest?.current?.value,
-        warningCount = warningCount,
-        criticalCount = criticalCount,
-    )
+private fun GSensorType.toDomain(): SensorType = when (this) {
+    GSensorType.CPU_PACKAGE -> SensorType.CpuPackage
+    GSensorType.CPU_CORE    -> SensorType.CpuCore
+    GSensorType.MOTHERBOARD -> SensorType.Motherboard
+    GSensorType.CHIPSET     -> SensorType.Chipset
+    GSensorType.GPU         -> SensorType.Gpu
+    GSensorType.DISK        -> SensorType.Disk
+    GSensorType.NVME        -> SensorType.Nvme
+    GSensorType.AMBIENT     -> SensorType.Ambient
+    GSensorType.VRM         -> SensorType.Vrm
+    GSensorType.CUSTOM      -> SensorType.Custom
+    else                    -> SensorType.Unknown // UNKNOWN__
+}
+
+private fun GTemperatureStatus.toDomain(): TemperatureStatus = when (this) {
+    GTemperatureStatus.NORMAL   -> TemperatureStatus.Normal
+    GTemperatureStatus.WARNING  -> TemperatureStatus.Warning
+    GTemperatureStatus.CRITICAL -> TemperatureStatus.Critical
+    else                        -> TemperatureStatus.Unknown // UNKNOWN + UNKNOWN__
+}
 
 private fun GTemperatureUnit.toDomain(): TemperatureUnit = when (this) {
     GTemperatureUnit.CELSIUS    -> TemperatureUnit.Celsius
