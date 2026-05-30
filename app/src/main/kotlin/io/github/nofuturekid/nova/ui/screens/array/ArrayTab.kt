@@ -28,7 +28,9 @@ import io.github.nofuturekid.nova.data.local.LayoutMode
 import io.github.nofuturekid.nova.data.model.ArrayInfo
 import io.github.nofuturekid.nova.data.model.ArrayState
 import io.github.nofuturekid.nova.data.model.Disk
+import io.github.nofuturekid.nova.data.model.DiskTempLevel
 import io.github.nofuturekid.nova.data.model.DiskType
+import io.github.nofuturekid.nova.data.model.tempLevel
 import io.github.nofuturekid.nova.data.repository.DomainState
 import io.github.nofuturekid.nova.ui.components.BtnVariant
 import io.github.nofuturekid.nova.ui.components.Pill
@@ -293,7 +295,7 @@ private fun ArrayContent(
     }
 }
 
-/** Compact disk tile for the Grid layout — type icon, name, temp,
+/** Compact disk tile for the Grid layout — type icon, name, temp/standby,
  *  usage bar (data/cache only). */
 @Composable
 private fun DiskTile(disk: Disk, errored: Boolean) {
@@ -303,10 +305,11 @@ private fun DiskTile(disk: Disk, errored: Boolean) {
         DiskType.Cache  -> Color(0xFFA78BFA)
         DiskType.Data   -> t.accent
     }
-    val tempColor = when {
-        disk.tempC >= 50 -> t.danger
-        disk.tempC >= 42 -> t.warn
-        else             -> t.muted
+    val level = disk.tempLevel()
+    val tempColor = when (level) {
+        DiskTempLevel.Danger  -> t.danger
+        DiskTempLevel.Warn    -> t.warn
+        else                  -> t.muted
     }
     val pct = if (disk.sizeTb > 0) (disk.usedTb / disk.sizeTb).toFloat() else 0f
     UnraidCard(padding = UnraidTheme.tokens.padTight) {
@@ -327,13 +330,25 @@ private fun DiskTile(disk: Disk, errored: Boolean) {
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
                     )
-                    Text(
-                        "${disk.tempC}°",
-                        color = tempColor,
-                        style = MaterialTheme.typography.labelSmall.copy(fontFamily = JetBrainsMono),
-                    )
+                    if (level == DiskTempLevel.Standby) {
+                        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(2.dp)) {
+                            UC.Standby(11.dp, t.muted)
+                            Text(
+                                "Standby",
+                                color = t.muted,
+                                style = MaterialTheme.typography.labelSmall,
+                            )
+                        }
+                    } else {
+                        Text(
+                            "${disk.tempC}°",
+                            color = tempColor,
+                            style = MaterialTheme.typography.labelSmall.copy(fontFamily = JetBrainsMono),
+                        )
+                    }
                 }
-                if (errored) Pill("ERR", tone = Tone.Danger, dot = true)
+                if (disk.numErrors > 0) Pill("${disk.numErrors} err", tone = Tone.Danger, dot = true)
+                else if (errored) Pill("ERR", tone = Tone.Danger, dot = true)
             }
             if (disk.type != DiskType.Parity) {
                 Spacer(Modifier.height(8.dp))
@@ -357,10 +372,11 @@ private fun DiskCard(disk: Disk, errored: Boolean) {
         DiskType.Cache  -> Color(0xFFA78BFA)
         DiskType.Data   -> t.accent
     }
-    val tempColor = when {
-        disk.tempC >= 50 -> t.danger
-        disk.tempC >= 42 -> t.warn
-        else             -> t.muted
+    val level = disk.tempLevel()
+    val tempColor = when (level) {
+        DiskTempLevel.Danger  -> t.danger
+        DiskTempLevel.Warn    -> t.warn
+        else                  -> t.muted
     }
     val pct = if (disk.sizeTb > 0) (disk.usedTb / disk.sizeTb).toFloat() else 0f
     UnraidCard(padding = UnraidTheme.tokens.pad) {
@@ -376,7 +392,8 @@ private fun DiskCard(disk: Disk, errored: Boolean) {
                 Column(modifier = Modifier.weight(1f)) {
                     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         Text(disk.name, color = t.text, style = MaterialTheme.typography.titleSmall)
-                        if (errored) Pill("ERR", tone = Tone.Danger, dot = true)
+                        if (disk.numErrors > 0) Pill("${disk.numErrors} err", tone = Tone.Danger, dot = true)
+                        else if (errored) Pill("ERR", tone = Tone.Danger, dot = true)
                     }
                     Text(
                         text = "${disk.device} · ${disk.model}",
@@ -386,13 +403,24 @@ private fun DiskCard(disk: Disk, errored: Boolean) {
                         overflow = TextOverflow.Ellipsis,
                     )
                 }
-                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                    UC.Thermo(13.dp, tempColor)
-                    Text(
-                        text = "${disk.tempC}°",
-                        color = tempColor,
-                        style = MaterialTheme.typography.labelLarge.copy(fontFamily = JetBrainsMono),
-                    )
+                if (level == DiskTempLevel.Standby) {
+                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                        UC.Standby(13.dp, t.muted)
+                        Text(
+                            text = "Standby",
+                            color = t.muted,
+                            style = MaterialTheme.typography.labelLarge,
+                        )
+                    }
+                } else {
+                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                        UC.Thermo(13.dp, tempColor)
+                        Text(
+                            text = "${disk.tempC}°",
+                            color = tempColor,
+                            style = MaterialTheme.typography.labelLarge.copy(fontFamily = JetBrainsMono),
+                        )
+                    }
                 }
             }
             if (disk.type != DiskType.Parity) {

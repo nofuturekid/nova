@@ -35,6 +35,7 @@ import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material.icons.outlined.Stop
 import androidx.compose.material.icons.outlined.Storage
 import androidx.compose.material.icons.outlined.Terminal
+import androidx.compose.material.icons.outlined.Bedtime
 import androidx.compose.material.icons.outlined.Thermostat
 import androidx.compose.material.icons.outlined.ViewInAr
 import androidx.compose.material.icons.outlined.Visibility
@@ -85,6 +86,8 @@ object UC {
     // claim was re-tested via local-ci and no longer holds.
     @Composable fun Bell(     size: Dp = 20.dp, tint: Color = Color.Unspecified) = Ico(Icons.Outlined.Notifications,   size, tint)
     @Composable fun Thermo(   size: Dp = 20.dp, tint: Color = Color.Unspecified) = Ico(Icons.Outlined.Thermostat,     size, tint)
+    /** Disk standby (spun-down) indicator — moon icon. */
+    @Composable fun Standby(  size: Dp = 20.dp, tint: Color = Color.Unspecified) = Ico(Icons.Outlined.Bedtime,        size, tint)
     @Composable fun Power(    size: Dp = 20.dp, tint: Color = Color.Unspecified) = Ico(Icons.Outlined.PowerSettingsNew, size, tint)
     @Composable fun Link(     size: Dp = 20.dp, tint: Color = Color.Unspecified) = Ico(Icons.Outlined.Link,           size, tint)
     @Composable fun Eye(      size: Dp = 20.dp, tint: Color = Color.Unspecified) = Ico(Icons.Outlined.Visibility,     size, tint)

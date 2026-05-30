@@ -15,6 +15,15 @@ release version + date and opens a fresh `[Unreleased]`.
 
 ## [Unreleased]
 
+## [0.1.40-beta8] - 2026-05-30
+
+### Fixed
+- Sleeping (spun-down) array disks now show a moon icon and "Standby" instead of "0°". The server returns null temperature for a spun-down disk; the previous release coalesced that to 0 and displayed it as a real temperature reading.
+
+### Added
+- Array disk cards now show per-disk temperature thresholds from Unraid (warning/critical) when configured, falling back to the previous hardcoded defaults (42 °C / 50 °C) when not set.
+- Disk errors (I/O error count) are now shown as a danger pill directly on each disk card in both grid and list layouts.
+
 ## [0.1.40-beta7] - 2026-05-30
 
 ### Changed

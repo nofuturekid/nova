@@ -129,13 +129,16 @@ fun GetArrayQuery.Data.toArrayInfo(): ArrayInfo {
     val totalTb = cap.total.toLongOrNull()?.kbToTb() ?: 0.0
     val usedTb  = cap.used.toLongOrNull()?.kbToTb() ?: 0.0
     val parities = arrBlock.parities.map {
-        mapDisk(it.name, it.device, it.size, null, it.status, it.temp, it.type)
+        mapDisk(it.name, it.device, it.size, null, it.status, it.temp, it.type,
+            it.isSpinning, it.rotational, it.numErrors, it.warning, it.critical)
     }
     val data = arrBlock.disks.map {
-        mapDisk(it.name, it.device, it.size, it.fsUsed, it.status, it.temp, it.type)
+        mapDisk(it.name, it.device, it.size, it.fsUsed, it.status, it.temp, it.type,
+            it.isSpinning, it.rotational, it.numErrors, it.warning, it.critical)
     }
     val caches = arrBlock.caches.map {
-        mapDisk(it.name, it.device, it.size, it.fsUsed, it.status, it.temp, it.type)
+        mapDisk(it.name, it.device, it.size, it.fsUsed, it.status, it.temp, it.type,
+            it.isSpinning, it.rotational, it.numErrors, it.warning, it.critical)
     }
     return ArrayInfo(
         state = arrBlock.state.toDomain(),
@@ -448,6 +451,11 @@ private fun mapDisk(
     status: ArrayDiskStatus?,
     temp: Int?,
     type: ArrayDiskType,
+    isSpinning: Boolean?,
+    rotational: Boolean?,
+    numErrors: Long?,
+    warningC: Int?,
+    criticalC: Int?,
 ): Disk {
     val sizeTb = (sizeKb ?: 0L).kbToTb()
     val usedTb = (usedKb ?: 0L).kbToTb()
@@ -457,9 +465,16 @@ private fun mapDisk(
         type = type.toDomain(),
         sizeTb = sizeTb,
         usedTb = usedTb,
+        // temp is null when the disk is spun down; coalesce to 0.
+        // isSpinning is the truth source — check it before displaying tempC.
         tempC = temp ?: 0,
         status = status?.toDomain() ?: DiskStatus.Ok,
         model = "",
+        isSpinning = isSpinning ?: false,
+        rotational = rotational ?: false,
+        numErrors = numErrors ?: 0L,
+        warningC = warningC?.takeIf { it > 0 },
+        criticalC = criticalC?.takeIf { it > 0 },
     )
 }
 

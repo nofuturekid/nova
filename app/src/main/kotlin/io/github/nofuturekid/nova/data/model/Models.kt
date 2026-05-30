@@ -21,16 +21,63 @@ enum class ArrayState { Started, Stopped, Parity, Error, Offline }
 enum class DiskType { Parity, Data, Cache }
 enum class DiskStatus { Ok, Error }
 
+/**
+ * Domain model for a single array/parity/cache disk.
+ *
+ * [tempC] is the raw temperature in Celsius coalesced from the server value.
+ * When the disk is spun down the server returns `temp = null`; [tempC] will
+ * be 0 in that case — **[isSpinning] is the truth source** for whether a
+ * temperature is meaningful. Never display [tempC] when [isSpinning] is false.
+ *
+ * [warningC] / [criticalC] are per-disk thresholds set in Unraid; when null
+ * the UI falls back to the global defaults (42 °C warn / 50 °C critical).
+ */
 data class Disk(
     val name: String,
     val device: String,
     val type: DiskType,
     val sizeTb: Double,
     val usedTb: Double,
+    /** Raw temp in Celsius. 0 when spun down (server returns null). Use [isSpinning] before reading. */
     val tempC: Int,
     val status: DiskStatus,
     val model: String,
+    val isSpinning: Boolean,
+    val rotational: Boolean,
+    val numErrors: Long,
+    /** Per-disk warning threshold in °C from Unraid config; null = unset (use fallback 42 °C). */
+    val warningC: Int?,
+    /** Per-disk critical threshold in °C from Unraid config; null = unset (use fallback 50 °C). */
+    val criticalC: Int?,
 )
+
+/** Logical temperature severity level — purely a function of the disk state.
+ *  Colour mapping is the UI layer's responsibility; this enum stays in the model
+ *  so the logic is unit-testable without Compose on the classpath. */
+enum class DiskTempLevel { Standby, Normal, Warn, Danger }
+
+/**
+ * Returns the [DiskTempLevel] for a disk.
+ *
+ * Rules (in priority order):
+ * 1. Not spinning → [DiskTempLevel.Standby] — temp is meaningless.
+ * 2. Per-disk [criticalC] set and [tempC] ≥ it → [DiskTempLevel.Danger].
+ * 3. Per-disk [warningC] set and [tempC] ≥ it → [DiskTempLevel.Warn].
+ * 4. No per-disk thresholds — fall back to global defaults: ≥ 50 → Danger, ≥ 42 → Warn.
+ * 5. Otherwise → [DiskTempLevel.Normal].
+ *
+ * WHY: sleeping disks return temp=null → tempC=0; that MUST NOT render as a
+ * valid temperature (0°). Per-disk thresholds from Unraid take precedence over
+ * the app-hardcoded values so users who configured tighter limits see them.
+ */
+fun Disk.tempLevel(): DiskTempLevel = when {
+    !isSpinning                               -> DiskTempLevel.Standby
+    criticalC != null && tempC >= criticalC   -> DiskTempLevel.Danger
+    warningC  != null && tempC >= warningC    -> DiskTempLevel.Warn
+    criticalC == null && tempC >= 50          -> DiskTempLevel.Danger
+    warningC  == null && tempC >= 42          -> DiskTempLevel.Warn
+    else                                      -> DiskTempLevel.Normal
+}
 
 data class ParityCheck(
     val progress: Float,        // 0..1
