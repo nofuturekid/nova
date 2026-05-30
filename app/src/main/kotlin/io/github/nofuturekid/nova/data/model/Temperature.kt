@@ -22,30 +22,43 @@ enum class TemperatureStatus { Normal, Warning, Critical, Unknown }
  * [available] is the load-bearing flag: the `systemMetricsTemperature` root is
  * NULLABLE on the live server (introspection 2026-05-30), so absence must be
  * representable distinctly from a genuine 0-degree reading. When [available]
- * is false the card shows 'unavailable'; otherwise it shows [average] [unit].
+ * is false the card shows 'unavailable'.
+ *
+ * The card plots TWO series (beta4): [cpuC] (the hottest CPU-typed sensor) and
+ * [systemC] (the mean of the kept non-CPU sensors). Either MAY be null when no
+ * sensor of that kind survived the filter — a CPU-less box has [cpuC] = null, a
+ * box with only CPU sensors has [systemC] = null — and the card omits that side.
+ * At least one is non-null whenever [available] is true.
+ *
  * [unit] is carried from the server (never hardcoded Celsius); it MAY be
  * [TemperatureUnit.Unknown] when the kept set is somehow unit-less — see
  * [selectTemperature]/the mapper tests for that intentional case.
+ *
+ * [cpuStatus] is the chosen CPU sensor's health and drives the card's accent
+ * (warning → amber, critical → red); it is [TemperatureStatus.Normal] when no
+ * CPU sensor was found, so a system-only box never escalates the accent.
  */
 data class Temperature(
     val available: Boolean,
-    val average: Double,
+    val cpuC: Double?,
+    val systemC: Double?,
     val unit: TemperatureUnit,
-    val hottestName: String,
-    val hottestValue: Double,
-    val warningCount: Int,
-    val criticalCount: Int,
+    val cpuStatus: TemperatureStatus,
 ) {
+    /** The card escalates to amber on a CPU sensor the server flags WARNING. */
+    val cpuWarning: Boolean get() = cpuStatus == TemperatureStatus.Warning
+
+    /** The card escalates to red on a CPU sensor the server flags CRITICAL. */
+    val cpuCritical: Boolean get() = cpuStatus == TemperatureStatus.Critical
+
     companion object {
         /** No-data sentinel: null root, or no plausible temperature sensor. */
         val UNKNOWN = Temperature(
             available = false,
-            average = 0.0,
+            cpuC = null,
+            systemC = null,
             unit = TemperatureUnit.Unknown,
-            hottestName = "",
-            hottestValue = 0.0,
-            warningCount = 0,
-            criticalCount = 0,
+            cpuStatus = TemperatureStatus.Normal,
         )
     }
 }
@@ -90,9 +103,14 @@ const val MAX_PLAUSIBLE_C = 130.0
  * voltage rails, but only for the untyped [SensorType.Custom] catch-all —
  * a typed sensor genuinely reading low (e.g. an 8 °C ambient) is kept.
  *
- * From the kept set: hottest = max value (carrying its name + value + unit);
- * average = mean of kept values; warning/criticalCount = kept samples whose
- * [status] is Warning / Critical; unit = the hottest kept sample's unit.
+ * The kept set is then SPLIT into CPU vs non-CPU (beta4) so the card can plot
+ * the meaningful CPU number separately from the system ambient:
+ *   - cpuC    = the hottest CPU-typed sensor (max value among CpuCore/CpuPackage),
+ *               or null if none survived.
+ *   - systemC = the mean of the kept NON-CPU sensors, or null if none survived.
+ *   - cpuStatus = the chosen CPU sensor's status (drives the card accent), or
+ *                 Normal when there is no CPU sensor.
+ *   - unit    = the CPU sensor's unit when present, else the hottest kept sample's.
  * Empty kept set → [Temperature.UNKNOWN] (the card shows 'unavailable').
  */
 fun selectTemperature(samples: List<TempSensorSample>): Temperature {
@@ -100,14 +118,19 @@ fun selectTemperature(samples: List<TempSensorSample>): Temperature {
         s.value <= MAX_PLAUSIBLE_C &&
             (s.type != SensorType.Custom || s.value >= MIN_PLAUSIBLE_C)
     }
-    val hottest = kept.maxByOrNull { it.value } ?: return Temperature.UNKNOWN
+    if (kept.isEmpty()) return Temperature.UNKNOWN
+
+    val (cpu, nonCpu) = kept.partition {
+        it.type == SensorType.CpuCore || it.type == SensorType.CpuPackage
+    }
+    val hottestCpu = cpu.maxByOrNull { it.value }
+    val systemMean = nonCpu.takeIf { it.isNotEmpty() }?.let { it.sumOf { s -> s.value } / it.size }
+    val hottestKept = kept.maxByOrNull { it.value } // non-null: kept is non-empty
     return Temperature(
         available = true,
-        average = kept.sumOf { it.value } / kept.size,
-        unit = hottest.unit,
-        hottestName = hottest.name,
-        hottestValue = hottest.value,
-        warningCount = kept.count { it.status == TemperatureStatus.Warning },
-        criticalCount = kept.count { it.status == TemperatureStatus.Critical },
+        cpuC = hottestCpu?.value,
+        systemC = systemMean,
+        unit = (hottestCpu ?: hottestKept)?.unit ?: TemperatureUnit.Unknown,
+        cpuStatus = hottestCpu?.status ?: TemperatureStatus.Normal,
     )
 }

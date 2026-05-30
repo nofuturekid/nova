@@ -133,7 +133,8 @@ private fun OverviewContent(
         mutableStateOf(List(40) { pct })
     }
     val netSeries = remember { mutableStateOf(List(40) { 0f }) }
-    val tempSeries = remember { mutableStateOf(List(40) { 0f }) }
+    val tempCpuSeries = remember { mutableStateOf(List(40) { 0f }) }
+    val tempSysSeries = remember { mutableStateOf(List(40) { 0f }) }
 
     // Key on metrics only: a 60 s info poll can change memTotalGb without a
     // new metrics sample — keying on it too injected a spurious sparkline tick.
@@ -148,8 +149,11 @@ private fun OverviewContent(
         netSeries.value = netSeries.value.drop(1) + total
     }
     LaunchedEffect(temperature) {
-        val v = temperature?.takeIf { it.available }?.average?.toFloat() ?: 0f
-        tempSeries.value = tempSeries.value.drop(1) + v
+        val live = temperature?.takeIf { it.available }
+        val cpu = live?.cpuC?.toFloat() ?: 0f
+        val sys = live?.systemC?.toFloat() ?: 0f
+        tempCpuSeries.value = tempCpuSeries.value.drop(1) + cpu
+        tempSysSeries.value = tempSysSeries.value.drop(1) + sys
     }
 
     val arrTotalTb = array?.totalTb ?: 0.0
@@ -292,30 +296,38 @@ private fun OverviewContent(
         }
         item {
             val temp = temperature?.takeIf { it.available }
-            val accent = when {
+            // Accent is CPU-driven: the CPU is the meaningful number, so a
+            // system-only box never escalates. M3 error role on critical.
+            val cpuColor = when {
                 temp == null -> t.muted
-                temp.criticalCount > 0 -> t.danger   // M3 error role
-                temp.warningCount > 0 -> t.warn
+                temp.cpuCritical -> t.danger
+                temp.cpuWarning -> t.warn
                 else -> t.accent
             }
+            // System line: a distinct M3-consistent secondary (info/blue) so the
+            // two lines read apart on the shared scale (Rule 13).
+            val sysColor = t.info
             StatCard(
                 iconColor = t.muted,
                 icon = { UC.Thermo(18.dp, t.muted) },
                 label = "Temperature",
-                value = temp?.let { "%.0f%s".format(it.average, unitSymbol(it.unit)) } ?: "—",
+                // Headline = CPU (the meaningful number); fall back to system
+                // when a box reports no CPU sensor at all.
+                value = temp?.let {
+                    val headline = it.cpuC ?: it.systemC
+                    headline?.let { v -> "%.0f%s".format(v, unitSymbol(it.unit)) } ?: "—"
+                } ?: "—",
                 sub = temp?.let {
-                    val counts = listOfNotNull(
-                        if (it.criticalCount > 0) "${it.criticalCount} critical" else null,
-                        if (it.warningCount > 0) "${it.warningCount} warning" else null,
-                    ).joinToString(" · ")
-                    val hottest = if (it.hottestName.isNotEmpty())
-                        "${it.hottestName} ${"%.0f".format(it.hottestValue)}${unitSymbol(it.unit)}" else ""
-                    listOf(hottest, counts).filter { s -> s.isNotEmpty() }.joinToString("  ·  ")
-                        .ifEmpty { "all normal" }
+                    listOfNotNull(
+                        it.cpuC?.let { v -> "CPU ${"%.0f".format(v)}${unitSymbol(it.unit)}" },
+                        it.systemC?.let { v -> "System ${"%.0f".format(v)}${unitSymbol(it.unit)}" },
+                    ).joinToString("  ·  ").ifEmpty { "all normal" }
                 } ?: "live unavailable",
-                series = tempSeries.value,
-                seriesColor = accent,
+                series = tempCpuSeries.value,
+                seriesColor = cpuColor,
                 max = null,
+                series2 = tempSysSeries.value,
+                seriesColor2 = sysColor,
             )
         }
 
@@ -395,6 +407,8 @@ private fun StatCard(
     series: List<Float>,
     seriesColor: Color,
     max: Float?,
+    series2: List<Float>? = null,
+    seriesColor2: Color? = null,
 ) {
     val t = UnraidTheme.colors
     UnraidCard(padding = UnraidTheme.tokens.pad) {
@@ -416,6 +430,8 @@ private fun StatCard(
                 color = seriesColor,
                 height = 56.dp,
                 maxValue = max,
+                data2 = series2,
+                color2 = seriesColor2,
             )
             Text(sub, color = t.muted, style = MaterialTheme.typography.bodySmall, modifier = Modifier.padding(top = 4.dp))
         }
