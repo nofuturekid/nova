@@ -177,3 +177,38 @@ before committing the metrics poll path. Network is the better balloon target.
 - Live verification session: `wss://192.168.11.2/graphql`, 2026-05-29, python
   `websockets` client, `graphql-transport-ws` subprotocol, `x-api-key` auth —
   `systemMetricsNetwork` delivering `rxBytesPerSec`/`txBytesPerSec` at ~1 Hz.
+
+---
+
+## Amendment — 2026-05-30 (0.1.40-beta5)
+
+**The "no query path for network" claim is now stale — Network gets a poll
+fallback.** This ADR's Decision and Alternatives both rested on "network
+throughput has no `Query` field for byte rates," and therefore shipped
+`networkThroughputStream` as the one consumer *without* the ADR-0026 mandatory
+poll fallback. That premise no longer holds. **Live introspection 2026-05-30**
+confirmed the QUERY-side `type Metrics` now exposes `network: NetworkUtilization`,
+and a live query `{ metrics { network { interfaces { iface rxBytesPerSec
+txBytesPerSec } } } }` returned real rates (`eth0` rx=3855 tx=3797 B/s) against
+the production server. A poll fallback is therefore now possible.
+
+Accordingly, the Network card is brought in line with CPU/Mem/Temp: a dedicated
+`GetNetworkThroughput` query (mirroring the subscription selection, kept separate
+from `GetMetrics` so the network poll is an independent Flow) feeds
+`networkThroughputPoll`, and `networkThroughputStream` now wraps the
+`systemMetricsNetwork` subscription in `subscriptionOrPoll(sub, poll =
+networkThroughputPoll(primary), graceMs = SUB_FALLBACK_GRACE_MS)`. On a sustained
+WS drop the card now degrades to the 2 s `metrics.network` poll instead of
+showing "unavailable," and returns to the subscription the instant it recovers
+(the generic degrade/recover behaviour is unit-tested in `SubscriptionOrPollTest`;
+the new poll projection in `NetworkThroughputMappingTest`). The once-per-collection
+primary-iface resolution and `selectThroughput` are unchanged.
+
+The vendored `schema.graphqls` gains `network: NetworkUtilization` on `type
+Metrics` (the `NetworkUtilization` type and its `interfaces` fields were already
+vendored from this pilot). Validated read-only against the live server; mutations
+remain maintainer-only.
+
+**`dockerContainerStats` remains fallback-less** — it has no query path (confirmed
+2026-05-30: there is genuinely no `Query` field for per-container live stats), so
+it stays on the bare `subscriptionStream` with no degrade target.
