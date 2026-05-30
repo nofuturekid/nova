@@ -15,7 +15,8 @@ class ContainerStatsJoinTest {
         ports = emptyList(), volumes = emptyList(),
         updateStatus = ContainerUpdateStatus.Unknown, webUiUrl = null, networkIp = null,
     )
-    private fun stat(cpu: Double) = ContainerLiveStats(cpu, cpu, "${cpu}GiB")
+    private fun stat(cpu: Double) =
+        ContainerLiveStats(cpu, cpu, "${cpu}GiB", netIO = "", blockIO = "")
 
     /** WHY (hard constraint): a container the stats stream hasn't sent a frame
      *  for yet MUST still appear — with null stats — never be dropped. A

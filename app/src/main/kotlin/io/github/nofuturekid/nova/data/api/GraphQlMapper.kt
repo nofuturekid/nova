@@ -416,14 +416,16 @@ private fun GTemperatureUnit.toDomain(): TemperatureUnit = when (this) {
 // ── Docker container stats subscription ──────────────────────────────
 
 /** One frame = one container. Maps to a (id -> stats) pair for the overlay
- *  accumulation. netIO/blockIO are intentionally dropped (out of scope —
- *  the overlay shows cpu% + memory only). */
+ *  accumulation. netIO/blockIO are preformatted "RX / TX" and "read / write"
+ *  strings the detail sheet surfaces verbatim. */
 fun DockerContainerStatsSubscription.Data.toContainerLiveStat(): Pair<String, ContainerLiveStats> =
     dockerContainerStats.let { s ->
         s.id to ContainerLiveStats(
             cpuPercent = s.cpuPercent,
             memPercent = s.memPercent,
             memUsage = s.memUsage,
+            netIO = s.netIO,
+            blockIO = s.blockIO,
         )
     }
 

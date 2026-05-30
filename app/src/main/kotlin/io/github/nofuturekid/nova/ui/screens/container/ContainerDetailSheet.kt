@@ -44,6 +44,7 @@ import androidx.compose.ui.platform.LocalContext
 import android.content.Intent
 import androidx.core.net.toUri
 import io.github.nofuturekid.nova.data.model.Container
+import io.github.nofuturekid.nova.data.model.ContainerLiveStats
 import io.github.nofuturekid.nova.data.model.ContainerStatus
 import io.github.nofuturekid.nova.data.model.hasUpdate
 import io.github.nofuturekid.nova.ui.components.BtnVariant
@@ -73,6 +74,7 @@ private const val LOG_TAIL_INTERVAL_MS = 3_000L
 fun ContainerDetailSheet(
     container: Container,
     serverBaseUrl: String,
+    liveStats: ContainerLiveStats?,
     isUpdating: Boolean,
     onFetchLogs: suspend (id: String) -> List<io.github.nofuturekid.nova.data.model.LogLine>,
     onRefresh: suspend () -> Unit,
@@ -331,7 +333,7 @@ fun ContainerDetailSheet(
                         .verticalScroll(rememberScrollState()),
                 ) {
                     when (tab) {
-                        DetailTab.Info    -> InfoTabContent(container)
+                        DetailTab.Info    -> InfoTabContent(container, liveStats)
                         DetailTab.Logs    -> LogsTabContent(container, logs, logsLoading)
                         DetailTab.Ports   -> PortsTabContent(container)
                         DetailTab.Volumes -> VolumesTabContent(container)
@@ -344,17 +346,39 @@ fun ContainerDetailSheet(
 }
 
 @Composable
-private fun InfoTabContent(c: Container) {
+private fun InfoTabContent(c: Container, liveStats: ContainerLiveStats?) {
     val t = UnraidTheme.colors
+    // Live per-container stats arrive only via the dockerContainerStats
+    // subscription overlay (the polled Container carries 0). They're
+    // meaningless for a stopped container, so gate on Running + a frame.
+    val live = liveStats?.takeIf { c.status == ContainerStatus.Running }
     Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
         UnraidCard(padding = UnraidTheme.tokens.pad) {
-            Row(horizontalArrangement = Arrangement.spacedBy(14.dp)) {
-                StatBlock(label = "CPU", value = "%.1f%%".format(c.cpu), modifier = Modifier.weight(1f))
-                StatBlock(
-                    label = "Memory",
-                    value = if (c.memMb > 0) "${c.memMb} MB" else "—",
-                    modifier = Modifier.weight(1f),
-                )
+            Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                Row(horizontalArrangement = Arrangement.spacedBy(14.dp)) {
+                    StatBlock(
+                        label = "CPU",
+                        value = live?.let { "%.1f%%".format(it.cpuPercent) } ?: "—",
+                        modifier = Modifier.weight(1f),
+                    )
+                    StatBlock(
+                        label = "Memory",
+                        value = live?.memUsage ?: "—",
+                        modifier = Modifier.weight(1f),
+                    )
+                }
+                Row(horizontalArrangement = Arrangement.spacedBy(14.dp)) {
+                    StatBlock(
+                        label = "Network",
+                        value = live?.netIO ?: "—",
+                        modifier = Modifier.weight(1f),
+                    )
+                    StatBlock(
+                        label = "Disk I/O",
+                        value = live?.blockIO ?: "—",
+                        modifier = Modifier.weight(1f),
+                    )
+                }
             }
         }
         UnraidCard(padding = UnraidTheme.tokens.pad) {
@@ -380,7 +404,13 @@ private fun StatBlock(label: String, value: String, modifier: Modifier = Modifie
         Text(
             text = value,
             color = t.text,
-            style = MaterialTheme.typography.headlineMedium,
+            // titleLarge (not headlineMedium): the live memory/net/disk
+            // values are preformatted "used / limit" pairs that overflow a
+            // half-width column at headline size; titleLarge keeps them on
+            // one ellipsized line while staying the row's emphasis weight.
+            style = MaterialTheme.typography.titleLarge,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
         )
     }
 }

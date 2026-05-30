@@ -341,6 +341,9 @@ fun MainScreen(
         ContainerDetailSheet(
             container = shown,
             serverBaseUrl = baseUrl,
+            // Reactive overlay: dockerLiveStats is collected above, so the open
+            // sheet recomposes live as new dockerContainerStats frames arrive.
+            liveStats = dockerLiveStats[shown.id],
             isUpdating = shown.id in updatingIds,
             onFetchLogs = { id -> vm.containerLogs(id) },
             onRefresh = { vm.refresh() },
