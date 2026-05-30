@@ -59,6 +59,24 @@ fallback combinator and a docker stream-join overlay.
 
 Supersedes ADR-0026 for cpu/mem/temp/docker-stats; builds on ADR-0042.
 
+### Temperature sensor filtering (beta3)
+
+On-device data from the real server (2026-05-30) showed the temperature card
+reading "~91°, hottest CPU Fan 1753°". Root cause: the server (`unraid/api`)
+reports EVERY lm-sensors channel under `systemMetricsTemperature` — including a
+fan tach (value = RPM) and voltage rails (value = Volts) — all mislabeled
+`unit: CELSIUS` and `type: CUSTOM`. The server-computed `summary` we displayed
+verbatim therefore named the fan as "hottest" and inflated the average.
+
+Fix (maintainer-approved "type + plausibility band"): stop trusting the server
+summary. Both temperature paths now select the raw `sensors` list and the
+client recomputes hottest/average/warning+criticalCount, keeping a channel as a
+real temperature iff `value <= MAX_PLAUSIBLE_C (130) && (type != CUSTOM ||
+value >= MIN_PLAUSIBLE_C (8))` — the upper cap drops fan RPM regardless of type,
+the lower floor drops voltage rails but only for the untyped `CUSTOM` catch-all.
+Empty kept set → `Temperature.UNKNOWN`. The mislabeling should be reported
+upstream to `unraid/api`; the band is the client-side guard until it is fixed.
+
 ## Consequences
 
 **Positive:** the most aggressive poll (metrics, 2 s) becomes push for CPU/Mem
