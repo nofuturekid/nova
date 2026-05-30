@@ -102,7 +102,7 @@ fun OverviewTab(
         return
     }
 
-    OverviewContent(info, metrics, array, containers, vms, server, networkThroughput, temperature)
+    OverviewContent(info, metrics, array, containers, vms, server, networkThroughput, temperature, cpuWarnC, cpuCritC)
 }
 
 @Composable
@@ -115,6 +115,8 @@ private fun OverviewContent(
     server: Server?,
     networkThroughput: NetworkThroughput? = null,
     temperature: Temperature? = null,
+    cpuWarnC: Int? = null,
+    cpuCritC: Int? = null,
 ) {
     val t = UnraidTheme.colors
 
