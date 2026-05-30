@@ -263,21 +263,50 @@ private fun ArrayContent(
 
         when (view) {
             LayoutMode.List -> {
-                item { SectionLabel("Disks") }
-                items(arr.disks, key = { it.name }) { disk ->
-                    DiskCard(disk, errored = isErr(disk), globalDiskWarnC = globalDiskWarnC, globalDiskCritC = globalDiskCritC)
+                val arrayDisks = arr.disks.filter { it.type == DiskType.Parity } +
+                    arr.disks.filter { it.type == DiskType.Data }
+                val cacheDisks = arr.disks.filter { it.type == DiskType.Cache }
+                if (arrayDisks.isNotEmpty()) {
+                    item { SectionLabel("Array") }
+                    items(arrayDisks, key = { it.name }) { disk ->
+                        DiskCard(disk, errored = isErr(disk), globalDiskWarnC = globalDiskWarnC, globalDiskCritC = globalDiskCritC)
+                    }
+                }
+                if (cacheDisks.isNotEmpty()) {
+                    item { SectionLabel("Cache") }
+                    items(cacheDisks, key = { it.name }) { disk ->
+                        DiskCard(disk, errored = isErr(disk), globalDiskWarnC = globalDiskWarnC, globalDiskCritC = globalDiskCritC)
+                    }
                 }
             }
             LayoutMode.Grid -> {
-                item { SectionLabel("Disks") }
-                items(arr.disks.chunked(2), key = { it.first().name }) { row ->
-                    Row(horizontalArrangement = Arrangement.spacedBy(d.gap)) {
-                        row.forEach { disk ->
-                            Box(modifier = Modifier.weight(1f)) {
-                                DiskTile(disk, errored = isErr(disk), globalDiskWarnC = globalDiskWarnC, globalDiskCritC = globalDiskCritC)
+                val arrayDisks = arr.disks.filter { it.type == DiskType.Parity } +
+                    arr.disks.filter { it.type == DiskType.Data }
+                val cacheDisks = arr.disks.filter { it.type == DiskType.Cache }
+                if (arrayDisks.isNotEmpty()) {
+                    item { SectionLabel("Array") }
+                    items(arrayDisks.chunked(2), key = { it.first().name }) { row ->
+                        Row(horizontalArrangement = Arrangement.spacedBy(d.gap)) {
+                            row.forEach { disk ->
+                                Box(modifier = Modifier.weight(1f)) {
+                                    DiskTile(disk, errored = isErr(disk), globalDiskWarnC = globalDiskWarnC, globalDiskCritC = globalDiskCritC)
+                                }
                             }
+                            if (row.size == 1) Spacer(Modifier.weight(1f))
                         }
-                        if (row.size == 1) Spacer(Modifier.weight(1f))
+                    }
+                }
+                if (cacheDisks.isNotEmpty()) {
+                    item { SectionLabel("Cache") }
+                    items(cacheDisks.chunked(2), key = { it.first().name }) { row ->
+                        Row(horizontalArrangement = Arrangement.spacedBy(d.gap)) {
+                            row.forEach { disk ->
+                                Box(modifier = Modifier.weight(1f)) {
+                                    DiskTile(disk, errored = isErr(disk), globalDiskWarnC = globalDiskWarnC, globalDiskCritC = globalDiskCritC)
+                                }
+                            }
+                            if (row.size == 1) Spacer(Modifier.weight(1f))
+                        }
                     }
                 }
             }
@@ -355,7 +384,7 @@ private fun DiskTile(disk: Disk, errored: Boolean, globalDiskWarnC: Int? = null,
                 if (disk.numErrors > 0) Pill("${disk.numErrors} err", tone = Tone.Danger, dot = true)
                 else if (errored) Pill("ERR", tone = Tone.Danger, dot = true)
             }
-            if (disk.type != DiskType.Parity) {
+            if (disk.type != DiskType.Parity && !disk.isPoolMember) {
                 Spacer(Modifier.height(8.dp))
                 UnraidProgress(pct, color = if (errored) t.danger else typeColor, height = 4.dp)
                 Spacer(Modifier.height(4.dp))
@@ -364,6 +393,16 @@ private fun DiskTile(disk: Disk, errored: Boolean, globalDiskWarnC: Int? = null,
                     color = t.muted,
                     style = MaterialTheme.typography.labelSmall.copy(fontFamily = JetBrainsMono),
                 )
+            } else if (disk.isPoolMember) {
+                Spacer(Modifier.height(6.dp))
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                    Pill("Pool", tone = Tone.Info)
+                    Text(
+                        formatTb(disk.sizeTb),
+                        color = t.muted,
+                        style = MaterialTheme.typography.labelSmall.copy(fontFamily = JetBrainsMono),
+                    )
+                }
             }
         }
     }
@@ -428,7 +467,7 @@ private fun DiskCard(disk: Disk, errored: Boolean, globalDiskWarnC: Int? = null,
                     }
                 }
             }
-            if (disk.type != DiskType.Parity) {
+            if (disk.type != DiskType.Parity && !disk.isPoolMember) {
                 Spacer(Modifier.height(10.dp))
                 UnraidProgress(pct, color = if (errored) t.danger else typeColor, height = 5.dp)
                 Spacer(Modifier.height(6.dp))
@@ -441,6 +480,16 @@ private fun DiskCard(disk: Disk, errored: Boolean, globalDiskWarnC: Int? = null,
                     Spacer(Modifier.weight(1f))
                     Text(
                         text = "${(pct * 100).toInt()}% · ${formatTb(disk.sizeTb)}",
+                        color = t.muted,
+                        style = MaterialTheme.typography.labelSmall.copy(fontFamily = JetBrainsMono),
+                    )
+                }
+            } else if (disk.isPoolMember) {
+                Spacer(Modifier.height(8.dp))
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                    Pill("Pool", tone = Tone.Info)
+                    Text(
+                        text = formatTb(disk.sizeTb),
                         color = t.muted,
                         style = MaterialTheme.typography.labelSmall.copy(fontFamily = JetBrainsMono),
                     )

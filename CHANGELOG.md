@@ -15,6 +15,14 @@ release version + date and opens a fresh `[Unreleased]`.
 
 ## [Unreleased]
 
+## [0.1.40-beta10] - 2026-05-30
+
+### Changed
+- The Array tab now separates array disks from cache/pool disks into distinct "Array" and "Cache" sections (List and Grid layouts).
+
+### Fixed
+- A ZFS mirror's second disk is now shown as a pool member (with a "Pool" label and its raw size) instead of an empty disk with a misleading 0% usage bar.
+
 ## [0.1.40-beta9] - 2026-05-30
 
 ### Fixed

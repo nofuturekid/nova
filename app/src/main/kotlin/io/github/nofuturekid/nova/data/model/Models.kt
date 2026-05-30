@@ -33,6 +33,12 @@ enum class DiskStatus { Ok, Error }
  * coalesced independently against the global [DisplayThresholds] and hardcoded
  * last-resort values in [tempLevel] — per-disk wins when set, else global, else
  * hardcoded (42 °C warn / 50 °C crit).
+ *
+ * [isPoolMember] is true for a secondary pool/mirror member that has no
+ * independent filesystem — show as a pool member, not as an "empty" disk.
+ * Example: in a ZFS mirror pool the second device has `fsSize = null` (the
+ * pool's filesystem stats live only on the first member). Such a disk must
+ * not render a 0% usage bar; it should be labelled as a pool member instead.
  */
 data class Disk(
     val name: String,
@@ -51,6 +57,13 @@ data class Disk(
     val warningC: Int?,
     /** Per-disk critical threshold in °C from Unraid config; null = not configured by server. */
     val criticalC: Int?,
+    /**
+     * True for a secondary pool/mirror member that has no independent
+     * filesystem (`fsSize == null` on the server). The pool's filesystem
+     * statistics live only on the first member; secondary members must not
+     * render a misleading 0% usage bar.
+     */
+    val isPoolMember: Boolean = false,
 )
 
 /** Logical temperature severity level — purely a function of the disk state.
