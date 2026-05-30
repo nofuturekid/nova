@@ -150,15 +150,15 @@ fun GetArrayQuery.Data.toArrayInfo(): ArrayInfo {
     val totalTb = cap.total.toLongOrNull()?.kbToTb() ?: 0.0
     val usedTb  = cap.used.toLongOrNull()?.kbToTb() ?: 0.0
     val parities = arrBlock.parities.map {
-        mapDisk(it.name, it.device, it.size, null, it.status, it.temp, it.type,
+        mapDisk(it.name, it.device, it.size, null, null, it.status, it.temp, it.type,
             it.isSpinning, it.rotational, it.numErrors, it.warning, it.critical)
     }
     val data = arrBlock.disks.map {
-        mapDisk(it.name, it.device, it.size, it.fsUsed, it.status, it.temp, it.type,
+        mapDisk(it.name, it.device, it.size, it.fsSize, it.fsUsed, it.status, it.temp, it.type,
             it.isSpinning, it.rotational, it.numErrors, it.warning, it.critical)
     }
     val caches = arrBlock.caches.map {
-        mapDisk(it.name, it.device, it.size, it.fsUsed, it.status, it.temp, it.type,
+        mapDisk(it.name, it.device, it.size, it.fsSize, it.fsUsed, it.status, it.temp, it.type,
             it.isSpinning, it.rotational, it.numErrors, it.warning, it.critical)
     }
     return ArrayInfo(
@@ -468,6 +468,7 @@ private fun mapDisk(
     name: String?,
     device: String?,
     sizeKb: Long?,
+    fsSizeKb: Long?,
     usedKb: Long?,
     status: ArrayDiskStatus?,
     temp: Int?,
@@ -480,10 +481,16 @@ private fun mapDisk(
 ): Disk {
     val sizeTb = (sizeKb ?: 0L).kbToTb()
     val usedTb = (usedKb ?: 0L).kbToTb()
+    val domainType = type.toDomain()
+    // A non-parity disk whose fsSize is null has no independent filesystem —
+    // it is a secondary member of a ZFS mirror or similar pool. The pool's
+    // filesystem stats live only on the first member, so rendering usedTb as
+    // 0% would be misleading. Flag it so the UI can show a "Pool" label instead.
+    val isPoolMember = domainType != DiskType.Parity && fsSizeKb == null
     return Disk(
         name = name.orEmpty(),
         device = device.orEmpty(),
-        type = type.toDomain(),
+        type = domainType,
         sizeTb = sizeTb,
         usedTb = usedTb,
         // temp is null when the disk is spun down; coalesce to 0.
@@ -496,6 +503,7 @@ private fun mapDisk(
         numErrors = numErrors ?: 0L,
         warningC = warningC?.takeIf { it > 0 },
         criticalC = criticalC?.takeIf { it > 0 },
+        isPoolMember = isPoolMember,
     )
 }
 

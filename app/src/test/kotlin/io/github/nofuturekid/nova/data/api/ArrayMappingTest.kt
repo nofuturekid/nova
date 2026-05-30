@@ -128,6 +128,51 @@ class ArrayMappingTest {
         assertEquals(DiskStatus.Error, d.status)
     }
 
+    // ── Pool member (ZFS mirror / secondary member) ───────────────────
+
+    @Test fun cache_disk_with_null_fsSize_is_pool_member() {
+        // WHY: a ZFS mirror pool's second device has fsSize=null because the
+        // pool filesystem stats live only on the first member. Marking it as
+        // isPoolMember=true prevents the UI from rendering it as an "empty"
+        // disk with a misleading 0% usage bar.
+        val data = arrayData(
+            caches = listOf(cache(name = "cache2", fsSize = null, fsUsed = null)),
+        )
+        val d = data.toArrayInfo().disks.first { it.name == "cache2" }
+        assertTrue("ZFS mirror member with fsSize=null must be isPoolMember=true", d.isPoolMember)
+    }
+
+    @Test fun cache_disk_with_fsSize_present_is_not_pool_member() {
+        // WHY: the first/primary cache member has a real filesystem and must
+        // show its usage bar normally — isPoolMember must be false.
+        val data = arrayData(
+            caches = listOf(cache(name = "cache", fsSize = 4_000_000_000L, fsUsed = 1_000_000_000L)),
+        )
+        val d = data.toArrayInfo().disks.first { it.name == "cache" }
+        assertFalse("cache disk with fsSize present must NOT be isPoolMember", d.isPoolMember)
+    }
+
+    @Test fun data_disk_with_fsSize_present_is_not_pool_member() {
+        // WHY: regular array data disks have their own filesystem and must
+        // never be treated as pool members.
+        val data = arrayData(
+            disks = listOf(disk(name = "disk1")),
+        )
+        val d = data.toArrayInfo().disks.first { it.name == "disk1" }
+        assertFalse("data disk with fsSize present must NOT be isPoolMember", d.isPoolMember)
+    }
+
+    @Test fun parity_disk_is_not_pool_member() {
+        // WHY: parity disks have no filesystem (fsSize=null by design) but are
+        // NOT pool members — the flag must be false for parity type regardless
+        // of fsSize. Only non-parity disks with fsSize=null are pool members.
+        val data = arrayData(
+            parities = listOf(parity(name = "parity1")),
+        )
+        val p = data.toArrayInfo().disks.first { it.type == DiskType.Parity }
+        assertFalse("parity disk must NOT be isPoolMember (no fs is expected for parity)", p.isPoolMember)
+    }
+
     // ── Builders ─────────────────────────────────────────────────────
 
     private fun arrayData(
@@ -188,6 +233,30 @@ class ArrayMappingTest {
         type = ArrayDiskType.PARITY,
         isSpinning = isSpinning,
         rotational = true,
+        numErrors = null,
+        warning = null,
+        critical = null,
+    )
+
+    private fun cache(
+        name: String,
+        fsSize: Long? = 4_000_000_000L,
+        fsUsed: Long? = 1_000_000_000L,
+        temp: Int? = 35,
+        isSpinning: Boolean? = true,
+    ) = GetArrayQuery.Cach(
+        id = name,
+        name = name,
+        device = "sd${name.last()}",
+        size = 4_000_000_000L,
+        status = ArrayDiskStatus.DISK_OK,
+        temp = temp,
+        fsSize = fsSize,
+        fsFree = if (fsSize != null && fsUsed != null) fsSize - fsUsed else null,
+        fsUsed = fsUsed,
+        type = ArrayDiskType.CACHE,
+        isSpinning = isSpinning,
+        rotational = false,
         numErrors = null,
         warning = null,
         critical = null,

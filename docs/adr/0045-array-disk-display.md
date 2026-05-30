@@ -1,6 +1,6 @@
 # ADR-0045: Array disk display — sleeping disks, per-disk thresholds, errors
 
-- **Status**: Accepted (updated beta9 — 2026-05-30)
+- **Status**: Accepted (updated beta10 — 2026-05-30)
 - **Date**: 2026-05-30
 - **Tags**: ui, array, data
 
@@ -105,6 +105,30 @@ The Overview CPU temperature card accent color also switches to use
 sensor-derived `Temperature.cpuWarning` / `Temperature.cpuCritical` flags when
 the display poll has not yet returned.
 
+### 5. ZFS pool/mirror secondary members shown as pool members, not empty disks (beta10)
+
+In a ZFS mirror pool the second device (`cache2`) has `fsType = null` and
+`fsSize = null` — the pool's filesystem statistics live only on the first member.
+The mapper previously derived `usedTb` from `fsUsed` (null → 0) and rendered the
+disk as "0% · 3.9 TB", giving a false impression of an empty disk.
+
+**Fix:** `mapDisk` now accepts `fsSizeKb` in addition to the existing `usedKb`.
+A non-parity disk with `fsSizeKb == null` is flagged `isPoolMember = true` in
+the domain `Disk` model. Parity disks always have `isPoolMember = false` (they
+legitimately have no filesystem). The UI suppresses the usage bar/percentage for
+pool members and shows a compact "Pool" label with the raw disk size instead.
+
+### 6. Array tab separates "Array" and "Cache" sections (beta10)
+
+In `LayoutMode.List` and `LayoutMode.Grid` the previous single `"Disks"` section
+header is replaced with two structural sections:
+
+- **"Array"** — parity disks first, then data disks.
+- **"Cache"** — cache/pool disks.
+
+A section is omitted when empty. `LayoutMode.Grouped` (Parity / Data / Cache
+sub-headers) is unchanged.
+
 ## Consequences
 
 - Sleeping disks no longer show "0°"; they show a moon icon + "Standby".
@@ -114,3 +138,6 @@ the display poll has not yet returned.
 - Disk errors are immediately visible without entering a detail view.
 - No subscription migration required for the array.
 - `unit` field intentionally NOT consumed — no unit conversion in this beta.
+- ZFS mirror secondary members no longer show a misleading 0% bar; they show
+  a "Pool" pill with the raw disk size.
+- The Array tab List and Grid views now clearly separate array disks from cache/pool disks.
