@@ -15,6 +15,11 @@ release version + date and opens a fresh `[Unreleased]`.
 
 ## [Unreleased]
 
+## [0.1.40-beta3] - 2026-05-30
+
+### Fixed
+- The temperature card mistook the CPU fan speed and voltage sensors for temperatures (showed ~91° / a 1753° "CPU Fan"); it now reads only real temperature sensors.
+
 ## [0.1.40-beta2] - 2026-05-30
 
 ### Added

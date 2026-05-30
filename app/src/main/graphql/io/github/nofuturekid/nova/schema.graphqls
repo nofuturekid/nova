@@ -469,6 +469,10 @@ type NetworkInterfaceUtilization {
 
 type TemperatureMetrics {
     summary: TemperatureSummary!
+    # The server reports EVERY lm-sensors channel here, including voltage rails
+    # and fan tachs mislabeled CELSIUS (type CUSTOM). The client selects this
+    # raw list and recomputes the summary itself (beta3) — see ADR-0043.
+    sensors: [TemperatureSensor!]!
 }
 
 type TemperatureSummary {
@@ -480,12 +484,16 @@ type TemperatureSummary {
 
 type TemperatureSensor {
     name: String!
+    type: SensorType!
     current: TemperatureReading!
+    warning: Float
+    critical: Float
 }
 
 type TemperatureReading {
     value: Float!
     unit: TemperatureUnit!
+    status: TemperatureStatus!
 }
 
 enum TemperatureUnit {
@@ -493,6 +501,26 @@ enum TemperatureUnit {
     FAHRENHEIT
     KELVIN
     RANKINE
+}
+
+enum SensorType {
+    CPU_PACKAGE
+    CPU_CORE
+    MOTHERBOARD
+    CHIPSET
+    GPU
+    DISK
+    NVME
+    AMBIENT
+    VRM
+    CUSTOM
+}
+
+enum TemperatureStatus {
+    NORMAL
+    WARNING
+    CRITICAL
+    UNKNOWN
 }
 
 type DockerContainerStats {
