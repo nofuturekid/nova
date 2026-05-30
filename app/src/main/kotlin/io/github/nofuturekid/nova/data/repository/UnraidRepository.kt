@@ -77,6 +77,7 @@ import io.github.nofuturekid.nova.graphql.GetDockerContainersQuery
 import io.github.nofuturekid.nova.graphql.GetInstalledUnraidPluginsQuery
 import io.github.nofuturekid.nova.graphql.GetMetricsQuery
 import io.github.nofuturekid.nova.graphql.GetNetworkInterfacesQuery
+import io.github.nofuturekid.nova.graphql.GetNetworkThroughputQuery
 import io.github.nofuturekid.nova.graphql.GetPluginOperationsQuery
 import io.github.nofuturekid.nova.graphql.GetPluginsQuery
 import io.github.nofuturekid.nova.graphql.GetServerInfoQuery
@@ -580,21 +581,43 @@ class UnraidRepository @Inject constructor(
         }
 
     /**
-     * Live network throughput from the `systemMetricsNetwork` subscription.
+     * Live network throughput from the `systemMetricsNetwork` subscription,
+     * with a poll fallback (ADR-0042 amendment 2026-05-30).
      *
      * Resolves the primary NIC name once (tolerate failure — [selectThroughput]
-     * has a fallback for null), then opens a subscription stream and applies
-     * [selectThroughput] to each frame. The WS socket lives only while the
-     * flow is collected (gated by the caller via [gatedStream] in the ViewModel).
+     * has a fallback for null), then runs the subscription as the PRIMARY
+     * transport, degrading to the 2 s `GetNetworkThroughput` poll
+     * ([networkThroughputPoll]) on sustained WS failure and returning to the
+     * subscription when it recovers — so the card never goes blank on a transient
+     * WS drop. ADR-0042's original "no query path for network → no fallback" no
+     * longer holds: the QUERY-side `metrics.network` was added upstream
+     * (live-verified 2026-05-30), so the same [subscriptionOrPoll] treatment as
+     * CPU/Mem/Temp now applies. The WS socket lives only while the flow is
+     * collected (gated by the caller via [gatedStream] in the ViewModel); the
+     * poll runs only while degraded.
      */
     fun networkThroughputStream(): Flow<DomainState<NetworkThroughput>> {
         val primaryFlow = flow { emit(runCatching { resolvePrimaryIface() }.getOrNull()) }
         return primaryFlow.flatMapLatest { primary ->
-            subscriptionStream(SystemMetricsNetworkSubscription()) { data ->
-                selectThroughput(data.toIfaceSamples(), primary)
-            }
+            subscriptionOrPoll(
+                sub = subscriptionStream(SystemMetricsNetworkSubscription()) { data ->
+                    selectThroughput(data.toIfaceSamples(), primary)
+                },
+                poll = networkThroughputPoll(primary),
+                graceMs = SUB_FALLBACK_GRACE_MS,
+            )
         }
     }
+
+    private fun networkThroughputPoll(
+        primary: String?,
+        intervalMs: Long = POLL_METRICS_MS,
+    ): Flow<DomainState<NetworkThroughput>> =
+        domainStream(intervalMs) { client, baseUrl ->
+            fetch(client, GetNetworkThroughputQuery()) { data ->
+                selectThroughput(data.toIfaceSamples(), primary)
+            }.withBaseUrl(baseUrl)
+        }
 
     private suspend fun resolvePrimaryIface(): String? =
         activeClient()?.query(GetNetworkInterfacesQuery())?.execute()

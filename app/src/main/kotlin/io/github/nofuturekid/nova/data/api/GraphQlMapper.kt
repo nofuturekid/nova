@@ -33,6 +33,7 @@ import io.github.nofuturekid.nova.graphql.GetArrayQuery
 import io.github.nofuturekid.nova.graphql.GetDockerContainersQuery
 import io.github.nofuturekid.nova.graphql.GetMetricsQuery
 import io.github.nofuturekid.nova.graphql.GetNetworkInterfacesQuery
+import io.github.nofuturekid.nova.graphql.GetNetworkThroughputQuery
 import io.github.nofuturekid.nova.graphql.GetNotificationListQuery
 import io.github.nofuturekid.nova.graphql.GetNotificationsQuery
 import io.github.nofuturekid.nova.graphql.GetPluginOperationsQuery
@@ -319,6 +320,20 @@ fun GetNetworkInterfacesQuery.Data.toNetworkInterfaces(): List<NetworkInterface>
 
 fun SystemMetricsNetworkSubscription.Data.toIfaceSamples(): List<IfaceSample> =
     systemMetricsNetwork.interfaces.map {
+        IfaceSample(
+            iface = it.iface,
+            rxBytesPerSec = it.rxBytesPerSec ?: 0.0,
+            txBytesPerSec = it.txBytesPerSec ?: 0.0,
+        )
+    }
+
+// Poll-fallback counterpart of the subscription projection above. The two
+// generated `Interface` types share no supertype, so the tiny projection is
+// duplicated (same precedent as the GetMetrics/SystemMetrics* split). On the
+// QUERY side `metrics` and `metrics.network` are both nullable, so a frame
+// without network data maps to no samples — selectThroughput then yields ZERO.
+fun GetNetworkThroughputQuery.Data.toIfaceSamples(): List<IfaceSample> =
+    metrics?.network?.interfaces.orEmpty().map {
         IfaceSample(
             iface = it.iface,
             rxBytesPerSec = it.rxBytesPerSec ?: 0.0,
