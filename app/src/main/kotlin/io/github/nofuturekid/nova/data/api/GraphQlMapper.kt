@@ -3,6 +3,7 @@ package io.github.nofuturekid.nova.data.api
 import io.github.nofuturekid.nova.data.model.ArrayInfo
 import io.github.nofuturekid.nova.data.model.ArrayState
 import io.github.nofuturekid.nova.data.model.Container
+import io.github.nofuturekid.nova.data.model.ContainerLiveStats
 import io.github.nofuturekid.nova.data.model.ContainerStatus
 import io.github.nofuturekid.nova.data.model.ContainerUpdateStatus
 import io.github.nofuturekid.nova.data.model.Disk
@@ -19,9 +20,13 @@ import io.github.nofuturekid.nova.data.model.Plugin
 import io.github.nofuturekid.nova.data.model.PluginInstallOperation
 import io.github.nofuturekid.nova.data.model.PluginInstallStatus
 import io.github.nofuturekid.nova.data.model.ServerInfo
+import io.github.nofuturekid.nova.data.model.Temperature
+import io.github.nofuturekid.nova.data.model.TempSummarySample
+import io.github.nofuturekid.nova.data.model.TemperatureUnit
 import io.github.nofuturekid.nova.data.model.UnraidNotification
 import io.github.nofuturekid.nova.data.model.Vm
 import io.github.nofuturekid.nova.data.model.VmState
+import io.github.nofuturekid.nova.data.model.toTemperature
 import io.github.nofuturekid.nova.graphql.GetArrayQuery
 import io.github.nofuturekid.nova.graphql.GetDockerContainersQuery
 import io.github.nofuturekid.nova.graphql.GetMetricsQuery
@@ -32,7 +37,11 @@ import io.github.nofuturekid.nova.graphql.GetPluginOperationsQuery
 import io.github.nofuturekid.nova.graphql.GetPluginsQuery
 import io.github.nofuturekid.nova.graphql.GetServerInfoQuery
 import io.github.nofuturekid.nova.graphql.GetVmsQuery
+import io.github.nofuturekid.nova.graphql.DockerContainerStatsSubscription
+import io.github.nofuturekid.nova.graphql.SystemMetricsCpuSubscription
+import io.github.nofuturekid.nova.graphql.SystemMetricsMemorySubscription
 import io.github.nofuturekid.nova.graphql.SystemMetricsNetworkSubscription
+import io.github.nofuturekid.nova.graphql.SystemMetricsTemperatureSubscription
 import io.github.nofuturekid.nova.graphql.fragment.NotificationFields
 import io.github.nofuturekid.nova.graphql.type.ArrayDiskStatus
 import io.github.nofuturekid.nova.graphql.type.ArrayDiskType
@@ -41,6 +50,7 @@ import io.github.nofuturekid.nova.graphql.type.ContainerState as GContainerState
 import io.github.nofuturekid.nova.graphql.type.NotificationImportance as GNotifImportance
 import io.github.nofuturekid.nova.graphql.type.NotificationType as GNotifType
 import io.github.nofuturekid.nova.graphql.type.PluginInstallStatus as GPluginInstallStatus
+import io.github.nofuturekid.nova.graphql.type.TemperatureUnit as GTemperatureUnit
 import io.github.nofuturekid.nova.graphql.type.VmState as GVmState
 
 /**
@@ -76,13 +86,35 @@ fun GetServerInfoQuery.Data.toServerInfo(): ServerInfo {
 
 fun GetMetricsQuery.Data.toLiveMetrics(): LiveMetrics {
     val m = metrics
-    return LiveMetrics(
+    return combineLiveMetrics(
         cpuPercent = m?.cpu?.percentTotal ?: 0.0,
-        memTotalGb = (m?.memory?.total ?: 0L).bytesToGib(),
-        memUsedGb = (m?.memory?.used ?: 0L).bytesToGib(),
-        memBuffGb = (m?.memory?.buffcache ?: 0L).bytesToGib(),
+        memTotal = m?.memory?.total ?: 0L,
+        memUsed = m?.memory?.used ?: 0L,
+        memBuffcache = m?.memory?.buffcache,
     )
 }
+
+/**
+ * The byte->GiB + buffcache math shared by the GetMetrics poll
+ * ([toLiveMetrics]) and the live cpu+mem subscription combine. ONE
+ * implementation so the two transports are provably byte-identical (Rule 9):
+ * if this changes, both paths change together.
+ *
+ * [memBuffcache] is nullable because MemoryUtilization.buffcache is nullable
+ * on the live server; null is treated as 0 bytes -> 0.0 GB, matching the
+ * poll's `?: 0L`.
+ */
+fun combineLiveMetrics(
+    cpuPercent: Double,
+    memTotal: Long,
+    memUsed: Long,
+    memBuffcache: Long?,
+): LiveMetrics = LiveMetrics(
+    cpuPercent = cpuPercent,
+    memTotalGb = memTotal.bytesToGib(),
+    memUsedGb = memUsed.bytesToGib(),
+    memBuffGb = (memBuffcache ?: 0L).bytesToGib(),
+)
 
 // ── Array ────────────────────────────────────────────────────────────
 
@@ -287,6 +319,65 @@ fun SystemMetricsNetworkSubscription.Data.toIfaceSamples(): List<IfaceSample> =
             iface = it.iface,
             rxBytesPerSec = it.rxBytesPerSec ?: 0.0,
             txBytesPerSec = it.txBytesPerSec ?: 0.0,
+        )
+    }
+
+// ── CPU + Memory subscriptions (frames fed into combineLiveMetrics) ──
+
+fun SystemMetricsCpuSubscription.Data.cpuPercentTotal(): Double =
+    systemMetricsCpu.percentTotal
+
+/** (total, used, buffcache?) — buffcache is nullable on the live server. */
+fun SystemMetricsMemorySubscription.Data.toMemoryTriple(): Triple<Long, Long, Long?> =
+    Triple(systemMetricsMemory.total, systemMetricsMemory.used, systemMetricsMemory.buffcache)
+
+// ── Temperature subscription + poll (shared mapper) ──────────────────
+
+fun SystemMetricsTemperatureSubscription.Data.toTemperature(): Temperature =
+    toTemperature(systemMetricsTemperature?.summary?.toSample())
+
+fun GetMetricsQuery.Data.toTemperature(): Temperature =
+    toTemperature(metrics?.temperature?.summary?.toSample())
+
+private fun SystemMetricsTemperatureSubscription.Summary.toSample(): TempSummarySample =
+    TempSummarySample(
+        average = average,
+        unit = hottest?.current?.unit?.toDomain() ?: TemperatureUnit.Unknown,
+        hottestName = hottest?.name,
+        hottestValue = hottest?.current?.value,
+        warningCount = warningCount,
+        criticalCount = criticalCount,
+    )
+
+private fun GetMetricsQuery.Summary.toSample(): TempSummarySample =
+    TempSummarySample(
+        average = average,
+        unit = hottest?.current?.unit?.toDomain() ?: TemperatureUnit.Unknown,
+        hottestName = hottest?.name,
+        hottestValue = hottest?.current?.value,
+        warningCount = warningCount,
+        criticalCount = criticalCount,
+    )
+
+private fun GTemperatureUnit.toDomain(): TemperatureUnit = when (this) {
+    GTemperatureUnit.CELSIUS    -> TemperatureUnit.Celsius
+    GTemperatureUnit.FAHRENHEIT -> TemperatureUnit.Fahrenheit
+    GTemperatureUnit.KELVIN     -> TemperatureUnit.Kelvin
+    GTemperatureUnit.RANKINE    -> TemperatureUnit.Rankine
+    else                        -> TemperatureUnit.Unknown // UNKNOWN__
+}
+
+// ── Docker container stats subscription ──────────────────────────────
+
+/** One frame = one container. Maps to a (id -> stats) pair for the overlay
+ *  accumulation. netIO/blockIO are intentionally dropped (out of scope —
+ *  the overlay shows cpu% + memory only). */
+fun DockerContainerStatsSubscription.Data.toContainerLiveStat(): Pair<String, ContainerLiveStats> =
+    dockerContainerStats.let { s ->
+        s.id to ContainerLiveStats(
+            cpuPercent = s.cpuPercent,
+            memPercent = s.memPercent,
+            memUsage = s.memUsage,
         )
     }
 
