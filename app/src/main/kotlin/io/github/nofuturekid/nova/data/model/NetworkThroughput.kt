@@ -27,3 +27,14 @@ fun selectThroughput(samples: List<IfaceSample>, primaryIface: String?): Network
         ?: samples.firstOrNull { it.iface != "lo" }
     return chosen?.let { NetworkThroughput(it.rxBytesPerSec, it.txBytesPerSec) } ?: NetworkThroughput.ZERO
 }
+
+/** Live per-container resource stats from the `dockerContainerStats`
+ *  subscription. [cpuPercent]/[memPercent] are the server's percentages;
+ *  [memUsage] is the server's already-formatted memory string (e.g.
+ *  "1.2GiB / 16GiB"). Accumulated by id into the overlay map — a container
+ *  with no frame yet simply has no entry (rows omit live stats, no zero noise). */
+data class ContainerLiveStats(
+    val cpuPercent: Double,
+    val memPercent: Double,
+    val memUsage: String,
+)
