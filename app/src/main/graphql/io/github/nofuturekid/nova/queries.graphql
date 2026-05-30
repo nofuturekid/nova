@@ -34,6 +34,17 @@ query GetMetrics {
     metrics {
         cpu { percentTotal }
         memory { total used buffcache }
+        temperature {
+            summary {
+                average
+                hottest {
+                    name
+                    current { value unit }
+                }
+                warningCount
+                criticalCount
+            }
+        }
     }
 }
 

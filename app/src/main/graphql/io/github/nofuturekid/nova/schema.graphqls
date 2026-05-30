@@ -136,6 +136,7 @@ type PluginInstallOperation {
 type Metrics {
     cpu: CpuUtilization
     memory: MemoryUtilization
+    temperature: TemperatureMetrics
 }
 
 type CpuUtilization {
@@ -448,6 +449,11 @@ type ParityCheckMutations {
 
 type Subscription {
     systemMetricsNetwork: NetworkUtilization!
+    systemMetricsCpu: CpuUtilization!
+    systemMetricsMemory: MemoryUtilization!
+    # Nullable on the live server (introspection 2026-05-30) — tolerate null frames.
+    systemMetricsTemperature: TemperatureMetrics
+    dockerContainerStats: DockerContainerStats!
 }
 
 type NetworkUtilization {
@@ -459,4 +465,41 @@ type NetworkInterfaceUtilization {
     iface: String
     rxBytesPerSec: Float
     txBytesPerSec: Float
+}
+
+type TemperatureMetrics {
+    summary: TemperatureSummary!
+}
+
+type TemperatureSummary {
+    average: Float!
+    hottest: TemperatureSensor!
+    warningCount: Int!
+    criticalCount: Int!
+}
+
+type TemperatureSensor {
+    name: String!
+    current: TemperatureReading!
+}
+
+type TemperatureReading {
+    value: Float!
+    unit: TemperatureUnit!
+}
+
+enum TemperatureUnit {
+    CELSIUS
+    FAHRENHEIT
+    KELVIN
+    RANKINE
+}
+
+type DockerContainerStats {
+    id: PrefixedID!
+    cpuPercent: Float!
+    memUsage: String!
+    memPercent: Float!
+    netIO: String!
+    blockIO: String!
 }
