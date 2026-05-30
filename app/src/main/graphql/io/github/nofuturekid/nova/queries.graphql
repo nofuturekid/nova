@@ -62,6 +62,10 @@ query GetNetworkThroughput {
     }
 }
 
+query GetDisplay {
+    display { hot max warning critical }
+}
+
 query GetArray {
     array {
         state

@@ -59,6 +59,8 @@ fun ArrayTab(
     onPauseParity: () -> Unit,
     onResumeParity: () -> Unit,
     onCancelParity: () -> Unit,
+    globalDiskWarnC: Int? = null,
+    globalDiskCritC: Int? = null,
 ) {
     when (state) {
         DomainState.Loading    -> LoadingState()
@@ -67,6 +69,7 @@ fun ArrayTab(
         is DomainState.Content -> ArrayContent(
             state.value, view, onStartArray, onStopArray,
             onStartParity, onPauseParity, onResumeParity, onCancelParity,
+            globalDiskWarnC, globalDiskCritC,
         )
     }
 }
@@ -81,6 +84,8 @@ private fun ArrayContent(
     onPauseParity: () -> Unit,
     onResumeParity: () -> Unit,
     onCancelParity: () -> Unit,
+    globalDiskWarnC: Int? = null,
+    globalDiskCritC: Int? = null,
 ) {
     val t = UnraidTheme.colors
     val arrayOn = arr.state != ArrayState.Stopped && arr.state != ArrayState.Offline
@@ -260,7 +265,7 @@ private fun ArrayContent(
             LayoutMode.List -> {
                 item { SectionLabel("Disks") }
                 items(arr.disks, key = { it.name }) { disk ->
-                    DiskCard(disk, errored = isErr(disk))
+                    DiskCard(disk, errored = isErr(disk), globalDiskWarnC = globalDiskWarnC, globalDiskCritC = globalDiskCritC)
                 }
             }
             LayoutMode.Grid -> {
@@ -269,7 +274,7 @@ private fun ArrayContent(
                     Row(horizontalArrangement = Arrangement.spacedBy(d.gap)) {
                         row.forEach { disk ->
                             Box(modifier = Modifier.weight(1f)) {
-                                DiskTile(disk, errored = isErr(disk))
+                                DiskTile(disk, errored = isErr(disk), globalDiskWarnC = globalDiskWarnC, globalDiskCritC = globalDiskCritC)
                             }
                         }
                         if (row.size == 1) Spacer(Modifier.weight(1f))
@@ -286,7 +291,7 @@ private fun ArrayContent(
                     if (disks.isNotEmpty()) {
                         item(key = "h-$label") { SectionLabel("$label · ${disks.size}") }
                         items(disks, key = { "$label-${it.name}" }) { disk ->
-                            DiskCard(disk, errored = isErr(disk))
+                            DiskCard(disk, errored = isErr(disk), globalDiskWarnC = globalDiskWarnC, globalDiskCritC = globalDiskCritC)
                         }
                     }
                 }
@@ -298,14 +303,14 @@ private fun ArrayContent(
 /** Compact disk tile for the Grid layout — type icon, name, temp/standby,
  *  usage bar (data/cache only). */
 @Composable
-private fun DiskTile(disk: Disk, errored: Boolean) {
+private fun DiskTile(disk: Disk, errored: Boolean, globalDiskWarnC: Int? = null, globalDiskCritC: Int? = null) {
     val t = UnraidTheme.colors
     val typeColor = when (disk.type) {
         DiskType.Parity -> Color(0xFFF59E0B)
         DiskType.Cache  -> Color(0xFFA78BFA)
         DiskType.Data   -> t.accent
     }
-    val level = disk.tempLevel()
+    val level = disk.tempLevel(globalDiskWarnC, globalDiskCritC)
     val tempColor = when (level) {
         DiskTempLevel.Danger  -> t.danger
         DiskTempLevel.Warn    -> t.warn
@@ -365,14 +370,14 @@ private fun DiskTile(disk: Disk, errored: Boolean) {
 }
 
 @Composable
-private fun DiskCard(disk: Disk, errored: Boolean) {
+private fun DiskCard(disk: Disk, errored: Boolean, globalDiskWarnC: Int? = null, globalDiskCritC: Int? = null) {
     val t = UnraidTheme.colors
     val typeColor = when (disk.type) {
         DiskType.Parity -> Color(0xFFF59E0B)
         DiskType.Cache  -> Color(0xFFA78BFA)
         DiskType.Data   -> t.accent
     }
-    val level = disk.tempLevel()
+    val level = disk.tempLevel(globalDiskWarnC, globalDiskCritC)
     val tempColor = when (level) {
         DiskTempLevel.Danger  -> t.danger
         DiskTempLevel.Warn    -> t.warn

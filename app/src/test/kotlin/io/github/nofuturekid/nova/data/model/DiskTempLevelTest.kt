@@ -11,9 +11,12 @@ import org.junit.Test
  * - A spun-down disk returns temp=null from the server (coalesced to tempC=0 by
  *   the mapper). Without isSpinning-gating the UI would show "0°" for a sleeping
  *   disk — the primary bug driving ADR-0045.
- * - Per-disk warning/critical thresholds from Unraid override the app defaults;
- *   a tighter threshold (e.g. warningC=40) must fire even when the fallback (42)
- *   would not. Verified server behaviour 2026-05-30.
+ * - Global display thresholds (from `display.hot` / `display.max`) prevent false
+ *   alarms: a 52 °C disk with global crit=60 must show Normal, not Danger vs the
+ *   hardcoded 50 °C fallback. This is the beta9 fix (ADR-0045 updated).
+ * - Per threshold, coalescing is independent: per-disk value if set, else global,
+ *   else hardcoded last-resort (42 warn / 50 crit). The beta8 "if EITHER per-disk
+ *   set, ignore the other" rule is removed.
  */
 class DiskTempLevelTest {
 
@@ -34,68 +37,119 @@ class DiskTempLevelTest {
         assertEquals(DiskTempLevel.Standby, disk.tempLevel())
     }
 
-    // ── Fallback (null) thresholds ────────────────────────────────────
+    @Test fun spinning_false_is_standby_with_global_thresholds() {
+        // WHY: global thresholds don't affect the standby branch.
+        val disk = disk(isSpinning = false, tempC = 80)
+        assertEquals(DiskTempLevel.Standby, disk.tempLevel(globalWarnC = 55, globalCritC = 60))
+    }
+
+    // ── Global display thresholds (the beta9 false-alarm fix) ─────────
+
+    @Test fun global_thresholds_prevent_false_danger_at_52() {
+        // WHY: the primary beta9 bug fix. A 52 °C disk with global crit=60 was
+        // wrongly shown as Danger because the hardcoded 50 °C fallback fired.
+        // With global thresholds threaded in, 52 < 55 (warn) → Normal.
+        val disk = disk(isSpinning = true, tempC = 52)
+        assertEquals(DiskTempLevel.Normal, disk.tempLevel(globalWarnC = 55, globalCritC = 60))
+    }
+
+    @Test fun global_thresholds_warn_at_56() {
+        // WHY: 56 >= 55 (global warn) → Warn; below crit (60) → not Danger.
+        val disk = disk(isSpinning = true, tempC = 56)
+        assertEquals(DiskTempLevel.Warn, disk.tempLevel(globalWarnC = 55, globalCritC = 60))
+    }
+
+    @Test fun global_thresholds_danger_at_61() {
+        // WHY: 61 >= 60 (global crit) → Danger.
+        val disk = disk(isSpinning = true, tempC = 61)
+        assertEquals(DiskTempLevel.Danger, disk.tempLevel(globalWarnC = 55, globalCritC = 60))
+    }
+
+    @Test fun global_thresholds_danger_at_exactly_60() {
+        // WHY: threshold is inclusive (>=).
+        val disk = disk(isSpinning = true, tempC = 60)
+        assertEquals(DiskTempLevel.Danger, disk.tempLevel(globalWarnC = 55, globalCritC = 60))
+    }
+
+    // ── Hardcoded fallback (no per-disk, no global) ───────────────────
 
     @Test fun spinning_cold_with_null_thresholds_is_normal() {
-        // WHY: a healthy cool spinning disk with no server-side thresholds configured
-        // must report Normal — no false alarms.
-        val disk = disk(isSpinning = true, tempC = 39, warningC = null, criticalC = null)
+        // WHY: a healthy cool spinning disk with no thresholds configured must
+        // report Normal — no false alarms.
+        val disk = disk(isSpinning = true, tempC = 39)
+        assertEquals(DiskTempLevel.Normal, disk.tempLevel())
+    }
+
+    @Test fun spinning_just_below_fallback_warn_is_normal() {
+        // WHY: 41 < 42 fallback warn threshold → Normal.
+        val disk = disk(isSpinning = true, tempC = 41)
         assertEquals(DiskTempLevel.Normal, disk.tempLevel())
     }
 
     @Test fun spinning_at_fallback_warn_threshold_is_warn() {
         // WHY: 42 °C is the app's default warning level. At exactly 42 with no
-        // per-disk thresholds, the result must be Warn, not Normal.
-        val disk = disk(isSpinning = true, tempC = 42, warningC = null, criticalC = null)
+        // thresholds configured anywhere, the result must be Warn, not Normal.
+        val disk = disk(isSpinning = true, tempC = 42)
         assertEquals(DiskTempLevel.Warn, disk.tempLevel())
     }
 
-    @Test fun spinning_above_fallback_danger_threshold_is_danger() {
-        // WHY: 50 °C is the app's default critical level (50+). The null-threshold
-        // fallback must still catch a clearly hot disk.
-        val disk = disk(isSpinning = true, tempC = 52, warningC = null, criticalC = null)
-        assertEquals(DiskTempLevel.Danger, disk.tempLevel())
-    }
-
-    @Test fun spinning_just_below_fallback_warn_is_normal() {
-        val disk = disk(isSpinning = true, tempC = 41, warningC = null, criticalC = null)
-        assertEquals(DiskTempLevel.Normal, disk.tempLevel())
-    }
-
     @Test fun spinning_at_fallback_danger_threshold_is_danger() {
-        val disk = disk(isSpinning = true, tempC = 50, warningC = null, criticalC = null)
+        // WHY: 50 °C is the app's default critical level (inclusive).
+        val disk = disk(isSpinning = true, tempC = 50)
         assertEquals(DiskTempLevel.Danger, disk.tempLevel())
     }
 
-    // ── Per-disk server thresholds ────────────────────────────────────
+    @Test fun spinning_above_fallback_danger_threshold_is_danger() {
+        // WHY: null global + null per-disk → fallback 50 crit. 52 > 50 → Danger.
+        val disk = disk(isSpinning = true, tempC = 52)
+        assertEquals(DiskTempLevel.Danger, disk.tempLevel())
+    }
+
+    // ── Per-disk thresholds + global coalescing ───────────────────────
+
+    @Test fun per_disk_crit_only_no_warn_uses_global_warn() {
+        // WHY: per-disk criticalC=50, no per-disk warningC, global(null,null).
+        // effWarn = null ?: null ?: 42 = 42.  49 >= 42 → Warn.
+        val disk = disk(isSpinning = true, tempC = 49, criticalC = 50)
+        assertEquals(DiskTempLevel.Warn, disk.tempLevel(globalWarnC = null, globalCritC = null))
+    }
+
+    @Test fun per_disk_crit_only_global_warn_55_normal_at_49() {
+        // WHY: per-disk criticalC=50, no per-disk warningC, global warn=55.
+        // effWarn = null ?: 55 = 55.  effCrit = 50 ?: null = 50.
+        // 49 < 50 (effCrit) and 49 < 55 (effWarn) → Normal.
+        val disk = disk(isSpinning = true, tempC = 49, criticalC = 50)
+        assertEquals(DiskTempLevel.Normal, disk.tempLevel(globalWarnC = 55, globalCritC = 60))
+    }
+
+    @Test fun per_disk_warn_wins_over_global() {
+        // WHY: per-disk warningC=45 is tighter than global warn=55; 46 >= 45 → Warn.
+        val disk = disk(isSpinning = true, tempC = 46, warningC = 45)
+        assertEquals(DiskTempLevel.Warn, disk.tempLevel(globalWarnC = 55, globalCritC = 60))
+    }
 
     @Test fun spinning_at_server_warning_threshold_is_warn() {
-        // WHY: Unraid lets admins configure tighter disk-level thresholds. When
-        // warningC=45 and tempC=46 the server threshold fires even though the
-        // app fallback (42) would also fire — the server value takes precedence
-        // and the result should be Warn (not Danger, since criticalC=55).
+        // WHY: warningC=45, criticalC=55; 46 >= 45 → Warn (not Danger).
         val disk = disk(isSpinning = true, tempC = 46, warningC = 45, criticalC = 55)
         assertEquals(DiskTempLevel.Warn, disk.tempLevel())
     }
 
     @Test fun spinning_at_server_critical_threshold_is_danger() {
-        // WHY: criticalC takes precedence over warningC.
+        // WHY: criticalC=55 takes precedence over warningC=45.
         val disk = disk(isSpinning = true, tempC = 55, warningC = 45, criticalC = 55)
         assertEquals(DiskTempLevel.Danger, disk.tempLevel())
     }
 
     @Test fun spinning_below_server_warning_threshold_is_normal() {
-        // WHY: the server threshold is tighter than the fallback; a disk at 41 °C
-        // with warningC=45 must be Normal (the app default of 42 must not fire
-        // when a per-disk threshold is present).
+        // WHY: warningC=45 is tighter than fallback (42); 41 < 45 → Normal.
         val disk = disk(isSpinning = true, tempC = 41, warningC = 45, criticalC = 55)
         assertEquals(DiskTempLevel.Normal, disk.tempLevel())
     }
 
-    @Test fun server_critical_only_no_warning_threshold() {
-        // WHY: criticalC can be set without warningC; below critical → Normal.
-        val disk = disk(isSpinning = true, tempC = 49, warningC = null, criticalC = 50)
-        assertEquals(DiskTempLevel.Normal, disk.tempLevel())
+    @Test fun server_critical_only_no_warning_threshold_no_global() {
+        // WHY: criticalC=50, no per-disk warn, no global → effWarn=42. 49 >= 42 → Warn.
+        val disk = disk(isSpinning = true, tempC = 49, criticalC = 50)
+        assertEquals(DiskTempLevel.Warn, disk.tempLevel())
     }
 
     // ── Builder ───────────────────────────────────────────────────────

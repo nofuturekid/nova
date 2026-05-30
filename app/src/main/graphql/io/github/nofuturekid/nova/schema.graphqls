@@ -39,6 +39,19 @@ type Query {
     installedUnraidPlugins: [String!]!
     plugins: [Plugin!]!
     pluginInstallOperations: [PluginInstallOperation!]!
+    display: InfoDisplay
+}
+
+# ── Display (global temperature thresholds) ──────────────────────────
+# Subset of the live Unraid `InfoDisplay` type (dynamix display settings).
+# hot/max are global disk warn/crit thresholds; warning/critical are CPU/system.
+# Verified against live server 2026-05-30: hot=55, max=60, warning=85, critical=95.
+# `unit` is intentionally NOT selected — no unit conversion in this beta.
+type InfoDisplay {
+    hot: Int
+    max: Int
+    warning: Int
+    critical: Int
 }
 
 # ── Notifications ────────────────────────────────────────────────────

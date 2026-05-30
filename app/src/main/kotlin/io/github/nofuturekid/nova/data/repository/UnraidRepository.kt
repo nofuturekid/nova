@@ -33,6 +33,7 @@ import io.github.nofuturekid.nova.data.api.cpuPercentTotal
 import io.github.nofuturekid.nova.data.api.toArrayInfo
 import io.github.nofuturekid.nova.data.api.toContainerLiveStat
 import io.github.nofuturekid.nova.data.api.toContainers
+import io.github.nofuturekid.nova.data.api.toDisplayThresholds
 import io.github.nofuturekid.nova.data.api.toLiveMetrics
 import io.github.nofuturekid.nova.data.api.toMemoryTriple
 import io.github.nofuturekid.nova.data.api.toTemperature
@@ -47,6 +48,7 @@ import io.github.nofuturekid.nova.data.model.ArrayInfo
 import io.github.nofuturekid.nova.data.model.ConnectionMode
 import io.github.nofuturekid.nova.data.model.Container
 import io.github.nofuturekid.nova.data.model.ContainerLiveStats
+import io.github.nofuturekid.nova.data.model.DisplayThresholds
 import io.github.nofuturekid.nova.data.model.LiveMetrics
 import io.github.nofuturekid.nova.data.model.NetworkThroughput
 import io.github.nofuturekid.nova.data.model.selectThroughput
@@ -68,6 +70,7 @@ import io.github.nofuturekid.nova.graphql.ArchiveNotificationMutation
 import io.github.nofuturekid.nova.graphql.DeleteArchivedNotificationsMutation
 import io.github.nofuturekid.nova.graphql.DeleteNotificationMutation
 import io.github.nofuturekid.nova.graphql.FetchContainerLogsQuery
+import io.github.nofuturekid.nova.graphql.GetDisplayQuery
 import io.github.nofuturekid.nova.graphql.GetNotificationListQuery
 import io.github.nofuturekid.nova.graphql.RecalculateNotificationOverviewMutation
 import io.github.nofuturekid.nova.graphql.UnreadNotificationMutation
@@ -435,6 +438,18 @@ class UnraidRepository @Inject constructor(
     fun infoStream(intervalMs: Long = POLL_INFO_MS): Flow<DomainState<ServerInfo>> =
         domainStream(intervalMs) { client, baseUrl ->
             fetch(client, GetServerInfoQuery()) { data -> data.toServerInfo() }.withBaseUrl(baseUrl)
+        }
+
+    /**
+     * Polls the global display (temperature threshold) settings.
+     *
+     * Display settings change rarely (only when the user edits dynamix config),
+     * so a 60 s cadence (same as info) is sufficient. Used by both the Overview
+     * temperature card (CPU thresholds) and the Array tab (disk thresholds).
+     */
+    fun displayStream(intervalMs: Long = POLL_INFO_MS): Flow<DomainState<DisplayThresholds>> =
+        domainStream(intervalMs) { client, baseUrl ->
+            fetch(client, GetDisplayQuery()) { data -> data.toDisplayThresholds() }.withBaseUrl(baseUrl)
         }
 
     fun metricsStream(intervalMs: Long = POLL_METRICS_MS): Flow<DomainState<LiveMetrics>> {

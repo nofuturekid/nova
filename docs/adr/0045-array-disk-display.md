@@ -1,6 +1,6 @@
 # ADR-0045: Array disk display — sleeping disks, per-disk thresholds, errors
 
-- **Status**: Accepted
+- **Status**: Accepted (updated beta9 — 2026-05-30)
 - **Date**: 2026-05-30
 - **Tags**: ui, array, data
 
@@ -10,6 +10,15 @@ Live-verified 2026-05-30: the Unraid server returns `temp = null` for a
 spun-down (sleeping) disk, and `isSpinning = false`. The existing `GetArray`
 poll did not select `isSpinning`, and the mapper coalesced `null → 0`, so
 sleeping disks displayed "0°" in the Array tab — a misleading health signal.
+
+**Beta9 update (2026-05-30):** a further bug was discovered: disk temperature
+coloring used hardcoded thresholds (42 °C warn / 50 °C crit) even though Unraid
+stores global thresholds in its dynamix display settings (`display.hot` / `display.max`
+for disks; `display.warning` / `display.critical` for CPU/system). A 52 °C disk
+with the user's global crit=60 was wrongly shown as Danger. The Overview CPU
+temperature card was similarly unaware of `display.warning` / `display.critical`.
+The beta8 "authoritative/no-mixing" rule (if either per-disk threshold is set,
+ignore the other) is **removed** in beta9 — see Decision 4 below.
 
 ## Decisions
 
@@ -40,9 +49,8 @@ The following fields are now selected and forwarded to the domain model:
 | critical    | Int     | criticalC     | null or ≤ 0 → null (unset)          |
 
 Per-disk temperature thresholds (warning/critical) take precedence over the
-app's global defaults (42 °C warn / 50 °C danger). The precedence logic lives
-in the pure `Disk.tempLevel()` extension (`DiskTempLevel` enum) so it can be
-unit-tested without Compose.
+app's global defaults. The precedence logic lives in the pure `Disk.tempLevel()`
+extension (`DiskTempLevel` enum) so it can be unit-tested without Compose.
 
 Disk errors (`numErrors > 0`) are shown as a `"N err"` danger pill on both
 the grid tile and the list row.
@@ -58,10 +66,51 @@ switching to the subscription. The array therefore deliberately remains on the
 5 s poll for this beta; the subscription path is available if the cadence
 changes upstream.
 
+### 4. Global display thresholds (beta9 — SUPERSEDES beta8 "authoritative/no-mixing" rule)
+
+Unraid stores global disk and CPU temperature thresholds in the dynamix display
+settings, exposed at `query { display { hot max warning critical } }`.
+Live-verified 2026-05-30: hot=55 (disk warn), max=60 (disk crit),
+warning=85 (CPU warn), critical=95 (CPU crit).
+
+The per-disk `ArrayDisk.warning` / `ArrayDisk.critical` fields are null on most
+servers (including spinning cache disks). Relying on hardcoded fallbacks (42/50)
+while ignoring the user's global config caused false alarms.
+
+**New threshold precedence (replaces the beta8 "if EITHER set, use only those"
+rule):** per threshold, coalesce independently:
+
+```
+effectiveWarn = disk.warningC  ?: globalDiskWarnC ?: 42
+effectiveCrit = disk.criticalC ?: globalDiskCritC ?: 50
+```
+
+where `globalDiskWarnC = display.hot`, `globalDiskCritC = display.max`.
+
+This means per-disk values win when set; global display values fill in for
+unset per-disk thresholds; the hardcoded 42/50 are a last resort only when
+neither per-disk nor global is available. The beta8 "authoritative/no-mixing"
+rule (if either per-disk threshold is set, ignore the fallback for the other)
+is **removed** — it caused incorrect results when only one per-disk threshold
+was configured.
+
+A new `GetDisplay` query (`query GetDisplay { display { hot max warning critical } }`)
+polls these settings every 60 s via `UnraidRepository.displayStream()`. The
+`DisplayThresholds` domain model carries the four nullable ints. The ViewModel
+exposes a `displayThresholds: StateFlow<DisplayThresholds?>` (null until first
+poll), gated on overview-or-array visibility.
+
+The Overview CPU temperature card accent color also switches to use
+`display.warning` / `display.critical` when available, falling back to the
+sensor-derived `Temperature.cpuWarning` / `Temperature.cpuCritical` flags when
+the display poll has not yet returned.
+
 ## Consequences
 
 - Sleeping disks no longer show "0°"; they show a moon icon + "Standby".
-- Per-disk Unraid thresholds drive temperature colour coding; the app defaults
-  (42 / 50 °C) remain as fallback for servers that have not configured them.
+- Disk temperature coloring uses the user's configured global thresholds
+  (display.hot/max) with per-disk overrides and a 42/50 last-resort fallback.
+- CPU temperature card accent uses display.warning/critical when available.
 - Disk errors are immediately visible without entering a detail view.
 - No subscription migration required for the array.
+- `unit` field intentionally NOT consumed — no unit conversion in this beta.

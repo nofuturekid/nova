@@ -29,9 +29,10 @@ enum class DiskStatus { Ok, Error }
  * be 0 in that case — **[isSpinning] is the truth source** for whether a
  * temperature is meaningful. Never display [tempC] when [isSpinning] is false.
  *
- * [warningC] / [criticalC] are per-disk thresholds set in Unraid. When EITHER
- * is set, those server values are authoritative; the app defaults (42 °C warn /
- * 50 °C critical) apply only when BOTH are null. See [tempLevel].
+ * [warningC] / [criticalC] are per-disk thresholds from Unraid config. Each is
+ * coalesced independently against the global [DisplayThresholds] and hardcoded
+ * last-resort values in [tempLevel] — per-disk wins when set, else global, else
+ * hardcoded (42 °C warn / 50 °C crit).
  */
 data class Disk(
     val name: String,
@@ -58,40 +59,52 @@ data class Disk(
 enum class DiskTempLevel { Standby, Normal, Warn, Danger }
 
 /**
- * Returns the [DiskTempLevel] for a disk.
+ * Returns the [DiskTempLevel] for a disk, incorporating global display thresholds.
  *
  * Rules (in priority order):
  * 1. Not spinning → [DiskTempLevel.Standby] — temp is meaningless.
- * 2. Either [criticalC] or [warningC] is set (server-configured thresholds are
- *    AUTHORITATIVE): evaluate only those; do NOT inject the app fallback for the
- *    unset one. Within this branch:
- *    a. [criticalC] set and [tempC] ≥ it → [DiskTempLevel.Danger].
- *    b. [warningC]  set and [tempC] ≥ it → [DiskTempLevel.Warn].
- *    c. Otherwise → [DiskTempLevel.Normal].
- * 3. BOTH thresholds null (no server config at all) — fall back to app defaults:
- *    ≥ 50 °C → Danger, ≥ 42 °C → Warn, otherwise Normal.
+ * 2. Per threshold, COALESCE independently:
+ *    - effectiveCrit = [criticalC] ?: [globalCritC] ?: 50
+ *    - effectiveWarn = [warningC]  ?: [globalWarnC] ?: 42
+ * 3. tempC ≥ effectiveCrit → Danger; tempC ≥ effectiveWarn → Warn; else Normal.
  *
- * WHY: sleeping disks return temp=null → tempC=0; that MUST NOT render as a
- * valid temperature (0°). When the server has configured EITHER threshold, those
- * are the operator's intent — mixing in the app 42/50 fallback for the unset
- * threshold would silently override that intent (e.g. a criticalC-only disk at
- * 49 °C below its critical limit must be Normal, not Warn via the fallback).
- * The 42/50 fallback applies ONLY when BOTH warningC and criticalC are null.
+ * WHY: Unraid stores GLOBAL disk thresholds in the dynamix display settings
+ * (`display.hot` = disk warn, `display.max` = disk crit). The per-disk
+ * `warning`/`critical` fields are null on most servers. Ignoring the global
+ * thresholds caused false alarms: a 52 °C disk with global crit=60 wrongly
+ * showed Danger against the hardcoded 50 °C fallback (ADR-0045 beta9 update).
+ *
+ * The beta8 "authoritative/no-mixing" rule (if EITHER per-disk set, ignore the
+ * other) is REMOVED. Simple coalescing is correct: per-disk wins when set, else
+ * global, else last-resort hardcoded value — never silently skip a level.
+ *
+ * @param globalWarnC global disk warning threshold from [DisplayThresholds.diskWarnC]; null if unavailable.
+ * @param globalCritC global disk critical threshold from [DisplayThresholds.diskCritC]; null if unavailable.
  */
-fun Disk.tempLevel(): DiskTempLevel = when {
-    !isSpinning -> DiskTempLevel.Standby
-    // Server-configured thresholds are authoritative — if EITHER is set, use only
-    // those; do not inject the app fallback for an unset one.
-    criticalC != null || warningC != null -> when {
-        criticalC != null && tempC >= criticalC -> DiskTempLevel.Danger
-        warningC  != null && tempC >= warningC  -> DiskTempLevel.Warn
-        else                                    -> DiskTempLevel.Normal
+fun Disk.tempLevel(globalWarnC: Int? = null, globalCritC: Int? = null): DiskTempLevel {
+    if (!isSpinning) return DiskTempLevel.Standby
+    val effCrit = criticalC ?: globalCritC ?: 50
+    val effWarn = warningC  ?: globalWarnC ?: 42
+    return when {
+        tempC >= effCrit -> DiskTempLevel.Danger
+        tempC >= effWarn -> DiskTempLevel.Warn
+        else             -> DiskTempLevel.Normal
     }
-    // No per-disk thresholds at all → app defaults.
-    tempC >= 50 -> DiskTempLevel.Danger
-    tempC >= 42 -> DiskTempLevel.Warn
-    else        -> DiskTempLevel.Normal
 }
+
+/**
+ * Global temperature thresholds from Unraid's dynamix display settings
+ * (`query { display { hot max warning critical } }`).
+ *
+ * Mapping: hot → [diskWarnC], max → [diskCritC], warning → [cpuWarnC], critical → [cpuCritC].
+ * All fields nullable — the server may not have them configured.
+ */
+data class DisplayThresholds(
+    val diskWarnC: Int?,
+    val diskCritC: Int?,
+    val cpuWarnC: Int?,
+    val cpuCritC: Int?,
+)
 
 data class ParityCheck(
     val progress: Float,        // 0..1
