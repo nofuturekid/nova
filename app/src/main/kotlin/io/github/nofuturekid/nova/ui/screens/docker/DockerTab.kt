@@ -41,6 +41,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import io.github.nofuturekid.nova.data.local.LayoutMode
 import io.github.nofuturekid.nova.data.model.Container
+import io.github.nofuturekid.nova.data.model.ContainerLiveStats
 import io.github.nofuturekid.nova.data.model.ContainerStatus
 import io.github.nofuturekid.nova.data.model.hasUpdate
 import io.github.nofuturekid.nova.data.repository.DomainState
@@ -54,6 +55,7 @@ import io.github.nofuturekid.nova.ui.components.UnraidIconButton
 import io.github.nofuturekid.nova.ui.screens.ErrorState
 import io.github.nofuturekid.nova.ui.screens.LoadingState
 import io.github.nofuturekid.nova.ui.screens.NoServerState
+import io.github.nofuturekid.nova.ui.screens.main.MainViewModel
 import io.github.nofuturekid.nova.ui.theme.UnraidAlpha
 import io.github.nofuturekid.nova.ui.theme.UnraidTheme
 
@@ -62,6 +64,7 @@ fun DockerTab(
     state: DomainState<List<Container>>,
     view: LayoutMode,
     onAddServer: () -> Unit,
+    stats: Map<String, ContainerLiveStats> = emptyMap(),
     onOpenContainer: (Container) -> Unit,
     onStart: (Container) -> Unit,
     onRestart: (Container) -> Unit,
@@ -76,6 +79,7 @@ fun DockerTab(
             containers = state.value,
             serverBaseUrl = state.serverBaseUrl,
             view = view,
+            stats = stats,
             onOpenContainer = onOpenContainer,
             onStart = onStart,
             onRestart = onRestart,
@@ -90,6 +94,7 @@ private fun DockerContent(
     containers: List<Container>,
     serverBaseUrl: String,
     view: LayoutMode,
+    stats: Map<String, ContainerLiveStats> = emptyMap(),
     onOpenContainer: (Container) -> Unit,
     onStart: (Container) -> Unit,
     onRestart: (Container) -> Unit,
@@ -102,6 +107,7 @@ private fun DockerContent(
             c.name.contains(query, ignoreCase = true) ||
             c.image.contains(query, ignoreCase = true)
     }
+    val rows = MainViewModel.joinContainerStats(filtered, stats)
     val updateCount = containers.count { it.updateStatus.hasUpdate() }
     val d = UnraidTheme.tokens
     when (view) {
@@ -114,8 +120,8 @@ private fun DockerContent(
         ) {
             if (updateCount > 0) item { UpdateAllBanner(updateCount, onUpdateAll) }
             item { SearchBox(query, { query = it }) }
-            items(filtered, key = { it.id }) { c ->
-                ContainerRow(c, serverBaseUrl, onOpenContainer, onStart, onRestart, onStop)
+            items(rows, key = { it.first.id }) { (c, live) ->
+                ContainerRow(c, serverBaseUrl, live, onOpenContainer, onStart, onRestart, onStop)
             }
         }
         LayoutMode.Grid -> LazyVerticalGrid(
@@ -136,9 +142,9 @@ private fun DockerContent(
             }
         }
         LayoutMode.Grouped -> {
-            val running = filtered.filter { it.status == ContainerStatus.Running }
-            val paused  = filtered.filter { it.status == ContainerStatus.Paused }
-            val exited  = filtered.filter { it.status == ContainerStatus.Exited }
+            val running = rows.filter { it.first.status == ContainerStatus.Running }
+            val paused  = rows.filter { it.first.status == ContainerStatus.Paused }
+            val exited  = rows.filter { it.first.status == ContainerStatus.Exited }
             LazyColumn(
                 modifier = Modifier.fillMaxWidth(),
                 contentPadding = androidx.compose.foundation.layout.PaddingValues(
@@ -150,20 +156,20 @@ private fun DockerContent(
                 item { SearchBox(query, { query = it }) }
                 if (running.isNotEmpty()) {
                     item { SectionLabel("Running · ${running.size}") }
-                    items(running, key = { "r-${it.id}" }) { c ->
-                        ContainerRow(c, serverBaseUrl, onOpenContainer, onStart, onRestart, onStop)
+                    items(running, key = { "r-${it.first.id}" }) { (c, live) ->
+                        ContainerRow(c, serverBaseUrl, live, onOpenContainer, onStart, onRestart, onStop)
                     }
                 }
                 if (paused.isNotEmpty()) {
                     item { SectionLabel("Paused · ${paused.size}") }
-                    items(paused, key = { "p-${it.id}" }) { c ->
-                        ContainerRow(c, serverBaseUrl, onOpenContainer, onStart, onRestart, onStop)
+                    items(paused, key = { "p-${it.first.id}" }) { (c, live) ->
+                        ContainerRow(c, serverBaseUrl, live, onOpenContainer, onStart, onRestart, onStop)
                     }
                 }
                 if (exited.isNotEmpty()) {
                     item { SectionLabel("Stopped · ${exited.size}") }
-                    items(exited, key = { "x-${it.id}" }) { c ->
-                        ContainerRow(c, serverBaseUrl, onOpenContainer, onStart, onRestart, onStop)
+                    items(exited, key = { "x-${it.first.id}" }) { (c, live) ->
+                        ContainerRow(c, serverBaseUrl, live, onOpenContainer, onStart, onRestart, onStop)
                     }
                 }
             }
@@ -239,6 +245,7 @@ private fun SearchBox(value: String, onChange: (String) -> Unit) {
 private fun ContainerRow(
     c: Container,
     serverBaseUrl: String,
+    liveStats: ContainerLiveStats?,
     onOpen: (Container) -> Unit,
     onStart: (Container) -> Unit,
     onRestart: (Container) -> Unit,
@@ -277,6 +284,19 @@ private fun ContainerRow(
                     Pill(statusLabel, tone = tone, dot = true)
                     if (c.updateStatus.hasUpdate()) {
                         Pill("update", tone = Tone.Info, dot = true)
+                    }
+                }
+                if (liveStats != null && c.status == ContainerStatus.Running) {
+                    Spacer(Modifier.height(3.dp))
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    ) {
+                        Text("%.1f%% CPU".format(liveStats.cpuPercent),
+                            color = t.muted, style = MaterialTheme.typography.labelSmall)
+                        Text(liveStats.memUsage,
+                            color = t.muted, style = MaterialTheme.typography.labelSmall,
+                            maxLines = 1, overflow = TextOverflow.Ellipsis)
                     }
                 }
             }
