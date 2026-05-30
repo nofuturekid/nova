@@ -62,13 +62,15 @@ data class TempSummarySample(
  */
 fun toTemperature(sample: TempSummarySample?): Temperature {
     val avg = sample?.average ?: return Temperature.UNKNOWN
-    return Temperature(
-        available = true,
-        average = avg,
-        unit = sample.unit,
-        hottestName = sample.hottestName.orEmpty(),
-        hottestValue = sample.hottestValue ?: 0.0,
-        warningCount = sample.warningCount ?: 0,
-        criticalCount = sample.criticalCount ?: 0,
-    )
+    return sample!!.let {
+        Temperature(
+            available = true,
+            average = avg,
+            unit = it.unit,
+            hottestName = it.hottestName.orEmpty(),
+            hottestValue = it.hottestValue ?: 0.0,
+            warningCount = it.warningCount ?: 0,
+            criticalCount = it.criticalCount ?: 0,
+        )
+    }
 }
