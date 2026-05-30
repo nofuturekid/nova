@@ -367,14 +367,16 @@ private fun InfoTabContent(c: Container, liveStats: ContainerLiveStats?) {
                         modifier = Modifier.weight(1f),
                     )
                 }
+                // netIO / blockIO are cumulative Docker counters since container
+                // start, not live rates — the server exposes no per-container rate.
                 Row(horizontalArrangement = Arrangement.spacedBy(14.dp)) {
                     StatBlock(
-                        label = "Network",
+                        label = "Network (total)",
                         value = live?.netIO ?: "—",
                         modifier = Modifier.weight(1f),
                     )
                     StatBlock(
-                        label = "Disk I/O",
+                        label = "Disk I/O (total)",
                         value = live?.blockIO ?: "—",
                         modifier = Modifier.weight(1f),
                     )

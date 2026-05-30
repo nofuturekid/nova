@@ -31,9 +31,10 @@ fun selectThroughput(samples: List<IfaceSample>, primaryIface: String?): Network
 /** Live per-container resource stats from the `dockerContainerStats`
  *  subscription. [cpuPercent]/[memPercent] are the server's percentages;
  *  [memUsage]/[netIO]/[blockIO] are the server's already-formatted strings
- *  ("used / limit", "RX / TX", "read / write"). Accumulated by id into the
- *  overlay map — a container with no frame yet simply has no entry (rows omit
- *  live stats, no zero noise). */
+ *  ("used / limit", "RX / TX", "read / write"). [netIO] and [blockIO] are
+ *  cumulative totals since container start, not live rates. Accumulated by
+ *  id into the overlay map — a container with no frame yet simply has no
+ *  entry (rows omit live stats, no zero noise). */
 data class ContainerLiveStats(
     val cpuPercent: Double,
     val memPercent: Double,
