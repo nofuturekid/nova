@@ -15,6 +15,11 @@ release version + date and opens a fresh `[Unreleased]`.
 
 ## [Unreleased]
 
+## [0.1.40-beta7] - 2026-05-30
+
+### Changed
+- The container detail view now labels Network and Disk I/O as running totals (they are cumulative since the container started, not live rates).
+
 ## [0.1.40-beta6] - 2026-05-30
 
 ### Fixed
