@@ -20,6 +20,7 @@ import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.emptyFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
@@ -30,12 +31,14 @@ import io.github.nofuturekid.nova.data.model.ArrayInfo
 import io.github.nofuturekid.nova.data.model.ConnectionMode
 import io.github.nofuturekid.nova.data.model.NotifType
 import io.github.nofuturekid.nova.data.model.Container
+import io.github.nofuturekid.nova.data.model.ContainerLiveStats
 import io.github.nofuturekid.nova.data.model.InstallState
 import io.github.nofuturekid.nova.data.model.LiveMetrics
 import io.github.nofuturekid.nova.data.model.NetworkThroughput
 import io.github.nofuturekid.nova.data.model.Notifications
 import io.github.nofuturekid.nova.data.model.Server
 import io.github.nofuturekid.nova.data.model.ServerInfo
+import io.github.nofuturekid.nova.data.model.Temperature
 import io.github.nofuturekid.nova.data.model.UpdateInfo
 import io.github.nofuturekid.nova.data.model.UpdateState
 import io.github.nofuturekid.nova.data.model.Vm
@@ -218,11 +221,26 @@ class MainViewModel @Inject constructor(
     val networkThroughputState: StateFlow<DomainState<NetworkThroughput>> =
         gatedStream(overviewOnly(), unraid.networkThroughputStream())
 
+    val temperatureState: StateFlow<DomainState<Temperature>> =
+        gatedStream(overviewOnly(), unraid.temperatureStream())
+
     val arrayState: StateFlow<DomainState<ArrayInfo>> =
         gatedStream(overviewOr(MainTab.Array), unraid.arrayStream())
 
     val dockerState: StateFlow<DomainState<List<Container>>> =
         gatedStream(dockerGate(), unraid.dockerStream())
+
+    val dockerStatsState: StateFlow<DomainState<Map<String, ContainerLiveStats>>> =
+        gatedStream(dockerGate(), unraid.dockerStatsStream())
+
+    /** The live per-container overlay, unwrapped to a plain map for the Docker UI
+     *  (empty unless dockerStatsState is Content). DockerContent overlays this
+     *  onto the polled container list via [joinContainerStats]. Kept SEPARATE from
+     *  [dockerState] so the poll transport stays byte-identical (spec §C). */
+    val dockerLiveStats: StateFlow<Map<String, ContainerLiveStats>> =
+        dockerStatsState
+            .map { (it as? DomainState.Content)?.value.orEmpty() }
+            .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyMap())
 
     val vmsState: StateFlow<DomainState<List<Vm>>> =
         gatedStream(overviewOr(MainTab.Vms), unraid.vmsStream())
@@ -480,5 +498,21 @@ class MainViewModel @Inject constructor(
             } else {
                 state
             }
+
+        /**
+         * Overlay live per-container [stats] onto the polled [containers] BY ID,
+         * WITHOUT mutating [Container] (keeps the poll and WS transports decoupled,
+         * spec §C). A LEFT join: every polled container is kept in its original order;
+         * a container with no stats frame yet (or after a WS failure) gets `null`
+         * stats so the row simply omits live numbers (no zero noise). The stats map's
+         * own iteration order is irrelevant — output order is the polled list's order.
+         * Called by DockerContent over [dockerLiveStats]; unit-tested in
+         * ContainerStatsJoinTest.
+         */
+        fun joinContainerStats(
+            containers: List<Container>,
+            stats: Map<String, ContainerLiveStats>,
+        ): List<Pair<Container, ContainerLiveStats?>> =
+            containers.map { c -> c to stats[c.id] }
     }
 }
