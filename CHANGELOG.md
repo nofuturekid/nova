@@ -15,6 +15,11 @@ release version + date and opens a fresh `[Unreleased]`.
 
 ## [Unreleased]
 
+## [0.1.40-beta5] - 2026-05-30
+
+### Changed
+- The live network card now keeps updating via a periodic refresh if the real-time connection drops, instead of showing unavailable.
+
 ## [0.1.40-beta4] - 2026-05-30
 
 ### Changed

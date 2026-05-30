@@ -137,6 +137,7 @@ type Metrics {
     cpu: CpuUtilization
     memory: MemoryUtilization
     temperature: TemperatureMetrics
+    network: NetworkUtilization
 }
 
 type CpuUtilization {
