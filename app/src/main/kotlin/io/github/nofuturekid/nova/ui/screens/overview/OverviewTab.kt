@@ -33,6 +33,8 @@ import io.github.nofuturekid.nova.data.model.LiveMetrics
 import io.github.nofuturekid.nova.data.model.NetworkThroughput
 import io.github.nofuturekid.nova.data.model.Server
 import io.github.nofuturekid.nova.data.model.ServerInfo
+import io.github.nofuturekid.nova.data.model.Temperature
+import io.github.nofuturekid.nova.data.model.TemperatureUnit
 import io.github.nofuturekid.nova.data.model.Vm
 import io.github.nofuturekid.nova.data.model.VmState
 import io.github.nofuturekid.nova.data.repository.DomainState
@@ -69,6 +71,7 @@ fun OverviewTab(
     server: Server?,
     onAddServer: () -> Unit,
     networkThroughput: NetworkThroughput? = null,
+    temperature: Temperature? = null,
 ) {
     // Any single NoServer → no server picked.
     if (infoState is DomainState.NoServer || metricsState is DomainState.NoServer ||
@@ -97,7 +100,7 @@ fun OverviewTab(
         return
     }
 
-    OverviewContent(info, metrics, array, containers, vms, server, networkThroughput)
+    OverviewContent(info, metrics, array, containers, vms, server, networkThroughput, temperature)
 }
 
 @Composable
@@ -109,6 +112,7 @@ private fun OverviewContent(
     vms: List<Vm>?,
     server: Server?,
     networkThroughput: NetworkThroughput? = null,
+    temperature: Temperature? = null,
 ) {
     val t = UnraidTheme.colors
 
@@ -129,6 +133,7 @@ private fun OverviewContent(
         mutableStateOf(List(40) { pct })
     }
     val netSeries = remember { mutableStateOf(List(40) { 0f }) }
+    val tempSeries = remember { mutableStateOf(List(40) { 0f }) }
 
     // Key on metrics only: a 60 s info poll can change memTotalGb without a
     // new metrics sample — keying on it too injected a spurious sparkline tick.
@@ -141,6 +146,10 @@ private fun OverviewContent(
         val total = ((networkThroughput?.rxBytesPerSec ?: 0.0) +
                      (networkThroughput?.txBytesPerSec ?: 0.0)).toFloat()
         netSeries.value = netSeries.value.drop(1) + total
+    }
+    LaunchedEffect(temperature) {
+        val v = temperature?.takeIf { it.available }?.average?.toFloat() ?: 0f
+        tempSeries.value = tempSeries.value.drop(1) + v
     }
 
     val arrTotalTb = array?.totalTb ?: 0.0
@@ -281,6 +290,34 @@ private fun OverviewContent(
                 max = null,
             )
         }
+        item {
+            val temp = temperature?.takeIf { it.available }
+            val accent = when {
+                temp == null -> t.muted
+                temp.criticalCount > 0 -> t.danger   // M3 error role
+                temp.warningCount > 0 -> t.warn
+                else -> t.accent
+            }
+            StatCard(
+                iconColor = t.muted,
+                icon = { UC.Thermo(18.dp, t.muted) },
+                label = "Temperature",
+                value = temp?.let { "%.0f%s".format(it.average, unitSymbol(it.unit)) } ?: "—",
+                sub = temp?.let {
+                    val counts = listOfNotNull(
+                        if (it.criticalCount > 0) "${it.criticalCount} critical" else null,
+                        if (it.warningCount > 0) "${it.warningCount} warning" else null,
+                    ).joinToString(" · ")
+                    val hottest = if (it.hottestName.isNotEmpty())
+                        "${it.hottestName} ${"%.0f".format(it.hottestValue)}${unitSymbol(it.unit)}" else ""
+                    listOf(hottest, counts).filter { s -> s.isNotEmpty() }.joinToString("  ·  ")
+                        .ifEmpty { "all normal" }
+                } ?: "live unavailable",
+                series = tempSeries.value,
+                seriesColor = accent,
+                max = null,
+            )
+        }
 
         item {
             Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
@@ -383,6 +420,14 @@ private fun StatCard(
             Text(sub, color = t.muted, style = MaterialTheme.typography.bodySmall, modifier = Modifier.padding(top = 4.dp))
         }
     }
+}
+
+private fun unitSymbol(unit: TemperatureUnit): String = when (unit) {
+    TemperatureUnit.Celsius    -> "°C"
+    TemperatureUnit.Fahrenheit -> "°F"
+    TemperatureUnit.Kelvin     -> "K"
+    TemperatureUnit.Rankine    -> "°R"
+    TemperatureUnit.Unknown    -> ""
 }
 
 @Composable

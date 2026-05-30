@@ -10,20 +10,32 @@ import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.asFlow
+import kotlinx.coroutines.flow.channelFlow
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.scan
+import kotlinx.coroutines.flow.transformLatest
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.withTimeoutOrNull
 import io.github.nofuturekid.nova.data.api.ApolloClientFactory
 import io.github.nofuturekid.nova.data.api.CertIssue
 import io.github.nofuturekid.nova.data.api.TlsTrust
 import io.github.nofuturekid.nova.data.api.certIssue
 import io.github.nofuturekid.nova.data.local.ApiKeyResult
+import io.github.nofuturekid.nova.data.api.combineLiveMetrics
+import io.github.nofuturekid.nova.data.api.cpuPercentTotal
 import io.github.nofuturekid.nova.data.api.toArrayInfo
+import io.github.nofuturekid.nova.data.api.toContainerLiveStat
 import io.github.nofuturekid.nova.data.api.toContainers
 import io.github.nofuturekid.nova.data.api.toLiveMetrics
+import io.github.nofuturekid.nova.data.api.toMemoryTriple
+import io.github.nofuturekid.nova.data.api.toTemperature
 import io.github.nofuturekid.nova.data.api.toNetworkInterfaces
 import io.github.nofuturekid.nova.data.api.toNotifications
 import io.github.nofuturekid.nova.data.api.toPluginOperations
@@ -34,6 +46,7 @@ import io.github.nofuturekid.nova.data.api.toIfaceSamples
 import io.github.nofuturekid.nova.data.model.ArrayInfo
 import io.github.nofuturekid.nova.data.model.ConnectionMode
 import io.github.nofuturekid.nova.data.model.Container
+import io.github.nofuturekid.nova.data.model.ContainerLiveStats
 import io.github.nofuturekid.nova.data.model.LiveMetrics
 import io.github.nofuturekid.nova.data.model.NetworkThroughput
 import io.github.nofuturekid.nova.data.model.selectThroughput
@@ -43,8 +56,13 @@ import io.github.nofuturekid.nova.data.model.Notifications
 import io.github.nofuturekid.nova.data.model.Plugin
 import io.github.nofuturekid.nova.data.model.PluginInstallOperation
 import io.github.nofuturekid.nova.data.model.ServerInfo
+import io.github.nofuturekid.nova.data.model.Temperature
 import io.github.nofuturekid.nova.data.model.Vm
+import io.github.nofuturekid.nova.graphql.DockerContainerStatsSubscription
+import io.github.nofuturekid.nova.graphql.SystemMetricsCpuSubscription
+import io.github.nofuturekid.nova.graphql.SystemMetricsMemorySubscription
 import io.github.nofuturekid.nova.graphql.SystemMetricsNetworkSubscription
+import io.github.nofuturekid.nova.graphql.SystemMetricsTemperatureSubscription
 import io.github.nofuturekid.nova.graphql.ArchiveAllNotificationsMutation
 import io.github.nofuturekid.nova.graphql.ArchiveNotificationMutation
 import io.github.nofuturekid.nova.graphql.DeleteArchivedNotificationsMutation
@@ -108,6 +126,18 @@ class UnraidRepository @Inject constructor(
 
         /** Consecutive poll failures before the UI drops to an Error state. */
         const val TRANSIENT_ERROR_TOLERANCE = 3
+
+        /**
+         * Grace window before [subscriptionOrPoll] degrades a live subscription to
+         * its HTTP poll fallback. Chosen at 3x [POLL_METRICS_MS] (6 s): long enough
+         * that a single missed ~1 Hz frame, a brief WS reconnect, or one jittery
+         * delivery does NOT yank the card onto the poll path (that would defeat the
+         * live update); short enough that a genuine sustained WS outage degrades to
+         * the poll within ~6 s, well under the user's annoyance threshold and never
+         * leaving a blank card (ADR-0026). If [POLL_METRICS_MS] ever changes, revisit
+         * this 3-cycle ratio.
+         */
+        const val SUB_FALLBACK_GRACE_MS = 6_000L
 
         /**
          * The transient-error-tolerant poll loop, factored out so it has
@@ -219,6 +249,139 @@ class UnraidRepository @Inject constructor(
             kotlinx.coroutines.flow.flow {
                 for (f in frames) emit(DomainState.Content(map(f), baseUrl))
             }
+
+        /**
+         * Test-only seam for the cpu+mem combine -> LiveMetrics path (mirrors
+         * [subscriptionStreamForTest]). Drives the SAME `combine` + [combineMetricsStates]
+         * the production [liveMetricsStream] uses, over per-domain [DomainState] legs,
+         * so a unit test pins BOTH the documented Content-only-when-both-Content
+         * behaviour AND the NoServer/Error/Loading precedence fold (Rule 9) without
+         * Apollo or a live WS. Same-module `internal`.
+         */
+        internal fun metricsCombineForTest(
+            cpuFrames: List<DomainState<Double>>,
+            memFrames: List<DomainState<Triple<Long, Long, Long?>>>,
+        ): kotlinx.coroutines.flow.Flow<DomainState<LiveMetrics>> =
+            combine(cpuFrames.asFlow(), memFrames.asFlow()) { c, m -> combineMetricsStates(c, m) }
+
+        /**
+         * The cpu%+mem-triple -> LiveMetrics DomainState fold, as a companion function
+         * so both production [liveMetricsStream] and [metricsCombineForTest] call the
+         * SAME body (no drift). NoServer on either leg dominates; otherwise the first
+         * Error surfaces; Content only when BOTH legs are Content AND their server
+         * URLs match (a cross-server pairing during a switch must not emit a Content
+         * tagged with one leg's stale URL); anything else is Loading.
+         */
+        internal fun combineMetricsStates(
+            cpu: DomainState<Double>,
+            mem: DomainState<Triple<Long, Long, Long?>>,
+        ): DomainState<LiveMetrics> = when {
+            cpu is DomainState.NoServer || mem is DomainState.NoServer -> DomainState.NoServer
+            cpu is DomainState.Error -> cpu
+            mem is DomainState.Error -> mem
+            cpu is DomainState.Content && mem is DomainState.Content && cpu.serverBaseUrl == mem.serverBaseUrl ->
+                DomainState.Content(
+                    combineLiveMetrics(cpu.value, mem.value.first, mem.value.second, mem.value.third),
+                    cpu.serverBaseUrl,
+                )
+            else -> DomainState.Loading
+        }
+
+        /**
+         * Pure frame-accumulation seam for the docker-stats overlay. Each frame
+         * carries ONE container (id + stats); the overlay is the GROWING map across
+         * frames (update/insert by id). Folded as an IMMUTABLE copy per step
+         * (`acc + (id to stats)`) so every emission is a distinct map instance — a
+         * shared MutableMap would make StateFlow/Compose miss updates. Returns the
+         * running snapshots (one per frame), oldest first.
+         */
+        internal fun accumulateStats(
+            frames: List<Pair<String, ContainerLiveStats>>,
+        ): List<Map<String, ContainerLiveStats>> {
+            val snapshots = mutableListOf<Map<String, ContainerLiveStats>>()
+            var acc = emptyMap<String, ContainerLiveStats>()
+            for ((id, stats) in frames) {
+                acc = acc + (id to stats)
+                snapshots += acc
+            }
+            return snapshots
+        }
+
+        /**
+         * Test-only seam mirroring [subscriptionStreamForTest] for the docker-stats
+         * accumulation. Emits one [DomainState.Content] per accumulated snapshot,
+         * tagged with [baseUrl], then completes. Drives the SAME [accumulateStats]
+         * the production [dockerStatsStream] uses.
+         */
+        internal fun dockerStatsStreamForTest(
+            baseUrl: String,
+            frames: List<Pair<String, ContainerLiveStats>>,
+        ): kotlinx.coroutines.flow.Flow<DomainState<Map<String, ContainerLiveStats>>> =
+            kotlinx.coroutines.flow.flow {
+                for (snapshot in accumulateStats(frames)) emit(DomainState.Content(snapshot, baseUrl))
+            }
+
+        /**
+         * Generic subscription-with-poll-fallback combinator (ADR-0026 / ADR-0043).
+         *
+         * [sub] is primary: its [DomainState.Content] frames are forwarded as-is, and
+         * [DomainState.NoServer] is forwarded immediately (no server at all — never
+         * worth burning the grace window on a poll that also has no server). The
+         * stream degrades to [poll] when the sub yields a [DomainState.Error] (or
+         * [DomainState.Loading], or no first frame) held continuously for [graceMs].
+         * It returns to [sub] the instant the sub recovers a [DomainState.Content]
+         * frame — that recovered frame is emitted directly. [poll] is collected ONLY
+         * while in the fallback state — never while the sub is healthy (no
+         * double-collect: the HTTP poll must not run alongside a working WS).
+         *
+         * This is the NEW substrate capability over ADR-0042's bare
+         * [subscriptionStream] (the network balloon had no query path, so no
+         * fallback). It is a pure [DomainState] combinator — no Apollo types, no live
+         * WS — so the unit test drives this exact production body on the virtual
+         * scheduler (Rule 9), with [graceMs] timed by suspending primitives only (no
+         * wall-clock) for determinism.
+         *
+         * `internal` (same-module), not `private`, mirroring the
+         * [pollDomainForTest] / [subscriptionStreamForTest] seam convention so the
+         * test reaches it without a repository instance.
+         */
+        internal fun <T> subscriptionOrPoll(
+            sub: Flow<DomainState<T>>,
+            poll: Flow<DomainState<T>>,
+            graceMs: Long = SUB_FALLBACK_GRACE_MS,
+        ): Flow<DomainState<T>> = channelFlow {
+            // Latest sub state; null until the sub's first frame. A child coroutine
+            // keeps this fresh while the main body decides routing.
+            val subState = MutableStateFlow<DomainState<T>?>(null)
+            launch { sub.collect { subState.value = it } }
+
+            // Route on the latest sub state. transformLatest cancels the prior branch
+            // whenever subState changes: a fresh sub Content cancels any in-flight
+            // poll collection (recovery), and an Error/null branch is replaced the
+            // moment a new state arrives.
+            subState.transformLatest { latest ->
+                when (latest) {
+                    is DomainState.Content<T> -> emit(latest)        // healthy: poll NOT collected
+                    DomainState.NoServer -> emit(DomainState.NoServer) // no server: immediate passthrough
+                    else -> {
+                        // null (no first Content yet), Error, or Loading: wait out the
+                        // grace window for a Content to (re)appear. On recovery, emit
+                        // that Content DIRECTLY (do not rely on a transformLatest
+                        // re-fire — that can drop the frame). On grace expiry, degrade
+                        // to poll; collecting inside this lambda means the poll is
+                        // cancelled the instant subState changes back to Content.
+                        val recovered = withTimeoutOrNull(graceMs) {
+                            subState.first { it is DomainState.Content<T> }
+                        }
+                        if (recovered != null) {
+                            emit(recovered)
+                        } else {
+                            poll.collect { emit(it) }
+                        }
+                    }
+                }
+            }.collect { send(it) }
+        }
     }
 
     /**
@@ -273,10 +436,12 @@ class UnraidRepository @Inject constructor(
             fetch(client, GetServerInfoQuery()) { data -> data.toServerInfo() }.withBaseUrl(baseUrl)
         }
 
-    fun metricsStream(intervalMs: Long = POLL_METRICS_MS): Flow<DomainState<LiveMetrics>> =
-        domainStream(intervalMs) { client, baseUrl ->
+    fun metricsStream(intervalMs: Long = POLL_METRICS_MS): Flow<DomainState<LiveMetrics>> {
+        val poll = domainStream(intervalMs) { client, baseUrl ->
             fetch(client, GetMetricsQuery()) { data -> data.toLiveMetrics() }.withBaseUrl(baseUrl)
         }
+        return subscriptionOrPoll(liveMetricsStream(), poll, SUB_FALLBACK_GRACE_MS)
+    }
 
     fun arrayStream(intervalMs: Long = POLL_ARRAY_MS): Flow<DomainState<ArrayInfo>> =
         domainStream(intervalMs) { client, baseUrl ->
@@ -434,6 +599,78 @@ class UnraidRepository @Inject constructor(
     private suspend fun resolvePrimaryIface(): String? =
         activeClient()?.query(GetNetworkInterfacesQuery())?.execute()
             ?.data?.info?.primaryNetwork?.name
+
+    /**
+     * Live CPU+memory from the `systemMetricsCpu` + `systemMetricsMemory`
+     * subscriptions, combined into the existing [LiveMetrics] model so both
+     * Overview cards and [metricsStream]'s consumers stay unchanged. Each inner
+     * [subscriptionStream] keys on the active server and tags Content with the
+     * base URL; [combine] re-evaluates [combineMetricsStates] on every leg
+     * emission, which yields Content only when BOTH legs are Content with the
+     * SAME server URL (no half-populated, no cross-server card). Used as the
+     * PRIMARY transport by [metricsStream], with the GetMetrics poll as the
+     * [subscriptionOrPoll] fallback.
+     */
+    private fun liveMetricsStream(): Flow<DomainState<LiveMetrics>> {
+        val cpu = subscriptionStream(SystemMetricsCpuSubscription()) { it.cpuPercentTotal() }
+        val mem = subscriptionStream(SystemMetricsMemorySubscription()) { it.toMemoryTriple() }
+        return combine(cpu, mem) { c, m -> combineMetricsStates(c, m) }
+    }
+
+    /**
+     * Live temperature from `systemMetricsTemperature` with a poll fallback.
+     *
+     * Unlike [networkThroughputStream] (no query path → no fallback), temperature
+     * IS exposed by the `GetMetrics` query, so ADR-0026 mandates a fallback: the
+     * subscription is primary and degrades to the 2 s `GetMetrics` poll on
+     * sustained WS failure (or if no first frame arrives within the grace window),
+     * returning to the subscription when it recovers — so the card never goes
+     * blank on a transient WS drop. The nullable root is tolerated by
+     * [toTemperature] on both paths. Gated by the caller via [gatedStream].
+     */
+    fun temperatureStream(): Flow<DomainState<Temperature>> =
+        subscriptionOrPoll(
+            sub = subscriptionStream(SystemMetricsTemperatureSubscription()) { it.toTemperature() },
+            poll = metricsTemperaturePoll(),
+            graceMs = SUB_FALLBACK_GRACE_MS,
+        )
+
+    private fun metricsTemperaturePoll(intervalMs: Long = POLL_METRICS_MS): Flow<DomainState<Temperature>> =
+        domainStream(intervalMs) { client, baseUrl ->
+            fetch(client, GetMetricsQuery()) { data -> data.toTemperature() }.withBaseUrl(baseUrl)
+        }
+
+    /**
+     * Live per-container stats from the `dockerContainerStats` subscription.
+     *
+     * Each frame carries ONE container (id + stats). We ACCUMULATE frames into a
+     * growing immutable `Map<containerId, ContainerLiveStats>` (update/insert by
+     * id) and emit the growing map — the same accumulation pinned by
+     * [accumulateStats]/[dockerStatsStreamForTest]. There is NO poll fallback:
+     * the DockerContainer query exposes no stats fields, so on WS failure the
+     * overlay simply stops growing and rows omit live stats (honest 'no live
+     * stats', same stance as the network balloon). Gated to the Docker surfaces
+     * by the caller (MainViewModel.dockerGate via gatedStream).
+     */
+    fun dockerStatsStream(): Flow<DomainState<Map<String, ContainerLiveStats>>> =
+        subscriptionStream(DockerContainerStatsSubscription()) { data ->
+            data.toContainerLiveStat()
+        }.scan<DomainState<Pair<String, ContainerLiveStats>>, DomainState<Map<String, ContainerLiveStats>>>(
+            DomainState.Loading,
+        ) { acc, frame ->
+            when (frame) {
+                is DomainState.Content<Pair<String, ContainerLiveStats>> -> {
+                    val prev = (acc as? DomainState.Content<Map<String, ContainerLiveStats>>)?.value
+                        ?: emptyMap()
+                    DomainState.Content(prev + frame.value, frame.serverBaseUrl)
+                }
+                // NoServer/Error/Loading reset the accumulation to that state — a
+                // server switch or WS failure must not keep showing the old
+                // server's accumulated stats. Safe covariant cast: these are all
+                // DomainState<Nothing>.
+                else -> @Suppress("UNCHECKED_CAST") (frame as DomainState<Map<String, ContainerLiveStats>>)
+            }
+        }.filter { it !is DomainState.Loading }
 
     /** Blank/undecryptable API key error message (ADR-0035). Shared between
      *  [domainStream] and [subscriptionStream] — single definition, no drift. */

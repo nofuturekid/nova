@@ -106,6 +106,8 @@ fun MainScreen(
     val infoState by vm.infoState.collectAsState()
     val metricsState by vm.metricsState.collectAsState()
     val networkState by vm.networkThroughputState.collectAsState()
+    val temperatureState by vm.temperatureState.collectAsState()
+    val dockerLiveStats by vm.dockerLiveStats.collectAsState()
     val arrayState by vm.arrayState.collectAsState()
     val dockerState by vm.dockerState.collectAsState()
     val vmsState by vm.vmsState.collectAsState()
@@ -225,6 +227,7 @@ fun MainScreen(
                         server = ui.activeServer,
                         onAddServer = onAddServer,
                         networkThroughput = (networkState as? DomainState.Content)?.value,
+                        temperature = (temperatureState as? DomainState.Content)?.value,
                     )
                     MainTab.Array    -> ArrayTab(
                         state = arrayState,
@@ -277,6 +280,7 @@ fun MainScreen(
                         state = dockerState,
                         view = ui.dockerView,
                         onAddServer = onAddServer,
+                        stats = dockerLiveStats,
                         onOpenContainer = { setOpenContainer(it) },
                         onStart = { c -> vm.startContainer(c.id) },
                         onRestart = { c -> vm.restartContainer(c.id) },

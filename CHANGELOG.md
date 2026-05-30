@@ -15,6 +15,16 @@ release version + date and opens a fresh `[Unreleased]`.
 
 ## [Unreleased]
 
+## [0.1.40-beta2] - 2026-05-30
+
+### Added
+- The Network card on the dashboard now shows live upload/download speed in real time.
+- A new CPU-temperature card on the dashboard shows your server's current temperature live, with the hottest sensor highlighted; it turns amber or red if a sensor crosses a warning or critical threshold.
+- The Docker tab now shows live CPU and memory usage for each running container, updating in real time.
+
+### Changed
+- The dashboard's CPU and Memory cards now update live, in real time, instead of refreshing every couple of seconds. If the live connection drops, they automatically fall back to the usual 2-second refresh so the cards never go blank.
+
 ## [0.1.39] - 2026-05-29
 
 Stable promotion of the 0.1.39 cycle (beta1…beta3), maintainer

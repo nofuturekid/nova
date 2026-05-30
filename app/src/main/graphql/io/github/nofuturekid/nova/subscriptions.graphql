@@ -7,3 +7,45 @@ subscription SystemMetricsNetwork {
     }
   }
 }
+
+subscription SystemMetricsCpu {
+  systemMetricsCpu {
+    percentTotal
+  }
+}
+
+subscription SystemMetricsMemory {
+  systemMetricsMemory {
+    total
+    used
+    buffcache
+  }
+}
+
+subscription SystemMetricsTemperature {
+  systemMetricsTemperature {
+    summary {
+      average
+      hottest {
+        name
+        current {
+          value
+          unit
+        }
+      }
+      warningCount
+      criticalCount
+    }
+  }
+}
+
+subscription DockerContainerStats {
+  dockerContainerStats {
+    id
+    cpuPercent
+    memUsage
+    memPercent
+    netIO
+    blockIO
+  }
+}
