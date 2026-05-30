@@ -1,6 +1,6 @@
 # ADR-0026: GraphQL subscriptions for select domains (hybrid with polling)
 
-- **Status**: Superseded by ADR-0042 for network throughput (network pilot); metrics/docker/array still pending.
+- **Status**: Superseded by ADR-0042 for network throughput, and by ADR-0043 for CPU/memory/temperature and docker-container stats; array & notifications still pending (server-side blocked, see amendment).
 - **Date**: 2026-05-16
 - **Tags**: data, performance, resilience, api
 
