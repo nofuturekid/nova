@@ -744,10 +744,10 @@ class UnraidRepository @Inject constructor(
         }
     } catch (e: ApolloException) {
         if (e.certIssue() != null) throw e   // defensive: if execute() ever throws
-        DomainState.Error(e.message ?: "Network error")
+        DomainState.Error(e.failureMessage("Network error"))
     } catch (e: Exception) {
         if (e.certIssue() != null) throw e
-        DomainState.Error(e.message ?: "Unexpected error")
+        DomainState.Error(e.failureMessage("Unexpected error"))
     }
 
     private fun <T> DomainState<T>.withBaseUrl(baseUrl: String): DomainState<T> = when (this) {
@@ -947,7 +947,7 @@ class UnraidRepository @Inject constructor(
         when (val i = e.certIssue()) {
             is CertIssue.Untrusted -> TestOutcome.CertUntrusted(i.sha256)
             is CertIssue.Changed -> TestOutcome.CertChanged(i.pinned, i.presented)
-            null -> TestOutcome.Failed(e.message ?: "Network error")
+            null -> TestOutcome.Failed(e.failureMessage("Network error"))
         }
     } catch (e: Exception) {
         TestOutcome.Failed(e.message ?: "Unknown error")

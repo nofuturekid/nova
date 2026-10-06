@@ -43,6 +43,39 @@ class ResponseClassifierTest {
         )
     }
 
+    // WHY: Apollo wraps every parsing failure as "Error while reading JSON
+    // response" and keeps the reason only in the cause. #217 could not be
+    // diagnosed because the app showed just that wrapper text.
+    @Test fun exception_withCause_showsRootCause() {
+        val ex = ApolloNetworkException(
+            message = "Error while reading JSON response",
+            platformCause = IllegalStateException("wrapped", java.io.EOFException("End of input at path $.data")),
+        )
+        assertEquals(
+            RespClass.Failed("Error while reading JSON response (EOFException: End of input at path $.data)"),
+            classifyResponse(ex, hasErrors = false, errorMessage = null, dataIsNull = true),
+        )
+    }
+
+    // WHY: a cause without a message still names its type, so the report says
+    // what failed even then.
+    @Test fun failureMessage_causeWithoutMessage_namesType() {
+        val ex = ApolloNetworkException("Error while reading JSON response", platformCause = NullPointerException())
+        assertEquals(
+            "Error while reading JSON response (NullPointerException)",
+            ex.failureMessage("Network error"),
+        )
+    }
+
+    // WHY: a long cause (e.g. a whole HTML page) must not flood the error card.
+    @Test fun failureMessage_longCause_isCapped() {
+        val ex = ApolloNetworkException("Error while reading JSON response", platformCause = IllegalStateException("x".repeat(500)))
+        assertEquals(
+            "Error while reading JSON response (IllegalStateException: ${"x".repeat(200)})",
+            ex.failureMessage("Network error"),
+        )
+    }
+
     // WHY: GraphQL-body errors (e.g. bad query) are a failure, distinct from transport.
     @Test fun graphqlErrors_isFailed() {
         assertEquals(
