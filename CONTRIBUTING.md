@@ -59,7 +59,7 @@ messages** below) so they're both CC-compliant *and* greppable:
 | Cut | Commit / PR title |
 |---|---|
 | Beta / rc | `release: v0.2.0-beta1 — <one-line summary>` |
-| Stable promotion | `release: v0.2.0 (stable) — <one-line summary>` |
+| Stable | `release: 0.2.0 — <one-line summary> (Stable)` |
 
 The `<summary>` is what the cut delivers (the bundled feature/fix), not
 "bumped versionCode" — the diff already shows the bump.
