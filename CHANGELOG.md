@@ -17,6 +17,10 @@ release version + date and opens a fresh `[Unreleased]`.
 
 ## [0.1.41] - 2026-10-06
 
+Small fix release: connection errors now name their actual cause, and the
+connection pill keeps showing Local/Remote when the server is unreachable
+(#217).
+
 ### Changed
 - **Connection pill keeps the mode when offline** — when the server
   can't be reached, the top-bar pill now reads "Local · Offline" or
