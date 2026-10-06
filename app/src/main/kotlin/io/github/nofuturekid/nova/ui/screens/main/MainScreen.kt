@@ -530,6 +530,20 @@ private fun firstErrorOrAny(vararg states: DomainState<*>): DomainState<*> {
     return DomainState.Loading
 }
 
+/**
+ * Label of the connection pill. When the server cannot be reached the mode
+ * stays visible ("Local · Offline"): the pill is also the Local/Remote
+ * switch, and a bare "Offline" hid which address was failing (#217).
+ */
+internal fun connectionLabel(state: DomainState<*>, connection: ConnectionMode): String {
+    val mode = if (connection == ConnectionMode.Remote) "Remote" else "Local"
+    return when (state) {
+        is DomainState.NoServer -> "No server"
+        is DomainState.Error -> "$mode · Offline"
+        else -> mode
+    }
+}
+
 @Composable
 private fun TopBar(
     server: Server?,
@@ -548,12 +562,7 @@ private fun TopBar(
         connection == ConnectionMode.Remote -> Tone.Info
         else -> Tone.Accent
     }
-    val connLabel = when {
-        state is DomainState.NoServer -> "No server"
-        offline -> "Offline"
-        connection == ConnectionMode.Remote -> "Remote"
-        else -> "Local"
-    }
+    val connLabel = connectionLabel(state, connection)
 
     Column {
         Row(

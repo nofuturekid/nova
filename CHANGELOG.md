@@ -15,6 +15,18 @@ release version + date and opens a fresh `[Unreleased]`.
 
 ## [Unreleased]
 
+### Changed
+- **Connection pill keeps the mode when offline** — when the server
+  can't be reached, the top-bar pill now reads "Local · Offline" or
+  "Remote · Offline" instead of just "Offline", so you can see which
+  address the app is using. Tap it to switch.
+
+### Fixed
+- **Error messages name the actual cause** — "Can't reach the server"
+  errors now show the underlying reason next to the generic message
+  (e.g. "Error while reading JSON response (EOFException: …)"),
+  which makes connection problems much easier to report and pin down.
+
 ## [0.1.40] - 2026-05-30
 
 Stable promotion of the whole 0.1.40 cycle (beta1…beta10), maintainer

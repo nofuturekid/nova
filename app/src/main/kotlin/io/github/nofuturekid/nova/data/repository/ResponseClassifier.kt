@@ -32,12 +32,35 @@ fun classifyResponse(
 ): RespClass = when {
     exception != null -> {
         val issue = exception.certIssue()
-        if (issue != null) RespClass.Cert(issue) else RespClass.Failed(exception.message ?: "Network error")
+        if (issue != null) RespClass.Cert(issue) else RespClass.Failed(exception.failureMessage("Network error"))
     }
     hasErrors -> RespClass.Failed(errorMessage ?: "Unknown GraphQL error")
     dataIsNull -> RespClass.Empty
     else -> RespClass.Ok
 }
+
+/**
+ * The text to show for a failed request: the exception's own message plus its
+ * innermost cause. Apollo reports any parsing failure as "Error while reading
+ * JSON response" and keeps the actual reason (a body that is not JSON, a null
+ * in a non-null field, ...) only in the cause; without it such reports cannot
+ * be told apart (#217).
+ */
+fun Throwable.failureMessage(fallback: String): String {
+    val own = message ?: fallback
+    var root: Throwable = this
+    while (true) {
+        val next = root.cause ?: break
+        if (next === root) break
+        root = next
+    }
+    if (root === this) return own
+    val name = root::class.simpleName ?: "Exception"
+    val rootText = root.message?.take(MAX_CAUSE_CHARS)?.let { "$name: $it" } ?: name
+    return if (own.contains(rootText)) own else "$own ($rootText)"
+}
+
+private const val MAX_CAUSE_CHARS = 200
 
 /** Structured result of a connection test (consumed by the Add/Edit sheet). */
 sealed interface TestOutcome {
