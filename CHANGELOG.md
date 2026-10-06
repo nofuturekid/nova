@@ -15,6 +15,8 @@ release version + date and opens a fresh `[Unreleased]`.
 
 ## [Unreleased]
 
+## [0.1.41] - 2026-10-06
+
 ### Changed
 - **Connection pill keeps the mode when offline** — when the server
   can't be reached, the top-bar pill now reads "Local · Offline" or
