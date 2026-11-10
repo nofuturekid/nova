@@ -189,9 +189,18 @@ jobs:
         id: keystore
         env:
           KEYSTORE_B64: ${{ secrets.KEYSTORE_B64 }}
+          # Secrets are legitimately absent only for fork and Dependabot PRs.
+          # On any other run (repo branch, manual dispatch) a missing secret
+          # is a misconfiguration and must not turn the gate green with no
+          # signed artifact (CI review L5).
+          SECRET_EXPECTED: ${{ github.event_name == 'workflow_dispatch' || (github.event.pull_request.head.repo.full_name == github.repository && github.actor != 'dependabot[bot]') }}
         run: |
           if [ -z "$KEYSTORE_B64" ]; then
-            echo "::warning::KEYSTORE_B64 not available (fork PR?); skipping release build"
+            if [ "$SECRET_EXPECTED" = "true" ]; then
+              echo "::error::KEYSTORE_B64 is empty on a same-repo run — secret missing or renamed; refusing to pass the gate without a signed release APK."
+              exit 1
+            fi
+            echo "::warning::KEYSTORE_B64 not available (fork/Dependabot PR); skipping release build"
             echo "available=false" >> "$GITHUB_OUTPUT"
           else
             echo "$KEYSTORE_B64" | base64 -d > app/release.keystore
