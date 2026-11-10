@@ -1,13 +1,15 @@
 package io.github.nofuturekid.nova.data.repository
 
 import com.apollographql.apollo.ApolloClient
+import com.apollographql.apollo.api.ApolloResponse
 import com.apollographql.apollo.api.Error
+import com.apollographql.apollo.api.Mutation
 import com.apollographql.apollo.api.Query
 import com.apollographql.apollo.api.Subscription
 import com.apollographql.apollo.exception.ApolloException
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -134,6 +136,9 @@ class UnraidRepository @Inject constructor(
         /** Consecutive poll failures before the UI drops to an Error state. */
         const val TRANSIENT_ERROR_TOLERANCE = 3
 
+        /** Upper bound for how long [refreshAll] waits for refreshed data. */
+        const val REFRESH_MAX_WAIT_MS = 20_000L
+
         /**
          * Grace window before [subscriptionOrPoll] degrades a live subscription to
          * its HTTP poll fallback. Chosen at 3x [POLL_METRICS_MS] (6 s): long enough
@@ -163,13 +168,19 @@ class UnraidRepository @Inject constructor(
          */
         private suspend fun <T> kotlinx.coroutines.flow.FlowCollector<DomainState<T>>.pollDomain(
             intervalMs: Long,
-            nudge: Flow<Unit>?,
+            nudges: List<Nudge>,
             fetch: suspend () -> DomainState<T>,
         ) {
             var lastContent: DomainState.Content<T>? = null
             var consecutiveErrors = 0
             while (true) {
-                when (val result = fetch()) {
+                // Counts are read BEFORE fetching: a nudge that lands while the
+                // fetch is in flight changes the count, so the wait below ends
+                // at once and the data the nudge was meant to refresh is fetched.
+                val seen = nudges.map { it.count.value }
+                val result = fetch()
+                nudges.forEachIndexed { i, n -> n.complete(seen[i]) }
+                when (result) {
                     is DomainState.Content<T> -> {
                         lastContent = result
                         consecutiveErrors = 0
@@ -184,11 +195,14 @@ class UnraidRepository @Inject constructor(
                     else -> emit(result)
                 }
                 // Sleep the poll interval, but cut it short if a nudge
-                // arrives (post-action fast refresh). No nudge → plain delay.
-                if (nudge == null) {
+                // arrives (post-action fast refresh, pull-to-refresh). No nudge
+                // source → plain delay.
+                if (nudges.isEmpty()) {
                     delay(intervalMs)
                 } else {
-                    withTimeoutOrNull(intervalMs) { nudge.first() }
+                    withTimeoutOrNull(intervalMs) {
+                        combine(nudges.map { it.count }) { it.toList() }.first { it != seen }
+                    }
                 }
             }
         }
@@ -204,8 +218,43 @@ class UnraidRepository @Inject constructor(
          */
         internal fun <T> pollDomainForTest(
             intervalMs: Long,
+            nudges: List<Nudge> = emptyList(),
             fetch: suspend () -> DomainState<T>,
-        ): Flow<DomainState<T>> = flow { pollDomain(intervalMs, null, fetch) }
+        ): Flow<DomainState<T>> = flow { pollDomain(intervalMs, nudges, fetch) }
+
+        /**
+         * Runs a mutation and throws [ActionFailedException] if the response
+         * carries a transport or GraphQL error. THE single way every action
+         * executes: Apollo Kotlin 5's `execute()` does not throw, so a bare
+         * `execute()` would report every failed action as success (ADR-0037).
+         */
+        internal suspend fun <D : Mutation.Data> ApolloClient.runAction(m: Mutation<D>): ApolloResponse<D> =
+            mutation(m).execute().orThrow()
+
+        /** stop, then start — a failed stop aborts before `start` is sent. */
+        internal suspend fun restartContainer(client: ApolloClient, id: String) {
+            client.runAction(StopContainerMutation(id))
+            try {
+                client.runAction(StartContainerMutation(id))
+            } catch (e: ActionFailedException) {
+                throw ActionFailedException("the container was stopped but could not be started (${e.message})", e)
+            }
+        }
+
+        /** The logs query behind [containerLogs]; `null` = the request failed. */
+        internal suspend fun fetchContainerLogs(client: ApolloClient, id: String, tail: Int): List<LogLine>? {
+            val resp = try {
+                client.query(FetchContainerLogsQuery(id = id, tail = tail)).execute()
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                return null
+            }
+            if (resp.exception != null || resp.hasErrors()) return null
+            return resp.data?.docker?.logs?.lines.orEmpty().map { line ->
+                LogLine(time = line.timestamp, message = line.message)
+            }
+        }
 
         /**
          * The notification-action error contract, extracted as a pure
@@ -545,9 +594,13 @@ class UnraidRepository @Inject constructor(
      * instead of waiting out the (60 s) interval. A notification action
      * (archive / unread / delete / archive-all) fires it after the mutation
      * so the sheet AND the bell badge reflect the change within ~a frame.
-     * extraBufferCapacity keeps the non-suspending `tryEmit` lossless.
+     * A [Nudge] counter (not an event) so a nudge during an in-flight fetch
+     * is not lost.
      */
-    private val notificationsNudge = MutableSharedFlow<Unit>(extraBufferCapacity = 1)
+    private val notificationsNudge = Nudge()
+
+    /** Pull-to-refresh: every domain stream refetches when this fires. */
+    private val refreshNudge = Nudge()
 
     fun notificationsStream(intervalMs: Long = POLL_NOTIFICATIONS_MS): Flow<DomainState<Notifications>> =
         domainStream(intervalMs, notificationsNudge) { client, baseUrl ->
@@ -584,7 +637,7 @@ class UnraidRepository @Inject constructor(
      */
     private fun <T> domainStream(
         intervalMs: Long,
-        nudge: Flow<Unit>? = null,
+        extraNudge: Nudge? = null,
         fetch: suspend (ApolloClient, String) -> DomainState<T>,
     ): Flow<DomainState<T>> = servers.activeWithKey
         .distinctUntilChanged()
@@ -601,7 +654,7 @@ class UnraidRepository @Inject constructor(
                 val url = activeUrl(active)
                 val client = apolloFactory.build(url, active.apiKey, trustFor(active, url))
                 try {
-                    pollDomain(intervalMs, nudge) { fetch(client, url) }
+                    pollDomain(intervalMs, listOfNotNull(refreshNudge, extraNudge)) { fetch(client, url) }
                 } catch (e: Throwable) {
                     val issue = e.certIssue()
                     if (issue != null) {
@@ -860,20 +913,16 @@ class UnraidRepository @Inject constructor(
 
     // ── One-shot helpers (refresh, ping, logs) ────────────────────────
 
-    /** Force a single fetch of every domain. Used by pull-to-refresh.
-     *  Doesn't return data — the live streams pick up the new values. */
+    /** Pull-to-refresh: makes every active domain stream refetch right now and
+     *  returns once the first refetch started after the request has finished
+     *  (data arrived or failed); the other streams update as theirs finish.
+     *  Bounded by
+     *  [REFRESH_MAX_WAIT_MS] for the case that no stream is collecting. */
     suspend fun refreshAll() {
         val active = servers.activeWithKey.first() ?: return
         if (active.apiKey.isBlank()) return
-        val url = activeUrl(active)
-        val client = apolloFactory.build(url, active.apiKey, trustFor(active, url))
-        // Fire all five queries in sequence; errors are ignored — the polling
-        // streams will surface them on their own cadence.
-        runCatching { client.query(GetServerInfoQuery()).execute() }
-        runCatching { client.query(GetMetricsQuery()).execute() }
-        runCatching { client.query(GetArrayQuery()).execute() }
-        runCatching { client.query(GetDockerContainersQuery()).execute() }
-        runCatching { client.query(GetVmsQuery()).execute() }
+        val generation = refreshNudge.fire()
+        withTimeoutOrNull(REFRESH_MAX_WAIT_MS) { refreshNudge.awaitCompleted(generation) }
     }
 
     private fun activeUrl(active: ActiveServer): String = when (active.mode) {
@@ -907,18 +956,16 @@ class UnraidRepository @Inject constructor(
         return buildLongRunningClient(active)
     }
 
-    suspend fun startArray() { activeClient()?.mutation(StartArrayMutation())?.execute() }
-    suspend fun stopArray()  { activeClient()?.mutation(StopArrayMutation())?.execute() }
+    suspend fun startArray() { activeClient()?.runAction(StartArrayMutation()) }
+    suspend fun stopArray()  { activeClient()?.runAction(StopArrayMutation()) }
 
-    suspend fun startContainer(id: String)   { activeClient()?.mutation(StartContainerMutation(id))?.execute() }
-    suspend fun stopContainer(id: String)    { activeClient()?.mutation(StopContainerMutation(id))?.execute() }
+    suspend fun startContainer(id: String)   { activeClient()?.runAction(StartContainerMutation(id)) }
+    suspend fun stopContainer(id: String)    { activeClient()?.runAction(StopContainerMutation(id)) }
     /** Unraid 7's docker mutations have no atomic `restart` — emulate as stop+start. */
     suspend fun restartContainer(id: String) {
-        val c = activeClient() ?: return
-        c.mutation(StopContainerMutation(id)).execute()
-        c.mutation(StartContainerMutation(id)).execute()
+        activeClient()?.let { restartContainer(it, id) }
     }
-    suspend fun pauseContainer(id: String)   { activeClient()?.mutation(PauseContainerMutation(id))?.execute() }
+    suspend fun pauseContainer(id: String)   { activeClient()?.runAction(PauseContainerMutation(id)) }
 
     /** Pulls the latest image and recreates the container. Server-side work
      *  routinely takes 30 s – several minutes, so this routes through the
@@ -926,7 +973,7 @@ class UnraidRepository @Inject constructor(
      *  the container as updating before invoking and clears the mark in
      *  finally — see [MainViewModel.updateContainer]. */
     suspend fun updateContainer(id: String) {
-        activeLongRunningClient()?.mutation(UpdateContainerMutation(id))?.execute()
+        activeLongRunningClient()?.runAction(UpdateContainerMutation(id))
     }
 
     /** Updates every container that the server reports as having an update
@@ -934,26 +981,26 @@ class UnraidRepository @Inject constructor(
      *  the HTTP connection to stay open until the *last* container in the
      *  batch has finished its pull + recreate. */
     suspend fun updateAllContainers() {
-        activeLongRunningClient()?.mutation(UpdateAllContainersMutation())?.execute()
+        activeLongRunningClient()?.runAction(UpdateAllContainersMutation())
     }
 
-    suspend fun startVm(id: String)  { activeClient()?.mutation(StartVmMutation(id))?.execute() }
+    suspend fun startVm(id: String)  { activeClient()?.runAction(StartVmMutation(id)) }
     suspend fun stopVm(id: String, force: Boolean = false) {
         val c = activeClient() ?: return
-        if (force) c.mutation(ForceStopVmMutation(id)).execute()
-        else       c.mutation(StopVmMutation(id)).execute()
+        if (force) c.runAction(ForceStopVmMutation(id))
+        else       c.runAction(StopVmMutation(id))
     }
-    suspend fun pauseVm(id: String)  { activeClient()?.mutation(PauseVmMutation(id))?.execute() }
-    suspend fun resumeVm(id: String) { activeClient()?.mutation(ResumeVmMutation(id))?.execute() }
-    suspend fun rebootVm(id: String) { activeClient()?.mutation(RebootVmMutation(id))?.execute() }
-    suspend fun resetVm(id: String)  { activeClient()?.mutation(ResetVmMutation(id))?.execute() }
+    suspend fun pauseVm(id: String)  { activeClient()?.runAction(PauseVmMutation(id)) }
+    suspend fun resumeVm(id: String) { activeClient()?.runAction(ResumeVmMutation(id)) }
+    suspend fun rebootVm(id: String) { activeClient()?.runAction(RebootVmMutation(id)) }
+    suspend fun resetVm(id: String)  { activeClient()?.runAction(ResetVmMutation(id)) }
 
     suspend fun startParityCheck(correct: Boolean) {
-        activeClient()?.mutation(StartParityCheckMutation(correct))?.execute()
+        activeClient()?.runAction(StartParityCheckMutation(correct))
     }
-    suspend fun pauseParityCheck()  { activeClient()?.mutation(PauseParityCheckMutation())?.execute() }
-    suspend fun resumeParityCheck() { activeClient()?.mutation(ResumeParityCheckMutation())?.execute() }
-    suspend fun cancelParityCheck() { activeClient()?.mutation(CancelParityCheckMutation())?.execute() }
+    suspend fun pauseParityCheck()  { activeClient()?.runAction(PauseParityCheckMutation()) }
+    suspend fun resumeParityCheck() { activeClient()?.runAction(ResumeParityCheckMutation()) }
+    suspend fun cancelParityCheck() { activeClient()?.runAction(CancelParityCheckMutation()) }
 
     // ── Notification actions ──────────────────────────────────────────
     //
@@ -965,52 +1012,44 @@ class UnraidRepository @Inject constructor(
 
     /** Archive = mark read. Removes it from the Unread segment. */
     suspend fun archiveNotification(id: String) =
-        runNotificationAction { it.mutation(ArchiveNotificationMutation(id)).execute() }
+        runNotificationAction { it.runAction(ArchiveNotificationMutation(id)) }
 
     /** Restore an archived notification back to Unread. */
     suspend fun unreadNotification(id: String) =
-        runNotificationAction { it.mutation(UnreadNotificationMutation(id)).execute() }
+        runNotificationAction { it.runAction(UnreadNotificationMutation(id)) }
 
     /** Permanently delete. [type] is the item's current segment. */
     suspend fun deleteNotification(id: String, type: NotifType) =
         runNotificationAction {
             val g = if (type == NotifType.Archive) GNotifType.ARCHIVE else GNotifType.UNREAD
-            it.mutation(DeleteNotificationMutation(id, g)).execute()
+            it.runAction(DeleteNotificationMutation(id, g))
         }
 
     /** Bulk archive every unread notification. */
     suspend fun archiveAllNotifications() =
-        runNotificationAction { it.mutation(ArchiveAllNotificationsMutation()).execute() }
+        runNotificationAction { it.runAction(ArchiveAllNotificationsMutation()) }
 
     /** Permanently delete every archived notification. */
     suspend fun deleteArchivedNotifications() =
-        runNotificationAction { it.mutation(DeleteArchivedNotificationsMutation()).execute() }
+        runNotificationAction { it.runAction(DeleteArchivedNotificationsMutation()) }
 
     private suspend fun runNotificationAction(block: suspend (ApolloClient) -> Unit) =
         runNotificationActionFlow(
             resolveClient = { activeClient() },
             mutate = { c -> block(c) },
-            recalculate = { c -> c.mutation(RecalculateNotificationOverviewMutation()).execute() },
-            nudge = { notificationsNudge.tryEmit(Unit) },
+            recalculate = { c -> c.runAction(RecalculateNotificationOverviewMutation()) },
+            nudge = { notificationsNudge.fire() },
         )
 
     /**
      * Fetches the last [tail] log lines for the given container. Returns an
-     * empty list if no active server, no key, or the request fails — the UI
-     * can distinguish "no logs" from "still loading" via its own state.
+     * empty list if there is no active server / key, and `null` when the
+     * request FAILED — so the live tail can keep the last good logs on a
+     * transient error instead of replacing them with "no logs".
      */
-    suspend fun containerLogs(id: String, tail: Int = 200): List<LogLine> {
+    suspend fun containerLogs(id: String, tail: Int = 200): List<LogLine>? {
         val client = activeClient() ?: return emptyList()
-        return try {
-            val resp = client.query(
-                FetchContainerLogsQuery(id = id, tail = tail),
-            ).execute()
-            resp.data?.docker?.logs?.lines.orEmpty().map { line ->
-                LogLine(time = line.timestamp, message = line.message)
-            }
-        } catch (e: Exception) {
-            emptyList()
-        }
+        return fetchContainerLogs(client, id, tail)
     }
 
     /**

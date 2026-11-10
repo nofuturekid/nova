@@ -76,7 +76,7 @@ fun ContainerDetailSheet(
     serverBaseUrl: String,
     liveStats: ContainerLiveStats?,
     isUpdating: Boolean,
-    onFetchLogs: suspend (id: String) -> List<io.github.nofuturekid.nova.data.model.LogLine>,
+    onFetchLogs: suspend (id: String) -> List<io.github.nofuturekid.nova.data.model.LogLine>?,
     onRefresh: suspend () -> Unit,
     onDismiss: () -> Unit,
     onStart: (Container) -> Unit,
@@ -90,6 +90,7 @@ fun ContainerDetailSheet(
     var tab by remember { mutableStateOf(DetailTab.Info) }
     var logs by remember(container.id) { mutableStateOf<List<io.github.nofuturekid.nova.data.model.LogLine>?>(null) }
     var logsLoading by remember(container.id) { mutableStateOf(false) }
+    var logsFailed by remember(container.id) { mutableStateOf(false) }
     // Live tail: while the Logs tab is open on a running container, re-fetch
     // on an interval. The keyed LaunchedEffect cancels the loop when the
     // tab changes, the container stops, or the sheet is dismissed.
@@ -97,7 +98,10 @@ fun ContainerDetailSheet(
         if (tab == DetailTab.Logs && container.status == ContainerStatus.Running) {
             if (logs == null) logsLoading = true
             while (true) {
-                try { logs = onFetchLogs(container.id) } catch (e: Exception) {
+                try {
+                    val fetched = onFetchLogs(container.id)
+                    if (fetched != null) { logs = fetched; logsFailed = false } else if (logs == null) logsFailed = true
+                } catch (e: Exception) {
                     if (e is kotlinx.coroutines.CancellationException) throw e
                 }
                 logsLoading = false
@@ -334,7 +338,7 @@ fun ContainerDetailSheet(
                 ) {
                     when (tab) {
                         DetailTab.Info    -> InfoTabContent(container, liveStats)
-                        DetailTab.Logs    -> LogsTabContent(container, logs, logsLoading)
+                        DetailTab.Logs    -> LogsTabContent(container, logs, logsLoading, logsFailed)
                         DetailTab.Ports   -> PortsTabContent(container)
                         DetailTab.Volumes -> VolumesTabContent(container)
                     }
@@ -445,11 +449,21 @@ private fun LogsTabContent(
     c: Container,
     logs: List<io.github.nofuturekid.nova.data.model.LogLine>?,
     loading: Boolean,
+    failed: Boolean,
 ) {
     val t = UnraidTheme.colors
     if (c.status != ContainerStatus.Running) {
         Text(
             text = "Logs are only available when the container is running.",
+            color = t.muted,
+            style = MaterialTheme.typography.bodyMedium,
+            modifier = Modifier.padding(vertical = 24.dp, horizontal = 12.dp),
+        )
+        return
+    }
+    if (logs == null && failed) {
+        Text(
+            text = "Couldn't load logs — retrying",
             color = t.muted,
             style = MaterialTheme.typography.bodyMedium,
             modifier = Modifier.padding(vertical = 24.dp, horizontal = 12.dp),

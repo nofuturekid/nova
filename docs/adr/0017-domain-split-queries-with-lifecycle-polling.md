@@ -78,6 +78,16 @@ Domain models in `data/model/Models.kt` and UI composables do **not** change sha
 
 **Status quo with try/catch and second-pass narrower query.** When the big snapshot fails, retry with a stripped-down version excluding Docker. Increasingly brittle as more conditional fields appear, doesn't help efficiency, doesn't help rate-tuning. Considered briefly during the v0.1.22-beta1 fix and rejected.
 
+## Amendment — 2026-11-10 (nudge, pull-to-refresh)
+
+The "fetch again now" request is a counter (`Nudge`), not a `SharedFlow`
+event: a poll loop reads the count before it fetches and wakes at once if it
+moved, so a nudge during an in-flight fetch is not lost. Pull-to-refresh
+fires one shared `refreshNudge` that every domain stream waits on (previously
+`refreshAll` fetched five queries and discarded the results), and returns when
+a fetch started after the request has completed, bounded by
+`REFRESH_MAX_WAIT_MS`.
+
 ## References
 
 - The v0.1.22-beta1 incident: `Cannot query field "updateStatus" on type "DockerContainer"` collapsing the entire app to "Can't reach the server", despite the bad field only affecting Docker data. Fixed in PR #25.

@@ -103,6 +103,30 @@ Concretely:
   bookkeeping (the updating-pill would leak) and hides the intent. Kept
   only as the defense-in-depth net behind the seam.
 
+## Amendment — 2026-11-10 (silent action failures)
+
+**What was broken.** The launcher seam only catches what an action *throws*,
+but Apollo Kotlin 5's `execute()` never throws for a failed request (see the
+ADR-0041 amendment): a transport failure lands in `ApolloResponse.exception`,
+GraphQL errors in `ApolloResponse.errors`. Every mutation discarded its
+response, so an unreachable server or a refused action (e.g. a key without
+permission) completed "normally" and the snackbar this ADR promises never
+appeared. Knock-ons: a failed notification mutation still ran the overview
+recalc + nudge, `restartContainer` sent `start` after a failed `stop`, and a
+failed logs fetch was indistinguishable from "no logs" in the live tail.
+
+**What enforces it now.** All mutations go through one function,
+`UnraidRepository.runAction`, which inspects the response with the same
+`classifyResponse`/`failureMessage` machinery as the query paths and throws
+`ActionFailedException` (message = the honest, cause-carrying text).
+`runResilientAction` shows that text ("Action failed: ...") instead of the
+generic message. `containerLogs` returns `null` for a failed request (the
+live tail keeps the last good logs). `ActionResponseTest` drives real
+`ApolloResponse`s (exception, errors) through these seams and fails if
+`runAction` ignores its response; a source guard in the same test fails if a
+bare `mutation(` appears in `UnraidRepository.kt` outside `runAction`. A new
+mutation must use `runAction`.
+
 ## References
 
 - Triage #19 (notification-action network-error handling; the crash path).
