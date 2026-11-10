@@ -288,7 +288,16 @@ fun MainScreen(
                         stats = dockerLiveStats,
                         onOpenContainer = { setOpenContainer(it) },
                         onStart = { c -> vm.startContainer(c.id) },
-                        onRestart = { c -> vm.restartContainer(c.id) },
+                        onRestart = { c ->
+                            confirm = ConfirmRequest(
+                                title = "Restart ${c.name}?",
+                                body = "The container will be restarted and briefly unavailable.",
+                                confirmLabel = "Restart",
+                                tone = Tone.Info,
+                                icon = { UC.Restart(22.dp, t.info) },
+                                onConfirm = { vm.restartContainer(c.id); confirm = null },
+                            )
+                        },
                         onStop = { c ->
                             confirm = ConfirmRequest(
                                 title = "Stop ${c.name}?",
@@ -354,7 +363,16 @@ fun MainScreen(
             onRefresh = { vm.refresh() },
             onDismiss = { setOpenContainer(null) },
             onStart   = { vm.startContainer(it.id); setOpenContainer(null) },
-            onRestart = { vm.restartContainer(it.id) },
+            onRestart = { c ->
+                confirm = ConfirmRequest(
+                    title = "Restart ${c.name}?",
+                    body = "The container will be restarted and briefly unavailable.",
+                    confirmLabel = "Restart",
+                    tone = Tone.Info,
+                    icon = { UC.Restart(22.dp, t.info) },
+                    onConfirm = { vm.restartContainer(c.id); confirm = null },
+                )
+            },
             onStop    = { c ->
                 confirm = ConfirmRequest(
                     title = "Stop ${c.name}?",
@@ -365,7 +383,16 @@ fun MainScreen(
                     onConfirm = { vm.stopContainer(c.id); confirm = null; setOpenContainer(null) },
                 )
             },
-            onUpdate  = { c -> vm.updateContainer(c.id) },
+            onUpdate  = { c ->
+                confirm = ConfirmRequest(
+                    title = "Update ${c.name}?",
+                    body = "It will pull its latest image and recreate the container — it'll be unavailable during the update.",
+                    confirmLabel = "Update",
+                    tone = Tone.Info,
+                    icon = { UC.Refresh(22.dp, t.info) },
+                    onConfirm = { vm.updateContainer(c.id); confirm = null },
+                )
+            },
         )
     }
 
@@ -387,7 +414,16 @@ fun MainScreen(
                     onConfirm = { vm.stopVm(v.id, force = true); confirm = null; openVm = null },
                 )
             },
-            onReboot = { vm.rebootVm(it.id); openVm = null },
+            onReboot = { v ->
+                confirm = ConfirmRequest(
+                    title = "Reboot ${v.name}?",
+                    body = "The VM is asked to reboot cleanly. Services in the guest will be briefly unavailable.",
+                    confirmLabel = "Reboot",
+                    tone = Tone.Info,
+                    icon = { UC.Restart(22.dp, t.info) },
+                    onConfirm = { vm.rebootVm(v.id); confirm = null; openVm = null },
+                )
+            },
             onReset  = { v ->
                 confirm = ConfirmRequest(
                     title = "Reset ${v.name}?",

@@ -16,6 +16,9 @@ release version + date and opens a fresh `[Unreleased]`.
 ## [Unreleased]
 
 ### Fixed
+- **Confirmation before Restart, Update and VM Reboot** — restarting or
+  updating a single container and rebooting a VM now ask first, like Stop
+  already did (#229).
 - **VM "Stop" now shuts the VM down gracefully** — it used to cut the power
   (#228). Stop asks the guest to shut down cleanly; the old behaviour is
   now a separate "Force stop" button, still behind a confirmation.
