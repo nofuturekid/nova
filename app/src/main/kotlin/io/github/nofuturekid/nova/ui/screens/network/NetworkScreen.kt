@@ -141,8 +141,7 @@ private fun InterfaceRow(iface: NetworkInterface) {
                 iface.gateway != null || iface.useDhcp != null
             val hasIpv6 = iface.ipv6Address != null || iface.ipv6Netmask != null ||
                 iface.ipv6Gateway != null || iface.useDhcp6 != null
-            val hasHw = iface.macAddress != null || iface.vendor != null ||
-                iface.model != null || iface.speed != null || iface.virtual != null
+            val hwRows = hardwareRows(iface)
 
             Column(
                 modifier = Modifier.padding(top = 8.dp),
@@ -165,18 +164,29 @@ private fun InterfaceRow(iface: NetworkInterface) {
                     iface.ipv6Gateway?.let { DetailRow("Gateway", it) }
                     iface.useDhcp6?.let { DetailRow("DHCP", if (it) "Yes" else "No") }
                 }
-                if (hasHw) {
+                if (hwRows.isNotEmpty()) {
                     SubHeading("Hardware")
-                    iface.macAddress?.let { DetailRow("MAC", it) }
-                    iface.vendor?.let { DetailRow("Vendor", it) }
-                    iface.model?.let { DetailRow("Model", it) }
-                    iface.speed?.let { DetailRow("Link speed", it) }
-                    iface.virtual?.let { DetailRow("Virtual", if (it) "Yes" else "No") }
+                    hwRows.forEach { (label, value) -> DetailRow(label, value) }
                 }
             }
         }
     }
 }
+
+/**
+ * Hardware rows that actually have a value. A stock Unraid API returns an
+ * empty `info.devices.network` (unraid/api#1818), so vendor/model/speed/
+ * virtual are missing; only a third-party plugin fills them. Blank or null
+ * values are dropped so the section (and its heading) disappears instead of
+ * showing empty fields (#223).
+ */
+internal fun hardwareRows(iface: NetworkInterface): List<Pair<String, String>> = listOfNotNull(
+    iface.macAddress?.takeIf { it.isNotBlank() }?.let { "MAC" to it },
+    iface.vendor?.takeIf { it.isNotBlank() }?.let { "Vendor" to it },
+    iface.model?.takeIf { it.isNotBlank() }?.let { "Model" to it },
+    iface.speed?.takeIf { it.isNotBlank() }?.let { "Link speed" to it },
+    iface.virtual?.let { "Virtual" to if (it) "Yes" else "No" },
+)
 
 @Composable
 private fun SubHeading(text: String) {

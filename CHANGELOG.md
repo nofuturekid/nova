@@ -16,6 +16,10 @@ release version + date and opens a fresh `[Unreleased]`.
 ## [Unreleased]
 
 ### Fixed
+- **Network interfaces screen no longer shows blank hardware fields** —
+  vendor, model, link speed and the virtual flag are only available with
+  a third-party API plugin; without data the Hardware block is hidden
+  (#223).
 - **Container details tabs are accessible** — the Info/Logs/Ports/Volumes
   tabs now use the standard Material tab bar, so screen readers announce
   them as tabs with the selected one marked and the touch targets are at
