@@ -122,9 +122,10 @@ failed logs fetch was indistinguishable from "no logs" in the live tail.
 `runResilientAction` shows that text ("Action failed: ...") instead of the
 generic message. `containerLogs` returns `null` for a failed request (the
 live tail keeps the last good logs). `ActionResponseTest` drives real
-`ApolloResponse`s (exception, errors) through these seams and fails if a
-mutation ignores its response again. A new mutation must use `runAction`;
-a bare `mutation(...).execute()` is the defect.
+`ApolloResponse`s (exception, errors) through these seams and fails if
+`runAction` ignores its response; a source guard in the same test fails if a
+bare `mutation(` appears in `UnraidRepository.kt` outside `runAction`. A new
+mutation must use `runAction`.
 
 ## References
 

@@ -234,7 +234,11 @@ class UnraidRepository @Inject constructor(
         /** stop, then start — a failed stop aborts before `start` is sent. */
         internal suspend fun restartContainer(client: ApolloClient, id: String) {
             client.runAction(StopContainerMutation(id))
-            client.runAction(StartContainerMutation(id))
+            try {
+                client.runAction(StartContainerMutation(id))
+            } catch (e: ActionFailedException) {
+                throw ActionFailedException("the container was stopped but could not be started (${e.message})", e)
+            }
         }
 
         /** The logs query behind [containerLogs]; `null` = the request failed. */
@@ -910,8 +914,9 @@ class UnraidRepository @Inject constructor(
     // ── One-shot helpers (refresh, ping, logs) ────────────────────────
 
     /** Pull-to-refresh: makes every active domain stream refetch right now and
-     *  returns once data fetched after the request has arrived (or failed), so
-     *  the spinner ends with the refreshed data on screen. Bounded by
+     *  returns once the first refetch started after the request has finished
+     *  (data arrived or failed); the other streams update as theirs finish.
+     *  Bounded by
      *  [REFRESH_MAX_WAIT_MS] for the case that no stream is collecting. */
     suspend fun refreshAll() {
         val active = servers.activeWithKey.first() ?: return

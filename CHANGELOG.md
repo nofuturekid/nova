@@ -25,8 +25,9 @@ release version + date and opens a fresh `[Unreleased]`.
 - **Container logs keep the last good lines on a hiccup** — one failed refresh
   of the live log tail replaced the logs with "no logs".
 - **Pull-to-refresh actually refreshes** — pulling down now reloads the data
-  that is on screen, and the spinner stops as soon as the new data has arrived
-  (or the server did not answer) instead of after a series of timeouts.
+  that is on screen, and the spinner stops as soon as the first refreshed data
+  has arrived (or the server did not answer) instead of after a series of
+  timeouts.
 - **Notification list updates after an action during a refresh** — archiving
   or deleting a notification while a refresh was already running could leave
   the list and the bell badge stale for up to a minute.

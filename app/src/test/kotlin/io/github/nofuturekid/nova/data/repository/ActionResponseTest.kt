@@ -5,6 +5,7 @@ import com.apollographql.apollo.network.http.HttpEngine
 import com.apollographql.apollo.api.http.HttpRequest
 import com.apollographql.apollo.api.http.HttpResponse
 import io.github.nofuturekid.nova.data.repository.UnraidRepository.Companion.runAction
+import io.github.nofuturekid.nova.graphql.ArchiveNotificationMutation
 import io.github.nofuturekid.nova.graphql.StopContainerMutation
 import io.github.nofuturekid.nova.ui.screens.main.MainViewModel
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -67,7 +68,8 @@ class ActionResponseTest {
     @Test fun transportFailure_failsTheAction_withCause() = runTest {
         val e = failureOf { client(ScriptedEngine(listOf(unreachable))).runAction(StopContainerMutation("c1")) }
         assertNotNull("a mutation whose response carries an exception must throw", e)
-        assertTrue(e!!.message, e.message!!.contains("connection refused"))
+        assertEquals("can't reach the server", e!!.message)
+        assertTrue("technical cause stays on the exception", e.cause?.message.orEmpty().isNotEmpty())
     }
 
     // WHY: a permission error is a GraphQL error with HTTP 200; it must reach the user verbatim.
@@ -101,6 +103,23 @@ class ActionResponseTest {
         assertEquals("start must not be sent after a failed stop", 1, engine.requests.size)
     }
 
+    // WHY: stop succeeded but start failed leaves the container down; the user must be told that.
+    @Test fun restart_stopOkStartFailed_saysContainerIsStopped() = runTest {
+        val engine = ScriptedEngine(listOf(stopped, forbidden))
+        val e = failureOf { UnraidRepository.restartContainer(client(engine), "c1") }
+        assertTrue(e?.message, e!!.message!!.contains("stopped but could not be started"))
+    }
+
+    // WHY: the seam only works if every mutation goes through runAction. Reads the
+    // production source (Gradle runs unit tests with the module dir as working dir).
+    @Test fun everyMutationGoesThroughRunAction() {
+        val src = java.io.File("src/main/kotlin/io/github/nofuturekid/nova/data/repository/UnraidRepository.kt")
+        assertTrue("source not found from ${java.io.File(".").absolutePath}", src.isFile)
+        val uses = src.readLines().filter { !it.trim().startsWith("*") && !it.trim().startsWith("//") && Regex("""(^|[^A-Za-z])mutation\(""").containsMatchIn(it) }
+        assertEquals("a bare mutation(...) bypasses response checking; use runAction: $uses", 1, uses.size)
+        assertTrue(uses.single().contains("mutation(m).execute().orThrow()"))
+    }
+
     @Test fun restart_onSuccess_sendsStopThenStart() = runTest {
         val engine = ScriptedEngine(listOf(stopped, started))
         UnraidRepository.restartContainer(client(engine), "c1")
@@ -116,7 +135,7 @@ class ActionResponseTest {
         val e = failureOf {
             UnraidRepository.runNotificationActionFlow(
                 resolveClient = { c },
-                mutate = { it.runAction(StopContainerMutation("n1")) },
+                mutate = { it.runAction(ArchiveNotificationMutation("n1")) },
                 recalculate = { recalc = true },
                 nudge = { nudged = true },
             )

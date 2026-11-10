@@ -452,9 +452,10 @@ class MainViewModel @Inject constructor(
         unraid.containerLogs(id)
 
     internal companion object {
-        /** The single transient signal a failed user action surfaces.
-         *  Deliberately generic — the repository's next poll will reconcile
-         *  the actual state; this just tells the user the tap didn't take. */
+        /** Fallback signal for a failed user action whose cause is not known
+         *  (an unexpected throwable). Failures the repository detects carry
+         *  their own text ([ActionFailedException]); the next poll reconciles
+         *  the actual state either way. */
         const val ACTION_FAILED_MESSAGE = "Couldn't reach the server — try again"
 
         /**
@@ -471,6 +472,8 @@ class MainViewModel @Inject constructor(
          *    UI on the next poll — that path is unchanged);
          *  - a [CancellationException] is RE-THROWN unchanged so structured
          *    concurrency (scope clear, parent cancel) keeps working;
+         *  - an [ActionFailedException] is CAUGHT and its own cause-carrying
+         *    text ("Action failed: ...") is [emit]ted once for the snackbar;
          *  - ANY other [Throwable] is CAUGHT — it does NOT propagate (so it
          *    can never crash viewModelScope / the app) — and exactly one
          *    transient [message] is [emit]ted for the snackbar;

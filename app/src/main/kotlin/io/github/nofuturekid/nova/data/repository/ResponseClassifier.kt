@@ -3,6 +3,8 @@ package io.github.nofuturekid.nova.data.repository
 import com.apollographql.apollo.api.ApolloResponse
 import com.apollographql.apollo.api.Operation
 import com.apollographql.apollo.exception.ApolloException
+import com.apollographql.apollo.exception.ApolloHttpException
+import com.apollographql.apollo.exception.ApolloNetworkException
 import io.github.nofuturekid.nova.data.api.CertIssue
 import io.github.nofuturekid.nova.data.api.certIssue
 
@@ -80,7 +82,15 @@ class ActionFailedException(message: String, cause: Throwable? = null) : Excepti
 fun checkActionResponse(exception: ApolloException?, hasErrors: Boolean, errorMessage: String?) {
     when (val c = classifyResponse(exception, hasErrors, errorMessage, dataIsNull = false)) {
         is RespClass.Cert -> throw ActionFailedException(exception!!.failureMessage("Network error"), exception)
-        is RespClass.Failed -> throw ActionFailedException(c.message, exception)
+        is RespClass.Failed -> throw ActionFailedException(
+            when (exception) {
+                // Plain wording for the snackbar; the technical cause stays on the exception.
+                is ApolloHttpException -> "the server answered HTTP ${exception.statusCode}"
+                is ApolloNetworkException -> "can't reach the server"
+                else -> c.message
+            },
+            exception,
+        )
         RespClass.Empty, RespClass.Ok -> Unit
     }
 }
