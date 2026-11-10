@@ -217,7 +217,10 @@ it stays on the bare `subscriptionStream` with no degrade target.
 
 The `NetworkUtilization { interfaces { iface rxBytesPerSec txBytesPerSec } }`
 shape this ADR was verified against was added to the maintainer's server by a
-third-party API patch (a plugin of another Unraid app), not by Unraid. Upstream
+third-party API patch, not by Unraid: the `u-manager-companion` plugin
+(github.com/jandrop/u-manager-companion, companion of the U-Manager app; its
+`scripts/companion/patches/network.py` adds this shape as a workaround for
+unraid/api#1818). Upstream
 `metrics.network` / `systemMetricsNetwork` is `[NetworkMetrics!]!` with
 `name`, `rxSec`, `txSec` (bytes per second), first released in Unraid API 4.35.0
 (unraid/api#2003, merged 2026-05-29; tag v4.35.0 of 2026-06-01 is the first
