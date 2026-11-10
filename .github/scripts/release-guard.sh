@@ -16,9 +16,13 @@ set -euo pipefail
 MAIN_REF="${MAIN_REF:-origin/main}"
 fail() { echo "::error::Release guard: $*"; exit 1; }
 
-gradle_field() { # $1 = commit, $2 = versionCode|versionName
-  git show "$1:app/build.gradle.kts" \
-    | sed -nE "s/^[[:space:]]*$2[[:space:]]*=[[:space:]]*\"?([^\"[:space:]]+)\"?.*/\1/p" | head -1
+gradle_field() { # $1 = commit, $2 = versionCode|versionName; fails on more than one distinct value
+  local vals
+  vals=$(git show "$1:app/build.gradle.kts" \
+    | sed -nE "s/^[[:space:]]*$2[[:space:]]*=[[:space:]]*\"?([^\"[:space:]]+)\"?.*/\1/p" | sort -u)
+  [ "$(printf '%s\n' "$vals" | grep -c .)" -le 1 ] \
+    || fail "app/build.gradle.kts at $1 assigns $2 more than once with different values (${vals//$'\n'/, }); the APK verification step is authoritative, but ambiguous source is refused early."
+  printf '%s\n' "$vals"
 }
 
 # Tag shape: must match ADR-0005 and the "Detect pre-release" step in release.yml
@@ -67,3 +71,6 @@ if PREV=$(git describe --tags --abbrev=0 --match 'v*' "$SHA^" 2>/dev/null); then
 else
   echo "ok: versionName $VNAME == tag, versionCode $VCODE (no previous v* tag)"
 fi
+# Hand the source-derived versionCode to the post-download APK verification
+# (release-verify-apk.sh), which requires the APK to report exactly this value.
+if [ -n "${GITHUB_OUTPUT:-}" ]; then echo "vcode=$VCODE" >> "$GITHUB_OUTPUT"; fi
