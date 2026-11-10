@@ -441,7 +441,7 @@ private fun GTemperatureUnit.toDomain(): TemperatureUnit = when (this) {
  *  strings the detail sheet surfaces verbatim. */
 fun DockerContainerStatsSubscription.Data.toContainerLiveStat(): Pair<String, ContainerLiveStats> =
     dockerContainerStats.let { s ->
-        s.id to ContainerLiveStats(
+        s.id.stripTerminalControl() to ContainerLiveStats(
             cpuPercent = s.cpuPercent,
             memPercent = s.memPercent,
             memUsage = s.memUsage,
@@ -449,6 +449,18 @@ fun DockerContainerStatsSubscription.Data.toContainerLiveStat(): Pair<String, Co
             blockIO = s.blockIO,
         )
     }
+
+private val ANSI_CSI = Regex("\u001B\\[[0-?]*[ -/]*[@-~]")
+
+/**
+ * Removes ANSI CSI escape sequences and any remaining control characters from
+ * [this]. The Unraid API passes `docker stats` terminal output through: the
+ * first container of each frame arrives as `<serverid>:\u001B[J\u001B[H<containerid>`
+ * (#224). Container ids never contain such characters, so stripping them makes
+ * the stats id equal the polled container's id (the join key).
+ */
+internal fun String.stripTerminalControl(): String =
+    replace(ANSI_CSI, "").filterNot { it.isISOControl() }
 
 private fun GPluginInstallStatus.toDomain(): PluginInstallStatus = when (this) {
     GPluginInstallStatus.FAILED    -> PluginInstallStatus.Failed
