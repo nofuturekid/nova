@@ -10,7 +10,6 @@ import com.apollographql.apollo.exception.ApolloException
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -137,6 +136,9 @@ class UnraidRepository @Inject constructor(
         /** Consecutive poll failures before the UI drops to an Error state. */
         const val TRANSIENT_ERROR_TOLERANCE = 3
 
+        /** Upper bound for how long [refreshAll] waits for refreshed data. */
+        const val REFRESH_MAX_WAIT_MS = 20_000L
+
         /**
          * Grace window before [subscriptionOrPoll] degrades a live subscription to
          * its HTTP poll fallback. Chosen at 3x [POLL_METRICS_MS] (6 s): long enough
@@ -166,13 +168,19 @@ class UnraidRepository @Inject constructor(
          */
         private suspend fun <T> kotlinx.coroutines.flow.FlowCollector<DomainState<T>>.pollDomain(
             intervalMs: Long,
-            nudge: Flow<Unit>?,
+            nudges: List<Nudge>,
             fetch: suspend () -> DomainState<T>,
         ) {
             var lastContent: DomainState.Content<T>? = null
             var consecutiveErrors = 0
             while (true) {
-                when (val result = fetch()) {
+                // Counts are read BEFORE fetching: a nudge that lands while the
+                // fetch is in flight changes the count, so the wait below ends
+                // at once and the data the nudge was meant to refresh is fetched.
+                val seen = nudges.map { it.count.value }
+                val result = fetch()
+                nudges.forEachIndexed { i, n -> n.complete(seen[i]) }
+                when (result) {
                     is DomainState.Content<T> -> {
                         lastContent = result
                         consecutiveErrors = 0
@@ -187,11 +195,14 @@ class UnraidRepository @Inject constructor(
                     else -> emit(result)
                 }
                 // Sleep the poll interval, but cut it short if a nudge
-                // arrives (post-action fast refresh). No nudge → plain delay.
-                if (nudge == null) {
+                // arrives (post-action fast refresh, pull-to-refresh). No nudge
+                // source → plain delay.
+                if (nudges.isEmpty()) {
                     delay(intervalMs)
                 } else {
-                    withTimeoutOrNull(intervalMs) { nudge.first() }
+                    withTimeoutOrNull(intervalMs) {
+                        combine(nudges.map { it.count }) { it.toList() }.first { it != seen }
+                    }
                 }
             }
         }
@@ -207,8 +218,9 @@ class UnraidRepository @Inject constructor(
          */
         internal fun <T> pollDomainForTest(
             intervalMs: Long,
+            nudges: List<Nudge> = emptyList(),
             fetch: suspend () -> DomainState<T>,
-        ): Flow<DomainState<T>> = flow { pollDomain(intervalMs, null, fetch) }
+        ): Flow<DomainState<T>> = flow { pollDomain(intervalMs, nudges, fetch) }
 
         /**
          * Runs a mutation and throws [ActionFailedException] if the response
@@ -578,9 +590,13 @@ class UnraidRepository @Inject constructor(
      * instead of waiting out the (60 s) interval. A notification action
      * (archive / unread / delete / archive-all) fires it after the mutation
      * so the sheet AND the bell badge reflect the change within ~a frame.
-     * extraBufferCapacity keeps the non-suspending `tryEmit` lossless.
+     * A [Nudge] counter (not an event) so a nudge during an in-flight fetch
+     * is not lost.
      */
-    private val notificationsNudge = MutableSharedFlow<Unit>(extraBufferCapacity = 1)
+    private val notificationsNudge = Nudge()
+
+    /** Pull-to-refresh: every domain stream refetches when this fires. */
+    private val refreshNudge = Nudge()
 
     fun notificationsStream(intervalMs: Long = POLL_NOTIFICATIONS_MS): Flow<DomainState<Notifications>> =
         domainStream(intervalMs, notificationsNudge) { client, baseUrl ->
@@ -617,7 +633,7 @@ class UnraidRepository @Inject constructor(
      */
     private fun <T> domainStream(
         intervalMs: Long,
-        nudge: Flow<Unit>? = null,
+        extraNudge: Nudge? = null,
         fetch: suspend (ApolloClient, String) -> DomainState<T>,
     ): Flow<DomainState<T>> = servers.activeWithKey
         .distinctUntilChanged()
@@ -634,7 +650,7 @@ class UnraidRepository @Inject constructor(
                 val url = activeUrl(active)
                 val client = apolloFactory.build(url, active.apiKey, trustFor(active, url))
                 try {
-                    pollDomain(intervalMs, nudge) { fetch(client, url) }
+                    pollDomain(intervalMs, listOfNotNull(refreshNudge, extraNudge)) { fetch(client, url) }
                 } catch (e: Throwable) {
                     val issue = e.certIssue()
                     if (issue != null) {
@@ -893,20 +909,15 @@ class UnraidRepository @Inject constructor(
 
     // ── One-shot helpers (refresh, ping, logs) ────────────────────────
 
-    /** Force a single fetch of every domain. Used by pull-to-refresh.
-     *  Doesn't return data — the live streams pick up the new values. */
+    /** Pull-to-refresh: makes every active domain stream refetch right now and
+     *  returns once data fetched after the request has arrived (or failed), so
+     *  the spinner ends with the refreshed data on screen. Bounded by
+     *  [REFRESH_MAX_WAIT_MS] for the case that no stream is collecting. */
     suspend fun refreshAll() {
         val active = servers.activeWithKey.first() ?: return
         if (active.apiKey.isBlank()) return
-        val url = activeUrl(active)
-        val client = apolloFactory.build(url, active.apiKey, trustFor(active, url))
-        // Fire all five queries in sequence; errors are ignored — the polling
-        // streams will surface them on their own cadence.
-        runCatching { client.query(GetServerInfoQuery()).execute() }
-        runCatching { client.query(GetMetricsQuery()).execute() }
-        runCatching { client.query(GetArrayQuery()).execute() }
-        runCatching { client.query(GetDockerContainersQuery()).execute() }
-        runCatching { client.query(GetVmsQuery()).execute() }
+        val generation = refreshNudge.fire()
+        withTimeoutOrNull(REFRESH_MAX_WAIT_MS) { refreshNudge.awaitCompleted(generation) }
     }
 
     private fun activeUrl(active: ActiveServer): String = when (active.mode) {
@@ -1022,7 +1033,7 @@ class UnraidRepository @Inject constructor(
             resolveClient = { activeClient() },
             mutate = { c -> block(c) },
             recalculate = { c -> c.runAction(RecalculateNotificationOverviewMutation()) },
-            nudge = { notificationsNudge.tryEmit(Unit) },
+            nudge = { notificationsNudge.fire() },
         )
 
     /**
