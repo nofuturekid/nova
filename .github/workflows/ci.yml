@@ -348,11 +348,13 @@ jobs:
           # KEYSTORE_B64 is present. On a fork PR the secret is unavailable,
           # the sign/upload steps are skipped, and the job ends `success`
           # with no release artifact — that is the INTENDED state for fork
-          # PRs (release.yml backstops the real ship via the merge-commit
-          # CI run, ADR-0004/0014). So `skipped` is a legitimate pass here
+          # PRs. A fork/Dependabot PR is never what ships: release.yml only
+          # promotes a same-repo run's artifact and checks it against the
+          # tag (ADR-0004/0014). So `skipped` is a legitimate pass here
           # in addition to `success`; only a genuine failure/cancel of
-          # build-release blocks the gate. Same-repo PRs (keystore present)
-          # always produce `success`, so their behaviour is unchanged.
+          # build-release blocks the gate. On same-repo runs a missing
+          # keystore fails the decode step instead of skipping, so they
+          # always end `success` with a signed artifact.
           if [ "$RELEASE_RESULT" = "success" ] || [ "$RELEASE_RESULT" = "skipped" ]; then
             echo "Gate passed — debug=$DEBUG_RESULT release=$RELEASE_RESULT (skipped = fork/no-keystore, intended)."
             exit 0
