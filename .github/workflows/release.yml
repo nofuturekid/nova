@@ -12,7 +12,8 @@ name: Release
 #
 # Falls back to a clear error message if neither path resolves; recovery
 # is a manual workflow_dispatch on the tag. Before anything is downloaded or
-# published, release-guard.sh checks tag/commit/CI-run consistency.
+# published, release-guard.sh checks tag/commit/CI-run consistency; after the
+# download release-verify-apk.sh checks the APK's own version, package, signer.
 on:
   push:
     tags: ['v*']
@@ -121,6 +122,7 @@ jobs:
       # tree equal to the tagged tree, versionName == tag, versionCode up.
       # Logic lives in .github/scripts/release-guard.sh (CI review H2, ADR-0014).
       - name: Guard — artifact matches tag
+        id: guard
         env:
           GH_TOKEN: ${{ github.token }}
           TAG: ${{ github.ref_name }}
@@ -152,6 +154,20 @@ jobs:
           run-id: ${{ steps.run.outputs.id }}
           github-token: ${{ github.token }}
         continue-on-error: true
+
+      # The APK is the source of truth, not the gradle text the guard parsed:
+      # require its own package, versionName (== tag), versionCode (== the
+      # guard's source value) and the pinned signer before anything is
+      # published (ADR-0014 amendment). Logic in release-verify-apk.sh.
+      - name: Verify APK version, package and signer
+        env:
+          TAG: ${{ github.ref_name }}
+          EXPECTED_VERSION_CODE: ${{ steps.guard.outputs.vcode }}
+        run: |
+          set -e
+          [ "$(find artifacts/apk -maxdepth 1 -name '*.apk' | wc -l)" = 1 ] \
+            || { echo "::error::Expected exactly one APK in the app-release artifact."; ls -la artifacts/apk; exit 1; }
+          APK=$(find artifacts/apk -maxdepth 1 -name '*.apk') .github/scripts/release-verify-apk.sh
 
       - name: Rename APK to include tag
         id: rename
