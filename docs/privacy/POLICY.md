@@ -1,6 +1,6 @@
 # Privacy Policy — NOVA
 
-**Effective:** 2026-05-21
+**Effective:** 2026-11-10
 
 NOVA is an open-source Android client for Unraid® servers, published under the GPL v3 license. This policy describes what data the app processes, where it goes, and what you can do about it.
 
@@ -53,7 +53,7 @@ NOVA declares these Android permissions (visible in the app's permission list un
 NOVA ships in two flavors that differ only in their distribution channel:
 
 - **`direct`** — installed from the [GitHub Releases page](https://github.com/nofuturekid/nova/releases). Includes the in-app updater (talks to `api.github.com` and downloads APKs from GitHub Releases over HTTPS).
-- **`store`** — installed from F-Droid (and, in the future, the Google Play Store). The in-app updater is absent. App updates are managed by your store of choice. No network traffic to GitHub from the running app. Container icons are still fetched from the URLs your server provides (see "Data the app sends").
+- **`store`** — installed from F-Droid (and, in the future, the Google Play Store). The in-app updater is absent. App updates are managed by your store of choice. No GitHub traffic for app updates or update checks. Container icons are still fetched from the URLs your server provides (see "Data the app sends").
 
 ## Update integrity (`direct` flavor only)
 

@@ -47,6 +47,7 @@ import io.github.nofuturekid.nova.ui.screens.NoServerState
 import io.github.nofuturekid.nova.ui.theme.JetBrainsMono
 import io.github.nofuturekid.nova.ui.theme.UnraidAlpha
 import io.github.nofuturekid.nova.ui.theme.UnraidTheme
+import io.github.nofuturekid.nova.ui.util.countLabel
 
 @Composable
 fun ArrayTab(
@@ -125,7 +126,7 @@ private fun ArrayContent(
                             )
                             Spacer(Modifier.height(4.dp))
                             Text(
-                                text = "${arr.disks.size} disks · ${"%.1f".format(totalUsedTb)} / ${"%.0f".format(totalSizeTb)} TB",
+                                text = "${countLabel(arr.disks.size, "disk")} · ${"%.1f".format(totalUsedTb)} / ${"%.0f".format(totalSizeTb)} TB",
                                 color = t.muted,
                                 style = MaterialTheme.typography.bodySmall,
                             )
@@ -175,7 +176,7 @@ private fun ArrayContent(
                             Spacer(Modifier.height(8.dp))
                             Row {
                                 Text(
-                                    "${"%.0f".format(pc.speedMbps)} MB/s · ${pc.errors} errors",
+                                    "${"%.0f".format(pc.speedMbps)} MB/s · ${countLabel(pc.errors, "error")}",
                                     color = t.muted,
                                     style = MaterialTheme.typography.labelSmall,
                                 )

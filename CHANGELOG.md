@@ -17,9 +17,10 @@ release version + date and opens a fresh `[Unreleased]`.
 
 ### Fixed
 - **Network interfaces screen no longer shows blank hardware fields** —
-  vendor, model, link speed and the virtual flag are only available with
-  a third-party API plugin; without data the Hardware block is hidden
-  (#223).
+  vendor, model, link speed and the virtual flag are only available with a
+  third-party API plugin; rows without data are now left out instead of
+  shown empty. On a stock API the Hardware block still shows the MAC
+  address (#223).
 - **Container details tabs are accessible** — the Info/Logs/Ports/Volumes
   tabs now use the standard Material tab bar, so screen readers announce
   them as tabs with the selected one marked and the touch targets are at
@@ -38,9 +39,11 @@ release version + date and opens a fresh `[Unreleased]`.
 - **Confirmation before Restart, Update and VM Reboot** — restarting or
   updating a single container and rebooting a VM now ask first, like Stop
   already did (#229).
-- **VM "Stop" now shuts the VM down gracefully** — it used to cut the power
-  (#228). Stop asks the guest to shut down cleanly; the old behaviour is
-  now a separate "Force stop" button, still behind a confirmation.
+- **VM "Stop" asks the guest to shut down first** — it used to cut the
+  power (#228). Stop now asks for confirmation, sends a shutdown request and
+  Unraid powers the VM off if the guest has not shut down within about 10
+  seconds. "Force stop" powers off immediately, as before, behind its own
+  confirmation.
 - **Failed actions now tell you why** — stopping a container or VM, array and
   parity actions and notification actions failed silently when the server was
   unreachable or refused them (for example an API key without permission):
@@ -60,6 +63,10 @@ release version + date and opens a fresh `[Unreleased]`.
   one container per refresh never got live CPU/memory/IO numbers because the
   server sent its id with terminal control characters attached.
 ||||||| parent of 4676e94 (fix(vms): make Stop a graceful shutdown, keep Force stop separate)
+||||||| parent of 1ab2b8b (fix(ui): confirm VM Stop, scope privacy wording, review follow-ups)
+- **VM "Stop" now shuts the VM down gracefully** — it used to cut the power
+  (#228). Stop asks the guest to shut down cleanly; the old behaviour is
+  now a separate "Force stop" button, still behind a confirmation.
 - **Network card shows speed on Unraid 4.35 and newer** — the Overview's
   network card showed no speed on Unraid API 4.35 and newer; it now does
   (related to #217). Live network speed needs Unraid API 4.35 or newer.

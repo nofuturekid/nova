@@ -83,7 +83,7 @@ The original sourceSet-split sketch is preserved above for posterity. If reprodu
 
 ## Amendment (2026-11-10): network contacts of the `store` flavor
 
-"No third-party services" in this ADR refers to the update/push pipeline. The `store` flavor does not contact GitHub, but both flavors fetch container icons from the URLs the user's own Unraid server provides, which are usually third-party hosts (e.g. `raw.githubusercontent.com`, `cdn.jsdelivr.net`). The `direct` flavor additionally checks for updates at app start and in Settings. This is documented in `docs/privacy/POLICY.md`; no toggle was added.
+"No third-party services" in this ADR refers to the update/push pipeline. The `store` flavor makes no GitHub requests for updates or update checks, but both flavors fetch container icons from the URLs the user's own Unraid server provides, which are usually third-party hosts (e.g. `raw.githubusercontent.com`, `cdn.jsdelivr.net`). The `direct` flavor additionally checks for updates at app start and in Settings. This is documented in `docs/privacy/POLICY.md`; no toggle was added.
 
 ## References
 

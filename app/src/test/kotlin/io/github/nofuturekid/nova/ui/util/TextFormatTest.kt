@@ -16,6 +16,10 @@ class TextFormatTest {
         assertEquals("31.3GiB", memLimit("1.15GiB / 31.3GiB"))
     }
 
+    @Test fun empty_mem_shows_a_dash_not_a_blank() {
+        assertEquals("—", memUsed(""))
+    }
+
     @Test fun mem_without_separator_is_kept_whole() {
         assertEquals("236MiB", memUsed("236MiB"))
         assertNull(memLimit("236MiB"))

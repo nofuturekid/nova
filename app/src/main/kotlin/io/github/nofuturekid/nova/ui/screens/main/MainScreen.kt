@@ -403,7 +403,16 @@ fun MainScreen(
             onStart  = { vm.startVm(it.id); openVm = null },
             onResume = { vm.resumeVm(it.id); openVm = null },
             onPause  = { vm.pauseVm(it.id); openVm = null },
-            onStop   = { v -> vm.stopVm(v.id, force = false); openVm = null },
+            onStop   = { v ->
+                confirm = ConfirmRequest(
+                    title = "Stop ${v.name}?",
+                    body = "The guest is asked to shut down. If it has not shut down within about 10 seconds, Unraid powers the VM off.",
+                    confirmLabel = "Stop",
+                    tone = Tone.Danger,
+                    icon = { UC.Stop(22.dp, t.danger) },
+                    onConfirm = { vm.stopVm(v.id, force = false); confirm = null; openVm = null },
+                )
+            },
             onForceStop = { v ->
                 confirm = ConfirmRequest(
                     title = "Force stop ${v.name}?",

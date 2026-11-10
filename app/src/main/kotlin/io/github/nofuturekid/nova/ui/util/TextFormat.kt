@@ -13,7 +13,8 @@ internal fun notificationSummary(alerts: Int, warnings: Int, info: Int): String 
  * ("1.15GiB / 31.3GiB"). Narrow layouts show only the used part; the limit
  * is returned separately (null when the server sends no " / ").
  */
-internal fun memUsed(memUsage: String): String = memUsage.substringBefore(" / ").trim()
+internal fun memUsed(memUsage: String): String =
+    memUsage.substringBefore(" / ").trim().ifEmpty { "—" }
 
 internal fun memLimit(memUsage: String): String? =
     memUsage.substringAfter(" / ", "").trim().ifEmpty { null }
