@@ -3,6 +3,7 @@ package io.github.nofuturekid.nova.data.api
 import io.github.nofuturekid.nova.data.model.NetworkThroughput
 import io.github.nofuturekid.nova.data.model.selectThroughput
 import io.github.nofuturekid.nova.graphql.GetNetworkThroughputQuery
+import io.github.nofuturekid.nova.graphql.SystemMetricsNetworkSubscription
 import org.junit.Assert.assertEquals
 import org.junit.Test
 
@@ -24,6 +25,7 @@ class NetworkThroughputMappingTest {
             net("veth19ce726", 1000.0, 14000.0),
             net("vnet0", 900.0, 1600.0),
             net("shim-br0", 13000.0, 9800.0),
+            net("br-3f9a1c2d4e5b", 700.0, 800.0),
             net("br0", 17421.0, 23315.0),
         )
         assertEquals(NetworkThroughput(17421.0, 23315.0), selectThroughput(data.toIfaceSamples(), null))
@@ -36,6 +38,20 @@ class NetworkThroughputMappingTest {
             NetworkThroughput.ZERO,
             selectThroughput(GetNetworkThroughputQuery.Data(metrics = null).toIfaceSamples(), "br0"),
         )
+    }
+
+    @Test fun subscription_frame_maps_and_filters_like_the_poll() {
+        // WHY: the subscription is the PRIMARY transport and its generated type is a
+        // separate copy of the poll one; it must map name/rxSec/txSec and drop virtual
+        // interfaces identically, or the card would differ between WS and fallback.
+        val frame = SystemMetricsNetworkSubscription.Data(
+            systemMetricsNetwork = listOf(
+                SystemMetricsNetworkSubscription.SystemMetricsNetwork("veth19ce726", 1000.0, 14000.0),
+                SystemMetricsNetworkSubscription.SystemMetricsNetwork("br-3f9a1c2d4e5b", 700.0, 800.0),
+                SystemMetricsNetworkSubscription.SystemMetricsNetwork("br0", 17421.0, 23315.0),
+            ),
+        )
+        assertEquals(NetworkThroughput(17421.0, 23315.0), selectThroughput(frame.toIfaceSamples(), null))
     }
 
     private fun data(vararg n: GetNetworkThroughputQuery.Network) =

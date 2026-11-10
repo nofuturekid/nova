@@ -230,9 +230,15 @@ On such servers the old query fails validation with
 `Cannot query field "interfaces" on type "NetworkMetrics"`.
 
 The vendored schema, the poll query and the subscription now use the upstream
-shape. Live throughput therefore requires Unraid API 4.35+. A server without
-`metrics.network` is detected once (validation error / HTTP 400), cached per
-server URL as unsupported, and the throughput simply stays absent (no error
-state); inconclusive probes (offline, auth) are not cached. Virtual interfaces
-the upstream list now includes (`docker*`, `veth*`, `vnet*`, `virbr*`, `shim-*`,
+shape. Live throughput therefore requires Unraid API 4.35+. Before the stream
+starts, support is probed with the poll query: a GraphQL validation error
+(`Cannot query field` / `GRAPHQL_VALIDATION_FAILED`, which Apollo 5 parses out of
+Unraid's HTTP 400 `application/graphql-response+json` body) means unsupported
+and the throughput simply stays absent (no error state). Anything else (offline,
+auth, a non-GraphQL 400 from a proxy) is inconclusive and retried every 15 s.
+Cache lifetime: a supporting server URL is remembered for the process; an
+unsupporting one is NOT cached and is probed again each time the stream is
+collected anew (one cheap query per Overview start, never per poll), so an API
+upgrade takes effect without an app restart. Virtual interfaces the upstream
+list now includes (`docker*`, `br-<hash>`, `veth*`, `vnet*`, `virbr*`, `shim-*`,
 `lo`) are ignored when choosing the interface to show.

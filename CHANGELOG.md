@@ -16,11 +16,11 @@ release version + date and opens a fresh `[Unreleased]`.
 ## [Unreleased]
 
 ### Fixed
-- **Network speed works again on current Unraid versions** — on Unraid API
-  4.35 and newer the Overview's network card failed with a "Cannot query
-  field" error. It now reads the official network metrics. Live network
-  speed needs Unraid API 4.35 or newer; on older servers the card simply
-  shows no speed instead of an error (#217).
+- **Network card shows speed on Unraid 4.35 and newer** — the Overview's
+  network card showed no speed on Unraid API 4.35 and newer; it now does
+  (related to #217). Live network speed needs Unraid API 4.35 or newer.
+  Servers below 4.35 that relied on a third-party API patch for this no
+  longer show network speed until the API is updated.
 
 ## [0.1.41] - 2026-10-06
 

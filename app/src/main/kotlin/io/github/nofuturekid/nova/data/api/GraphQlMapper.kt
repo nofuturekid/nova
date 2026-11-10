@@ -343,12 +343,12 @@ fun GetNetworkInterfacesQuery.Data.toNetworkInterfaces(): List<NetworkInterface>
 // ── Network throughput (Unraid API 4.35+: one NetworkMetrics entry per interface) ──
 
 // Since 4.35 the server lists every kernel interface, including virtual ones
-// (docker0, veth*, vnet*, virbr*, shim-*) that the old shape never contained.
+// (docker0, br-<hash> user-defined bridges, veth*, vnet*, virbr*, shim-*) that the old shape never contained.
 // They are dropped so selectThroughput's "first non-lo moving interface"
 // fallback cannot land on a container's veth.
 private fun isVirtualIface(name: String): Boolean =
     name == "lo" || name.startsWith("docker") || name.startsWith("veth") ||
-        name.startsWith("vnet") || name.startsWith("virbr") || name.startsWith("shim-")
+        name.startsWith("vnet") || name.startsWith("virbr") || name.startsWith("br-") || name.startsWith("shim-")
 
 fun SystemMetricsNetworkSubscription.Data.toIfaceSamples(): List<IfaceSample> =
     systemMetricsNetwork.filterNot { isVirtualIface(it.name) }.map {

@@ -5,7 +5,6 @@ import com.apollographql.apollo.api.Error
 import com.apollographql.apollo.api.Query
 import com.apollographql.apollo.api.Subscription
 import com.apollographql.apollo.exception.ApolloException
-import com.apollographql.apollo.exception.ApolloHttpException
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableSharedFlow
@@ -331,9 +330,11 @@ class UnraidRepository @Inject constructor(
 
         /**
          * Outcome of probing the network-throughput operation against a server.
-         * [SchemaMismatch] = the server rejected the operation's shape (GraphQL
-         * validation failure, or HTTP 400 which Unraid answers it with);
-         * [Inconclusive] = anything else (offline, auth, cert, 5xx) — never cached.
+         * [SchemaMismatch] = the server rejected the operation's shape with a GraphQL
+         * validation error (Apollo 5 parses Unraid's HTTP 400
+         * `application/graphql-response+json` body into `errors`);
+         * [Inconclusive] = anything else (offline, auth, cert, 5xx, a non-GraphQL 400
+         * from a proxy or captive portal) — never treated as "unsupported".
          */
         internal enum class ShapeProbe { Supported, SchemaMismatch, Inconclusive }
 
@@ -346,32 +347,49 @@ class UnraidRepository @Inject constructor(
                 e.message.contains("Cannot query field") ||
                     e.extensions?.get("code") == "GRAPHQL_VALIDATION_FAILED"
             } -> ShapeProbe.SchemaMismatch
-            exception is ApolloHttpException && exception.statusCode == 400 -> ShapeProbe.SchemaMismatch
             exception == null && errors.isEmpty() && hasData -> ShapeProbe.Supported
             else -> ShapeProbe.Inconclusive
         }
 
         /**
-         * Decide (and cache per server URL) whether [key] serves `metrics.network`
-         * (Unraid API 4.35+). Older servers reject the field with a validation error,
-         * which fails the whole operation — so they are cached as unsupported and the
-         * throughput card is simply absent. Only definitive answers are cached; an
-         * inconclusive probe returns null so the caller retries instead of pinning a
-         * server to "unsupported" forever. The probe runs once per server, not per poll.
+         * Whether [key] serves `metrics.network` (Unraid API 4.35+). A server that
+         * does is remembered in [supported] for the process (one probe per server,
+         * not per poll). A server that does not is NOT remembered: the caller probes
+         * it again on its next collection, so upgrading the API takes effect without
+         * an app restart. An inconclusive probe returns null (caller retries).
          */
         internal suspend fun resolveNetworkSupport(
-            cache: MutableMap<String, Boolean>,
+            supported: MutableSet<String>,
             key: String,
             probe: suspend () -> ShapeProbe,
         ): Boolean? {
-            cache[key]?.let { return it }
-            val resolved = when (probe()) {
-                ShapeProbe.Supported -> true
+            if (key in supported) return true
+            return when (probe()) {
+                ShapeProbe.Supported -> { supported.add(key); true }
                 ShapeProbe.SchemaMismatch -> false
                 ShapeProbe.Inconclusive -> null
             }
-            if (resolved != null) cache[key] = resolved
-            return resolved
+        }
+
+        /**
+         * Runs [content] only on a server that serves `metrics.network`. Unsupported:
+         * emits nothing (no Error — the throughput is simply absent) and completes;
+         * the next collection probes again. Inconclusive probes are retried every
+         * [retryMs].
+         */
+        internal fun <T> networkSupportGated(
+            supported: MutableSet<String>,
+            key: String,
+            retryMs: Long,
+            probe: suspend () -> ShapeProbe,
+            content: () -> Flow<DomainState<T>>,
+        ): Flow<DomainState<T>> = flow {
+            var ok = resolveNetworkSupport(supported, key, probe)
+            while (ok == null) {
+                delay(retryMs)
+                ok = resolveNetworkSupport(supported, key, probe)
+            }
+            if (ok) emitAll(content())
         }
 
         /**
@@ -388,8 +406,7 @@ class UnraidRepository @Inject constructor(
          * double-collect: the HTTP poll must not run alongside a working WS).
          *
          * This is the NEW substrate capability over ADR-0042's bare
-         * [subscriptionStream] (the network balloon had no query path, so no
-         * fallback). It is a pure [DomainState] combinator — no Apollo types, no live
+         * [subscriptionStream] (which has no poll fallback of its own). It is a pure [DomainState] combinator — no Apollo types, no live
          * WS — so the unit test drives this exact production body on the virtual
          * scheduler (Rule 9), with [graceMs] timed by suspending primitives only (no
          * wall-clock) for determinism.
@@ -612,8 +629,8 @@ class UnraidRepository @Inject constructor(
      * Cold: the WS socket opens when the flow is collected and closes when
      * collection is cancelled (gate flip / leaving Overview / app background).
      * Apollo's WS transport auto-reconnects and re-sends the connection payload
-     * on drops; a sustained failure surfaces `DomainState.Error`. There is no
-     * poll fallback for this consumer — on WS failure the card shows unavailable.
+     * on drops; a sustained failure surfaces `DomainState.Error`. This bare transport has
+     * no poll fallback; consumers that need one wrap it in [subscriptionOrPoll].
      */
     private fun <D : Subscription.Data, T> subscriptionStream(
         op: Subscription<D>,
@@ -653,17 +670,16 @@ class UnraidRepository @Inject constructor(
      * transport, degrading to the 2 s `GetNetworkThroughput` poll
      * ([networkThroughputPoll]) on sustained WS failure and returning to the
      * subscription when it recovers — so the card never goes blank on a transient
-     * WS drop. ADR-0042's original "no query path for network → no fallback" no
-     * longer holds: the QUERY-side `metrics.network` was added upstream
-     * (live-verified 2026-05-30), so the same [subscriptionOrPoll] treatment as
-     * CPU/Mem/Temp now applies. The WS socket lives only while the flow is
+     * WS drop, the same [subscriptionOrPoll] treatment as CPU/Mem/Temp. The WS socket lives only while the flow is
      * collected (gated by the caller via [gatedStream] in the ViewModel); the
      * poll runs only while degraded.
      *
      * `metrics.network` exists upstream from Unraid API 4.35 (a list of
      * `NetworkMetrics`). An older server rejects the unknown field, failing the
-     * whole operation, so support is probed once per URL ([resolveNetworkSupport])
-     * and an unsupporting server yields no throughput, quietly.
+     * whole operation, so support is probed ([networkSupportGated]): a supporting
+     * URL is remembered for the process, an unsupporting one is re-probed on each
+     * new collection (one cheap query per Overview start). An unsupporting server
+     * yields no throughput, quietly (no Error).
      */
     fun networkThroughputStream(): Flow<DomainState<NetworkThroughput>> =
         servers.activeWithKey
@@ -675,31 +691,31 @@ class UnraidRepository @Inject constructor(
                         emit(DomainState.Error(blankKeyMessage(active))); return@flow
                     }
                     val client = buildClient(active)
-                    val key = activeUrl(active)
-                    // Inconclusive probe (offline, auth, ...): retry rather than guess.
-                    var supported = resolveNetworkSupport(networkSupport, key) { probeShape(client) }
-                    while (supported == null) {
-                        delay(NETWORK_SHAPE_RETRY_MS)
-                        supported = resolveNetworkSupport(networkSupport, key) { probeShape(client) }
-                    }
-                    // API < 4.35 has no `metrics.network`: emit nothing (the card stays
-                    // Loading, throughput simply absent) — no Error, no banner.
-                    if (!supported) return@flow
-                    val primary = runCatching { resolvePrimaryIface() }.getOrNull()
                     emitAll(
-                        subscriptionOrPoll(
-                            sub = subscriptionStream(SystemMetricsNetworkSubscription()) { data ->
-                                selectThroughput(data.toIfaceSamples(), primary)
+                        networkSupportGated(
+                            networkSupported, activeUrl(active), NETWORK_SHAPE_RETRY_MS,
+                            probe = { probeShape(client) },
+                            content = {
+                                flow {
+                                    val primary = runCatching { resolvePrimaryIface() }.getOrNull()
+                                    emitAll(
+                                        subscriptionOrPoll(
+                                            sub = subscriptionStream(SystemMetricsNetworkSubscription()) { data ->
+                                                selectThroughput(data.toIfaceSamples(), primary)
+                                            },
+                                            poll = networkThroughputPoll(primary),
+                                            graceMs = SUB_FALLBACK_GRACE_MS,
+                                        ),
+                                    )
+                                }
                             },
-                            poll = networkThroughputPoll(primary),
-                            graceMs = SUB_FALLBACK_GRACE_MS,
                         ),
                     )
                 }
             }
 
-    /** Per-server-URL cache of `metrics.network` support (see [resolveNetworkSupport]). */
-    private val networkSupport = java.util.concurrent.ConcurrentHashMap<String, Boolean>()
+    /** Server URLs known to serve `metrics.network` (see [resolveNetworkSupport]). */
+    private val networkSupported: MutableSet<String> = java.util.concurrent.ConcurrentHashMap.newKeySet()
 
     private suspend fun probeShape(client: ApolloClient): ShapeProbe =
         try {
@@ -745,8 +761,8 @@ class UnraidRepository @Inject constructor(
     /**
      * Live temperature from `systemMetricsTemperature` with a poll fallback.
      *
-     * Unlike [networkThroughputStream] (no query path → no fallback), temperature
-     * IS exposed by the `GetMetrics` query, so ADR-0026 mandates a fallback: the
+     * Temperature is exposed by the `GetMetrics` query, so ADR-0026 mandates a
+     * fallback (as for [networkThroughputStream]): the
      * subscription is primary and degrades to the 2 s `GetMetrics` poll on
      * sustained WS failure (or if no first frame arrives within the grace window),
      * returning to the subscription when it recovers — so the card never goes
