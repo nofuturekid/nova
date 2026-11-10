@@ -16,6 +16,9 @@ release version + date and opens a fresh `[Unreleased]`.
 ## [Unreleased]
 
 ### Fixed
+- **No more background polling** — Settings → Server plugins, Network
+  interfaces and the container Logs tab kept refreshing from the server
+  while the app was in the background; they now pause until you return.
 - **Confirmation before Restart, Update and VM Reboot** — restarting or
   updating a single container and rebooting a VM now ask first, like Stop
   already did (#229).

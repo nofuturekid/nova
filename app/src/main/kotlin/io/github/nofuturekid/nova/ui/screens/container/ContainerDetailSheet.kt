@@ -38,6 +38,9 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.compose.LocalLifecycleOwner
+import androidx.lifecycle.compose.currentStateAsState
 import androidx.compose.ui.unit.sp
 import androidx.compose.foundation.clickable
 import androidx.compose.ui.platform.LocalContext
@@ -93,9 +96,12 @@ fun ContainerDetailSheet(
     var logsFailed by remember(container.id) { mutableStateOf(false) }
     // Live tail: while the Logs tab is open on a running container, re-fetch
     // on an interval. The keyed LaunchedEffect cancels the loop when the
-    // tab changes, the container stops, or the sheet is dismissed.
-    LaunchedEffect(tab, container.id, container.status) {
-        if (tab == DetailTab.Logs && container.status == ContainerStatus.Running) {
+    // tab changes, the container stops, the sheet is dismissed or the app
+    // leaves the STARTED state (backgrounded).
+    val lifecycleState by LocalLifecycleOwner.current.lifecycle.currentStateAsState()
+    val started = lifecycleState.isAtLeast(Lifecycle.State.STARTED)
+    LaunchedEffect(tab, container.id, container.status, started) {
+        if (started && tab == DetailTab.Logs && container.status == ContainerStatus.Running) {
             if (logs == null) logsLoading = true
             while (true) {
                 try {

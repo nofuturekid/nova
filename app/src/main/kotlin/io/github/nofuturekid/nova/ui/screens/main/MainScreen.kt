@@ -37,7 +37,7 @@ import androidx.compose.material3.pulltorefresh.rememberPullToRefreshState
 import androidx.compose.ui.semantics.Role
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.collectAsState
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -101,18 +101,18 @@ fun MainScreen(
     vm: MainViewModel = hiltViewModel(),
 ) {
     val t = UnraidTheme.colors
-    val ui by vm.ui.collectAsState()
-    val tab by vm.selectedTab.collectAsState()
-    val infoState by vm.infoState.collectAsState()
-    val metricsState by vm.metricsState.collectAsState()
-    val networkState by vm.networkThroughputState.collectAsState()
-    val temperatureState by vm.temperatureState.collectAsState()
-    val dockerLiveStats by vm.dockerLiveStats.collectAsState()
-    val arrayState by vm.arrayState.collectAsState()
-    val dockerState by vm.dockerState.collectAsState()
-    val vmsState by vm.vmsState.collectAsState()
-    val notificationsState by vm.notificationsState.collectAsState()
-    val displayThresholds by vm.displayThresholds.collectAsState()
+    val ui by vm.ui.collectAsStateWithLifecycle()
+    val tab by vm.selectedTab.collectAsStateWithLifecycle()
+    val infoState by vm.infoState.collectAsStateWithLifecycle()
+    val metricsState by vm.metricsState.collectAsStateWithLifecycle()
+    val networkState by vm.networkThroughputState.collectAsStateWithLifecycle()
+    val temperatureState by vm.temperatureState.collectAsStateWithLifecycle()
+    val dockerLiveStats by vm.dockerLiveStats.collectAsStateWithLifecycle()
+    val arrayState by vm.arrayState.collectAsStateWithLifecycle()
+    val dockerState by vm.dockerState.collectAsStateWithLifecycle()
+    val vmsState by vm.vmsState.collectAsStateWithLifecycle()
+    val notificationsState by vm.notificationsState.collectAsStateWithLifecycle()
+    val displayThresholds by vm.displayThresholds.collectAsStateWithLifecycle()
     val scope = rememberCoroutineScope()
 
     // Pause polling when app is backgrounded (ADR-0017). Bound to the
@@ -145,9 +145,9 @@ fun MainScreen(
     val pullState = rememberPullToRefreshState()
     var refreshing by remember { mutableStateOf(false) }
 
-    val updateState by vm.updateState.collectAsState()
-    val installState by vm.installState.collectAsState()
-    val dismissedTag by vm.dismissedUpdateTag.collectAsState()
+    val updateState by vm.updateState.collectAsStateWithLifecycle()
+    val installState by vm.installState.collectAsStateWithLifecycle()
+    val dismissedTag by vm.dismissedUpdateTag.collectAsStateWithLifecycle()
     var showUpdateDialog by remember { mutableStateOf(false) }
     val permissionLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.StartActivityForResult(),
@@ -351,7 +351,7 @@ fun MainScreen(
             ?: dockerContent?.value?.firstOrNull { it.name == openContainer!!.name }
             ?: openContainer!!
         val baseUrl = dockerContent?.serverBaseUrl.orEmpty()
-        val updatingIds by vm.updatingContainerIds.collectAsState()
+        val updatingIds by vm.updatingContainerIds.collectAsStateWithLifecycle()
         ContainerDetailSheet(
             container = shown,
             serverBaseUrl = baseUrl,
@@ -467,7 +467,7 @@ fun MainScreen(
 
     ConfirmDialog(request = confirm, onDismiss = { confirm = null })
 
-    val certPrompt by vm.certPrompt.collectAsState()
+    val certPrompt by vm.certPrompt.collectAsStateWithLifecycle()
     certPrompt?.let { p ->
         val t = UnraidTheme.colors
         AlertDialog(

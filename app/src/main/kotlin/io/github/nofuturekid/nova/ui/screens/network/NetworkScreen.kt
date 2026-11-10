@@ -17,7 +17,7 @@ import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.collectAsState
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -45,7 +45,7 @@ fun NetworkScreen(
 ) {
     val t = UnraidTheme.colors
     val d = UnraidTheme.tokens
-    val state by vm.interfaces.collectAsState()
+    val state by vm.interfaces.collectAsStateWithLifecycle()
 
     Column(
         modifier = Modifier

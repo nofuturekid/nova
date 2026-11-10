@@ -17,7 +17,7 @@ import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.collectAsState
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -48,9 +48,9 @@ fun PluginsScreen(
 ) {
     val t = UnraidTheme.colors
     val d = UnraidTheme.tokens
-    val installedState by vm.installedUnraidPlugins.collectAsState()
-    val pluginsState by vm.plugins.collectAsState()
-    val opsState by vm.operations.collectAsState()
+    val installedState by vm.installedUnraidPlugins.collectAsStateWithLifecycle()
+    val pluginsState by vm.plugins.collectAsStateWithLifecycle()
+    val opsState by vm.operations.collectAsStateWithLifecycle()
 
     Column(
         modifier = Modifier
