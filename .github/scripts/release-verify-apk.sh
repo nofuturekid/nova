@@ -54,8 +54,15 @@ echo "ok: APK package $PKG, versionName $VNAME == tag, versionCode $VCODE == sou
 
 # --- signature: valid, single signer, pinned certificate --------------------
 CERTS=$("$APKSIGNER" verify --print-certs "$APK") || fail "apksigner verify failed (APK unsigned or signature invalid)."
-DIGESTS=$(printf '%s\n' "$CERTS" | sed -nE 's/^Signer #[0-9]+ certificate SHA-256 digest: ([0-9a-fA-F]+)$/\1/p' | tr 'A-F' 'a-f')
-[ "$(printf '%s\n' "$DIGESTS" | grep -c .)" = 1 ] || fail "expected exactly one signer certificate, got: ${DIGESTS:-none}."
+# The label in front of the digest differs between build-tools versions ("Signer #1
+# certificate ..." in 36.x, "V2 Signer: certificate ..." in 37.x, one line per signature
+# scheme), so match on the stable part only: every "certificate SHA-256 digest: <hex>"
+# line, whatever the prefix, except SourceStamp signers. All of them must be the same
+# digest, and there must be at least one.
+DIGESTS=$(printf '%s\n' "$CERTS" | tr -d '\r' | grep -v 'Source Stamp' \
+  | sed -nE 's/.*certificate SHA-256 digest: ([0-9a-fA-F]+)[[:space:]]*$/\1/p' | tr 'A-F' 'a-f' | sort -u) || true
+[ -n "$DIGESTS" ] || fail "no 'certificate SHA-256 digest' line in apksigner output."
+[ "$(printf '%s\n' "$DIGESTS" | grep -c .)" = 1 ] || fail "signer certificates differ across signature schemes/signers: ${DIGESTS//$'\n'/, }."
 [ "$DIGESTS" = "$EXPECTED_CERT_SHA256" ] \
   || fail "signer certificate SHA-256 is $DIGESTS, expected the pinned release key $EXPECTED_CERT_SHA256."
 echo "ok: APK signature valid, signer certificate matches the pinned release key"

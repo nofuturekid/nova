@@ -63,7 +63,8 @@ Native Android client for Unraid NAS servers (Kotlin + Jetpack Compose, Apollo G
 | **v0.1.37** | **release** | Stable promotion of the 0.1.37 cycle — build-config-only `dependenciesInfo {}` block to strip AGP's "Dependency metadata" extra signing block (unblocks F-Droid `check apk`) |
 | v0.1.38-beta1 | pre-release | UI: tap-affordance chevrons on Docker/VM cards (list+grid) + expand-chevron on Plugins-ops + Network-interface rows |
 | **v0.1.38** | **release** | Stable promotion of the 0.1.38 cycle — UI tap-affordance chevrons on Docker/VM cards (list+grid) + expand-chevron on Plugins-ops + Network-interface rows **(Latest)** |
-| v0.1.42-beta1 | pre-release | Beta: failed actions show why, graceful VM stop + confirmations, network speed on stock Unraid API 4.35+, no background polling, store screenshots |
+| v0.1.42-beta1 | burnt tag | Tagged but never published: release APK verification failed on the runner (apksigner 37 output format); superseded by beta2 |
+| v0.1.42-beta2 | pre-release | Beta: failed actions show why, graceful VM stop + confirmations, network speed on stock Unraid API 4.35+, no background polling, store screenshots |
 
 ## Stack
 

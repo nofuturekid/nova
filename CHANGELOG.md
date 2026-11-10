@@ -11,9 +11,11 @@ GitHub's auto "What's Changed" + compare link are appended below it
 Contributor rule: every PR that changes user-facing behaviour adds a
 bullet under `## [Unreleased]
 
-## [0.1.42-beta1] - 2026-11-10
+## [0.1.42-beta2] - 2026-11-10
 
-Beta: actions that fail now tell you why, safer VM and container controls, live network speed on current Unraid API versions, and a hardened self-signed-certificate and key-storage path. Please test against a real server before it is promoted to stable.
+Beta: actions that fail now tell you why, safer VM and container controls, live network speed on current Unraid API versions, and a hardened self-signed-certificate and key-storage path. Please test against a real server before it is promoted to stable. (v0.1.42-beta1 was tagged but
+never published — its release pipeline check failed — so this beta is the
+first build of the 0.1.42 cycle.)
 
 ### Changed
 - **Container details tabs are accessible** — the Info/Logs/Ports/Volumes
