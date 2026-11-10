@@ -21,6 +21,12 @@ gradle_field() { # $1 = commit, $2 = versionCode|versionName
     | sed -nE "s/^[[:space:]]*$2[[:space:]]*=[[:space:]]*\"?([^\"[:space:]]+)\"?.*/\1/p" | head -1
 }
 
+# Tag shape: must match ADR-0005 and the "Detect pre-release" step in release.yml
+# exactly. A digitless `-beta` would not be detected as pre-release there and
+# would be published as STABLE.
+[[ "$TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+(-(alpha|beta|rc|pre)[0-9]+)?$ ]] \
+  || fail "tag $TAG is not vX.Y.Z or vX.Y.Z-(alpha|beta|rc|pre)N (trailing digit required, ADR-0005); a digitless pre-release tag would be published as stable."
+
 # (b) The tagged commit must be on main. A PR head tagged before the squash
 # merge is not an ancestor of main.
 git merge-base --is-ancestor "$SHA" "$MAIN_REF" \
@@ -54,6 +60,7 @@ VCODE=$(gradle_field "$SHA" versionCode)
   || fail "app/build.gradle.kts at $SHA has versionName \"$VNAME\" but the tag is $TAG. The updater would offer an APK that installs as a no-op (ADR-0013/0015); bump the version in a new commit and tag that."
 if PREV=$(git describe --tags --abbrev=0 --match 'v*' "$SHA^" 2>/dev/null); then
   PREV_VCODE=$(gradle_field "$PREV" versionCode)
+  [ -n "$PREV_VCODE" ] || fail "could not read versionCode from app/build.gradle.kts at the previous tag $PREV."
   [ "$VCODE" -gt "$PREV_VCODE" ] \
     || fail "versionCode $VCODE at $SHA is not greater than $PREV_VCODE at the previous tag $PREV (ADR-0015)."
   echo "ok: versionName $VNAME == tag, versionCode $VCODE > $PREV_VCODE ($PREV)"

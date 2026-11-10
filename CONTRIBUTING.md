@@ -43,9 +43,9 @@ git push origin v0.2.0
 
 `release.yml` then runs. It does **not** rebuild — it downloads the release APK that `ci.yml` already produced for this commit's PR (the PR head SHA), and attaches it to a new GitHub Release.
 
-If you tag too early (before CI is green), the release workflow fails with a clear message; just wait for CI and push the tag again.
+If you tag too early (before CI is green), the release workflow fails with a clear message; just wait for CI and re-run the failed release run (`gh run rerun <run-id>`). Tags cannot be re-pushed (the ruleset forbids update and deletion).
 
-Before anything is published, a guard step checks that the tag matches what CI built: the commit is on `main`, the PR was squash-merged as exactly this commit, `versionName` in `app/build.gradle.kts` equals the tag (including a `-betaN` suffix) and `versionCode` is higher than at the previous tag. A failure names the mismatch; fix it with a new commit, not by moving the tag (tags are protected against update and deletion). If the artifact lookup finds no CI run (e.g. after a direct push), run `gh workflow run ci.yml --ref <tag>` and push/re-run the release.
+Before anything is published, a guard step checks that the tag matches what CI built: the commit is on `main`, the PR was squash-merged as exactly this commit, `versionName` in `app/build.gradle.kts` equals the tag (including a `-betaN` suffix) and `versionCode` is higher than at the previous tag. A failure names the mismatch; fix it with a new commit, not by moving the tag (tags are protected against update and deletion). If the artifact lookup finds no CI run (e.g. after a direct push), (or the artifact expired) run `gh workflow run ci.yml --ref <tag>`, wait for it, then re-run the failed release run (`gh run rerun <run-id>`). With tags locked, a guard failure on a version mismatch uses up that tag: fix forward with a new commit and the next version.
 
 ### Naming the release commit / PR
 
@@ -73,7 +73,7 @@ git tag -a v0.2.0-beta1 -m "v0.2.0 beta 1"
 git push origin v0.2.0-beta1
 ```
 
-Trailing digit is required (`v0.2.0-beta` without a number is rejected). See **[ADR-0005](docs/adr/0005-prerelease-tag-convention.md)** for the convention; **[ADR-0006](docs/adr/0006-pragmatic-beta-first-release-policy.md)** for when beta-first is required.
+Trailing digit is required (`v0.2.0-beta` without a number is rejected by the release guard). See **[ADR-0005](docs/adr/0005-prerelease-tag-convention.md)** for the convention; **[ADR-0006](docs/adr/0006-pragmatic-beta-first-release-policy.md)** for when beta-first is required.
 
 ### Cheat-sheet — what triggers what
 

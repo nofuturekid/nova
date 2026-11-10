@@ -96,7 +96,7 @@ jobs:
           if [ -z "$PR_NUM" ]; then
             echo "::error::No CI run with an app-release artifact for $SHA and no PR # in commit message."
             echo "::error::Subject was: $SUBJECT"
-            echo "::error::Direct-push? Run CI manually on the tag with:  gh workflow run ci.yml --ref ${GITHUB_REF#refs/tags/}"
+            echo "::error::Direct-push? Run CI on the tag:  gh workflow run ci.yml --ref ${GITHUB_REF#refs/tags/}  — wait for it, then re-run this release run:  gh run rerun $GITHUB_RUN_ID (tags are protected; do not re-push)."
             exit 1
           fi
 
@@ -109,7 +109,7 @@ jobs:
           RUN_ID=$(find_run "$PR_SHA")
           if [ -z "$RUN_ID" ]; then
             echo "::error::No successful PR CI run with an app-release artifact for SHA $PR_SHA (PR #$PR_NUM)."
-            echo "::error::Re-run the PR's CI, then push the tag again."
+            echo "::error::Re-run the PR's CI (expired artifact: gh workflow run ci.yml --ref ${GITHUB_REF#refs/tags/}), wait for it, then re-run this release run:  gh run rerun $GITHUB_RUN_ID (tags are protected; do not re-push)."
             exit 1
           fi
 
