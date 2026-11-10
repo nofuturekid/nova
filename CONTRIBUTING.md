@@ -45,6 +45,8 @@ git push origin v0.2.0
 
 If you tag too early (before CI is green), the release workflow fails with a clear message; just wait for CI and push the tag again.
 
+Before anything is published, a guard step checks that the tag matches what CI built: the commit is on `main`, the PR was squash-merged as exactly this commit, `versionName` in `app/build.gradle.kts` equals the tag (including a `-betaN` suffix) and `versionCode` is higher than at the previous tag. A failure names the mismatch; fix it with a new commit, not by moving the tag (tags are protected against update and deletion). If the artifact lookup finds no CI run (e.g. after a direct push), run `gh workflow run ci.yml --ref <tag>` and push/re-run the release.
+
 ### Naming the release commit / PR
 
 Per [ADR-0015](docs/adr/0015-promotion-requires-new-commit.md) every tag
