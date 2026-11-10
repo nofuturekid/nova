@@ -176,8 +176,8 @@ class ApolloClientFactory @Inject constructor() {
      * Apply TLS trust configuration to an [OkHttpClient.Builder].
      *
      * For [TlsTrust.PinnedSelfSigned] endpoints (ADR-0041), installs the
-     * [LocalPinningTrustManager] and bypasses hostname verification (self-signed
-     * LAN certs rarely match the host). For [TlsTrust.Default] this is a no-op.
+     * [LocalPinningTrustManager] and relaxes hostname verification only for the
+     * pinned leaf certificate (self-signed LAN certs rarely match the host). For [TlsTrust.Default] this is a no-op.
      * Shared between the HTTP ([buildOn]) and WS ([buildWs]) paths so the exact
      * same pin logic applies to both transports — no drift possible.
      */
@@ -189,10 +189,10 @@ class ApolloClientFactory @Inject constructor() {
                 acceptFirstUse = trust.acceptFirstUse,
             )
             sslSocketFactory(sslContextFor(tm).socketFactory, tm)
-            // Pin is the anchor; this client only ever talks to one server's
-            // local endpoint (see ADR-0041). Self-signed LAN certs rarely
-            // match the host, so hostname matching is intentionally bypassed.
-            hostnameVerifier { _, _ -> true }
+            // Pin is the anchor (ADR-0041): hostname matching is relaxed only
+            // for the pinned leaf (self-signed LAN certs rarely match the
+            // host). Any other chain, CA-valid included, gets the stock check.
+            hostnameVerifier(PinRelaxedHostnameVerifier(trust.pinnedSha256, baseHttpClient.hostnameVerifier))
         }
     }
 }

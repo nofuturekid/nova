@@ -5,7 +5,10 @@ import java.security.KeyStore
 import java.security.MessageDigest
 import java.security.cert.CertificateException
 import java.security.cert.X509Certificate
+import javax.net.ssl.HostnameVerifier
 import javax.net.ssl.SSLContext
+import javax.net.ssl.SSLPeerUnverifiedException
+import javax.net.ssl.SSLSession
 import javax.net.ssl.TrustManager
 import javax.net.ssl.TrustManagerFactory
 import javax.net.ssl.X509TrustManager
@@ -21,14 +24,46 @@ sealed interface TrustDecision {
  * Pure TOFU decision. [defaultTrusts] = whether the platform default trust
  * manager already accepts the chain (CA-valid). [pinned] = stored SHA-256 or
  * null. [presented] = the leaf's SHA-256. Matching is case-insensitive.
+ *
+ * Accept here is only the chain half of the decision: a CA-valid chain that
+ * does not match the pin is accepted only together with normal hostname
+ * verification, see [hostnameTrusted] / [PinRelaxedHostnameVerifier].
+ * On Android, [defaultTrusts] is currently always false: the app's per-domain
+ * network security config makes the platform trust manager reject the
+ * hostname-unaware check, so a CA-valid local cert goes through the pin prompt.
+ * This logic must not depend on that unrelated config, hence the hostname rule.
  */
 fun decidePinnedTrust(defaultTrusts: Boolean, pinned: String?, presented: String): TrustDecision =
     when {
+        pinned != null && pinned.equals(presented, ignoreCase = true) -> TrustDecision.Accept
         defaultTrusts -> TrustDecision.Accept
         pinned == null -> TrustDecision.FirstUse(presented)
-        pinned.equals(presented, ignoreCase = true) -> TrustDecision.Accept
         else -> TrustDecision.Changed(pinned, presented)
     }
+
+/**
+ * Pure hostname decision. The pin is the trust anchor (ADR-0041): hostname
+ * matching is relaxed ONLY when the presented leaf equals the stored pin.
+ * Any other chain (e.g. a CA-valid one) must pass the normal verifier
+ * ([defaultVerifies]).
+ */
+fun hostnameTrusted(pinned: String?, presented: String, defaultVerifies: () -> Boolean): Boolean =
+    (pinned != null && pinned.equals(presented, ignoreCase = true)) || defaultVerifies()
+
+/** Hostname verifier for the local pinned client: relaxed only for the pinned leaf. */
+class PinRelaxedHostnameVerifier(
+    private val pinnedSha256: String?,
+    private val default: HostnameVerifier,
+) : HostnameVerifier {
+    override fun verify(hostname: String, session: SSLSession): Boolean {
+        val leaf = try {
+            session.peerCertificates.firstOrNull() as? X509Certificate
+        } catch (_: SSLPeerUnverifiedException) {
+            null
+        } ?: return false // no usable peer certificate: fail closed
+        return hostnameTrusted(pinnedSha256, sha256Hex(leaf)) { default.verify(hostname, session) }
+    }
+}
 
 /** Colon-separated uppercase hex SHA-256 of the certificate's DER encoding. */
 fun sha256Hex(cert: X509Certificate): String =
@@ -49,9 +84,9 @@ sealed interface TlsTrust {
     data object Default : TlsTrust
     /**
      * Self-signed-aware path for ONE server's local https endpoint.
-     * [acceptFirstUse] = true only for the pre-save connectivity test
-     * (accept-and-report, no persistence); false for the live data path
-     * (throw on first use so the UI prompts and then pins).
+     * [acceptFirstUse] = true would accept-and-report an unpinned cert without
+     * persisting; every production caller passes false (throw on first use so
+     * the UI prompts and then pins).
      */
     data class PinnedSelfSigned(val pinnedSha256: String?, val acceptFirstUse: Boolean = false) : TlsTrust
 }
@@ -64,8 +99,10 @@ fun systemDefaultTrustManager(): X509TrustManager {
 }
 
 /**
- * Wraps the platform default. CA-valid chains pass straight through; otherwise
- * the pin decides (see [decidePinnedTrust]). On the live path a first-use or
+ * Wraps the platform default. A pin match or a CA-valid chain passes (the
+ * latter still has to pass normal hostname verification; on Android the
+ * default's hostname-unaware check always throws, see [decidePinnedTrust]); otherwise the pin
+ * decides (see [decidePinnedTrust]). On the live path a first-use or
  * changed cert throws a typed exception that propagates up through Apollo.
  */
 class LocalPinningTrustManager(

@@ -72,6 +72,7 @@ release version + date and opens a fresh `[Unreleased]`.
   (related to #217). Live network speed needs Unraid API 4.35 or newer.
   Servers below 4.35 that relied on a third-party API patch for this no
   longer show network speed until the API is updated.
+- **Local self-signed trust hardened** — the server name is now checked for every certificate except the one you pinned, so this no longer depends on other app settings.
 
 ## [0.1.41] - 2026-10-06
 
