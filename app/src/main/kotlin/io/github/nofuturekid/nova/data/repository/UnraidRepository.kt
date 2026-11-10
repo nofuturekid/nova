@@ -1,10 +1,13 @@
 package io.github.nofuturekid.nova.data.repository
 
 import com.apollographql.apollo.ApolloClient
+import com.apollographql.apollo.api.ApolloResponse
 import com.apollographql.apollo.api.Error
+import com.apollographql.apollo.api.Mutation
 import com.apollographql.apollo.api.Query
 import com.apollographql.apollo.api.Subscription
 import com.apollographql.apollo.exception.ApolloException
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableSharedFlow
@@ -206,6 +209,36 @@ class UnraidRepository @Inject constructor(
             intervalMs: Long,
             fetch: suspend () -> DomainState<T>,
         ): Flow<DomainState<T>> = flow { pollDomain(intervalMs, null, fetch) }
+
+        /**
+         * Runs a mutation and throws [ActionFailedException] if the response
+         * carries a transport or GraphQL error. THE single way every action
+         * executes: Apollo Kotlin 5's `execute()` does not throw, so a bare
+         * `execute()` would report every failed action as success (ADR-0037).
+         */
+        internal suspend fun <D : Mutation.Data> ApolloClient.runAction(m: Mutation<D>): ApolloResponse<D> =
+            mutation(m).execute().orThrow()
+
+        /** stop, then start — a failed stop aborts before `start` is sent. */
+        internal suspend fun restartContainer(client: ApolloClient, id: String) {
+            client.runAction(StopContainerMutation(id))
+            client.runAction(StartContainerMutation(id))
+        }
+
+        /** The logs query behind [containerLogs]; `null` = the request failed. */
+        internal suspend fun fetchContainerLogs(client: ApolloClient, id: String, tail: Int): List<LogLine>? {
+            val resp = try {
+                client.query(FetchContainerLogsQuery(id = id, tail = tail)).execute()
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                return null
+            }
+            if (resp.exception != null || resp.hasErrors()) return null
+            return resp.data?.docker?.logs?.lines.orEmpty().map { line ->
+                LogLine(time = line.timestamp, message = line.message)
+            }
+        }
 
         /**
          * The notification-action error contract, extracted as a pure
@@ -907,18 +940,16 @@ class UnraidRepository @Inject constructor(
         return buildLongRunningClient(active)
     }
 
-    suspend fun startArray() { activeClient()?.mutation(StartArrayMutation())?.execute() }
-    suspend fun stopArray()  { activeClient()?.mutation(StopArrayMutation())?.execute() }
+    suspend fun startArray() { activeClient()?.runAction(StartArrayMutation()) }
+    suspend fun stopArray()  { activeClient()?.runAction(StopArrayMutation()) }
 
-    suspend fun startContainer(id: String)   { activeClient()?.mutation(StartContainerMutation(id))?.execute() }
-    suspend fun stopContainer(id: String)    { activeClient()?.mutation(StopContainerMutation(id))?.execute() }
+    suspend fun startContainer(id: String)   { activeClient()?.runAction(StartContainerMutation(id)) }
+    suspend fun stopContainer(id: String)    { activeClient()?.runAction(StopContainerMutation(id)) }
     /** Unraid 7's docker mutations have no atomic `restart` — emulate as stop+start. */
     suspend fun restartContainer(id: String) {
-        val c = activeClient() ?: return
-        c.mutation(StopContainerMutation(id)).execute()
-        c.mutation(StartContainerMutation(id)).execute()
+        activeClient()?.let { restartContainer(it, id) }
     }
-    suspend fun pauseContainer(id: String)   { activeClient()?.mutation(PauseContainerMutation(id))?.execute() }
+    suspend fun pauseContainer(id: String)   { activeClient()?.runAction(PauseContainerMutation(id)) }
 
     /** Pulls the latest image and recreates the container. Server-side work
      *  routinely takes 30 s – several minutes, so this routes through the
@@ -926,7 +957,7 @@ class UnraidRepository @Inject constructor(
      *  the container as updating before invoking and clears the mark in
      *  finally — see [MainViewModel.updateContainer]. */
     suspend fun updateContainer(id: String) {
-        activeLongRunningClient()?.mutation(UpdateContainerMutation(id))?.execute()
+        activeLongRunningClient()?.runAction(UpdateContainerMutation(id))
     }
 
     /** Updates every container that the server reports as having an update
@@ -934,26 +965,26 @@ class UnraidRepository @Inject constructor(
      *  the HTTP connection to stay open until the *last* container in the
      *  batch has finished its pull + recreate. */
     suspend fun updateAllContainers() {
-        activeLongRunningClient()?.mutation(UpdateAllContainersMutation())?.execute()
+        activeLongRunningClient()?.runAction(UpdateAllContainersMutation())
     }
 
-    suspend fun startVm(id: String)  { activeClient()?.mutation(StartVmMutation(id))?.execute() }
+    suspend fun startVm(id: String)  { activeClient()?.runAction(StartVmMutation(id)) }
     suspend fun stopVm(id: String, force: Boolean = false) {
         val c = activeClient() ?: return
-        if (force) c.mutation(ForceStopVmMutation(id)).execute()
-        else       c.mutation(StopVmMutation(id)).execute()
+        if (force) c.runAction(ForceStopVmMutation(id))
+        else       c.runAction(StopVmMutation(id))
     }
-    suspend fun pauseVm(id: String)  { activeClient()?.mutation(PauseVmMutation(id))?.execute() }
-    suspend fun resumeVm(id: String) { activeClient()?.mutation(ResumeVmMutation(id))?.execute() }
-    suspend fun rebootVm(id: String) { activeClient()?.mutation(RebootVmMutation(id))?.execute() }
-    suspend fun resetVm(id: String)  { activeClient()?.mutation(ResetVmMutation(id))?.execute() }
+    suspend fun pauseVm(id: String)  { activeClient()?.runAction(PauseVmMutation(id)) }
+    suspend fun resumeVm(id: String) { activeClient()?.runAction(ResumeVmMutation(id)) }
+    suspend fun rebootVm(id: String) { activeClient()?.runAction(RebootVmMutation(id)) }
+    suspend fun resetVm(id: String)  { activeClient()?.runAction(ResetVmMutation(id)) }
 
     suspend fun startParityCheck(correct: Boolean) {
-        activeClient()?.mutation(StartParityCheckMutation(correct))?.execute()
+        activeClient()?.runAction(StartParityCheckMutation(correct))
     }
-    suspend fun pauseParityCheck()  { activeClient()?.mutation(PauseParityCheckMutation())?.execute() }
-    suspend fun resumeParityCheck() { activeClient()?.mutation(ResumeParityCheckMutation())?.execute() }
-    suspend fun cancelParityCheck() { activeClient()?.mutation(CancelParityCheckMutation())?.execute() }
+    suspend fun pauseParityCheck()  { activeClient()?.runAction(PauseParityCheckMutation()) }
+    suspend fun resumeParityCheck() { activeClient()?.runAction(ResumeParityCheckMutation()) }
+    suspend fun cancelParityCheck() { activeClient()?.runAction(CancelParityCheckMutation()) }
 
     // ── Notification actions ──────────────────────────────────────────
     //
@@ -965,52 +996,44 @@ class UnraidRepository @Inject constructor(
 
     /** Archive = mark read. Removes it from the Unread segment. */
     suspend fun archiveNotification(id: String) =
-        runNotificationAction { it.mutation(ArchiveNotificationMutation(id)).execute() }
+        runNotificationAction { it.runAction(ArchiveNotificationMutation(id)) }
 
     /** Restore an archived notification back to Unread. */
     suspend fun unreadNotification(id: String) =
-        runNotificationAction { it.mutation(UnreadNotificationMutation(id)).execute() }
+        runNotificationAction { it.runAction(UnreadNotificationMutation(id)) }
 
     /** Permanently delete. [type] is the item's current segment. */
     suspend fun deleteNotification(id: String, type: NotifType) =
         runNotificationAction {
             val g = if (type == NotifType.Archive) GNotifType.ARCHIVE else GNotifType.UNREAD
-            it.mutation(DeleteNotificationMutation(id, g)).execute()
+            it.runAction(DeleteNotificationMutation(id, g))
         }
 
     /** Bulk archive every unread notification. */
     suspend fun archiveAllNotifications() =
-        runNotificationAction { it.mutation(ArchiveAllNotificationsMutation()).execute() }
+        runNotificationAction { it.runAction(ArchiveAllNotificationsMutation()) }
 
     /** Permanently delete every archived notification. */
     suspend fun deleteArchivedNotifications() =
-        runNotificationAction { it.mutation(DeleteArchivedNotificationsMutation()).execute() }
+        runNotificationAction { it.runAction(DeleteArchivedNotificationsMutation()) }
 
     private suspend fun runNotificationAction(block: suspend (ApolloClient) -> Unit) =
         runNotificationActionFlow(
             resolveClient = { activeClient() },
             mutate = { c -> block(c) },
-            recalculate = { c -> c.mutation(RecalculateNotificationOverviewMutation()).execute() },
+            recalculate = { c -> c.runAction(RecalculateNotificationOverviewMutation()) },
             nudge = { notificationsNudge.tryEmit(Unit) },
         )
 
     /**
      * Fetches the last [tail] log lines for the given container. Returns an
-     * empty list if no active server, no key, or the request fails — the UI
-     * can distinguish "no logs" from "still loading" via its own state.
+     * empty list if there is no active server / key, and `null` when the
+     * request FAILED — so the live tail can keep the last good logs on a
+     * transient error instead of replacing them with "no logs".
      */
-    suspend fun containerLogs(id: String, tail: Int = 200): List<LogLine> {
+    suspend fun containerLogs(id: String, tail: Int = 200): List<LogLine>? {
         val client = activeClient() ?: return emptyList()
-        return try {
-            val resp = client.query(
-                FetchContainerLogsQuery(id = id, tail = tail),
-            ).execute()
-            resp.data?.docker?.logs?.lines.orEmpty().map { line ->
-                LogLine(time = line.timestamp, message = line.message)
-            }
-        } catch (e: Exception) {
-            emptyList()
-        }
+        return fetchContainerLogs(client, id, tail)
     }
 
     /**

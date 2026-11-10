@@ -76,7 +76,7 @@ fun ContainerDetailSheet(
     serverBaseUrl: String,
     liveStats: ContainerLiveStats?,
     isUpdating: Boolean,
-    onFetchLogs: suspend (id: String) -> List<io.github.nofuturekid.nova.data.model.LogLine>,
+    onFetchLogs: suspend (id: String) -> List<io.github.nofuturekid.nova.data.model.LogLine>?,
     onRefresh: suspend () -> Unit,
     onDismiss: () -> Unit,
     onStart: (Container) -> Unit,
@@ -97,7 +97,7 @@ fun ContainerDetailSheet(
         if (tab == DetailTab.Logs && container.status == ContainerStatus.Running) {
             if (logs == null) logsLoading = true
             while (true) {
-                try { logs = onFetchLogs(container.id) } catch (e: Exception) {
+                try { onFetchLogs(container.id)?.let { logs = it } } catch (e: Exception) {
                     if (e is kotlinx.coroutines.CancellationException) throw e
                 }
                 logsLoading = false

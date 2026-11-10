@@ -43,6 +43,7 @@ import io.github.nofuturekid.nova.data.model.Temperature
 import io.github.nofuturekid.nova.data.model.UpdateInfo
 import io.github.nofuturekid.nova.data.model.UpdateState
 import io.github.nofuturekid.nova.data.model.Vm
+import io.github.nofuturekid.nova.data.repository.ActionFailedException
 import io.github.nofuturekid.nova.data.repository.DomainState
 import io.github.nofuturekid.nova.data.repository.ServerRepository
 import io.github.nofuturekid.nova.data.repository.SettingsRepository
@@ -373,9 +374,8 @@ class MainViewModel @Inject constructor(
         )
     }
 
-    /** Pull-to-refresh: force a fetch of every domain right now. The
-     *  active gated streams pick up the new values via their pollers
-     *  on the next iteration; this call just shortens the wait. */
+    /** Pull-to-refresh: nudges every active stream to refetch now and
+     *  returns when the refreshed data has arrived (or failed). */
     suspend fun refresh() {
         unraid.refreshAll()
     }
@@ -447,7 +447,8 @@ class MainViewModel @Inject constructor(
     fun setVmsView(view: LayoutMode)    = viewModelScope.launch { settings.setVmsView(view) }
     fun setArrayView(view: LayoutMode)  = viewModelScope.launch { settings.setArrayView(view) }
 
-    suspend fun containerLogs(id: String): List<io.github.nofuturekid.nova.data.model.LogLine> =
+    /** `null` = the fetch failed (keep showing the last good logs). */
+    suspend fun containerLogs(id: String): List<io.github.nofuturekid.nova.data.model.LogLine>? =
         unraid.containerLogs(id)
 
     internal companion object {
@@ -486,6 +487,9 @@ class MainViewModel @Inject constructor(
                 action()
             } catch (e: CancellationException) {
                 throw e
+            } catch (e: ActionFailedException) {
+                // The server (or the link) refused the action: say why.
+                emit("Action failed: ${e.message}")
             } catch (e: Throwable) {
                 emit(message)
             } finally {

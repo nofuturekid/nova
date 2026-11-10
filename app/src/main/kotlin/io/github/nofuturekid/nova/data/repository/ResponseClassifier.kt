@@ -1,5 +1,7 @@
 package io.github.nofuturekid.nova.data.repository
 
+import com.apollographql.apollo.api.ApolloResponse
+import com.apollographql.apollo.api.Operation
 import com.apollographql.apollo.exception.ApolloException
 import io.github.nofuturekid.nova.data.api.CertIssue
 import io.github.nofuturekid.nova.data.api.certIssue
@@ -61,6 +63,33 @@ fun Throwable.failureMessage(fallback: String): String {
 }
 
 private const val MAX_CAUSE_CHARS = 200
+
+/**
+ * A mutation (or other one-shot action) the server did not accept. [message]
+ * is the honest, cause-carrying text ([failureMessage] for transport errors,
+ * the joined GraphQL error messages otherwise) and is what the user sees.
+ */
+class ActionFailedException(message: String, cause: Throwable? = null) : Exception(message, cause)
+
+/**
+ * Throws [ActionFailedException] for a failed action response, using the same
+ * classification as the query paths ([classifyResponse]). Apollo Kotlin 5's
+ * `execute()` never throws for transport or GraphQL errors, so a caller that
+ * does not look at the response sees every failure as success (ADR-0037).
+ */
+fun checkActionResponse(exception: ApolloException?, hasErrors: Boolean, errorMessage: String?) {
+    when (val c = classifyResponse(exception, hasErrors, errorMessage, dataIsNull = false)) {
+        is RespClass.Cert -> throw ActionFailedException(exception!!.failureMessage("Network error"), exception)
+        is RespClass.Failed -> throw ActionFailedException(c.message, exception)
+        RespClass.Empty, RespClass.Ok -> Unit
+    }
+}
+
+/** Returns this response, or throws [ActionFailedException] if it carries a transport or GraphQL error. */
+fun <D : Operation.Data> ApolloResponse<D>.orThrow(): ApolloResponse<D> {
+    checkActionResponse(exception, hasErrors(), errors?.joinToString { it.message })
+    return this
+}
 
 /** Structured result of a connection test (consumed by the Add/Edit sheet). */
 sealed interface TestOutcome {
