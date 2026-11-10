@@ -545,7 +545,7 @@ internal fun connectionLabel(state: DomainState<*>, connection: ConnectionMode):
 }
 
 @Composable
-private fun TopBar(
+internal fun TopBar(
     server: Server?,
     connection: ConnectionMode,
     state: DomainState<*>,
@@ -665,7 +665,7 @@ private fun TopBar(
 }
 
 @Composable
-private fun TabBar(active: MainTab, onChange: (MainTab) -> Unit) {
+internal fun TabBar(active: MainTab, onChange: (MainTab) -> Unit) {
     val t = UnraidTheme.colors
     Column {
         HorizontalDivider(color = t.border, thickness = 1.dp)
