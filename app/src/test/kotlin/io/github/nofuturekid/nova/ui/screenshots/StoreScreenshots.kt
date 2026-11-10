@@ -6,6 +6,22 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.BatteryFull
+import androidx.compose.material.icons.filled.SignalCellularAlt
+import androidx.compose.material.icons.filled.Wifi
+import androidx.compose.material3.Icon
+import androidx.compose.material3.Text
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.sp
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.Modifier
@@ -98,8 +114,13 @@ class StoreScreenshots {
                 return javax.imageio.ImageIO.read(tmp)
             } finally { tmp.delete() }
         }
+        systemBars.value = false
         rule.waitForIdle()
         val screen = shot()
+        systemBars.value = true
+        rule.waitForIdle()
+        val bars = shot()
+        systemBars.value = false
         showSheet.value = true
         rule.waitForIdle()
         val withSheet = shot()
@@ -111,8 +132,17 @@ class StoreScreenshots {
                 withSheet.setRGB(x, y, (dim(c shr 16 and 0xFF) shl 16) or (dim(c shr 8 and 0xFF) shl 8) or dim(c and 0xFF))
             }
         }
+        // On a device the system bars sit above every window, scrim included:
+        // lay the status-bar glyphs and the gesture pill (the pixels that
+        // differ between the two screen captures) over the composite undimmed.
+        for (y in 0 until withSheet.height) for (x in 0 until withSheet.width) {
+            if (bars.getRGB(x, y) != screen.getRGB(x, y)) withSheet.setRGB(x, y, bars.getRGB(x, y))
+        }
         javax.imageio.ImageIO.write(withSheet, "png", java.io.File(path))
     }
+
+    /** Whether Chrome draws the status-bar glyphs and gesture pill. */
+    private val systemBars = mutableStateOf(true)
 
     private fun out(n: Int) = "$outDir/$n.png"
 
@@ -234,6 +264,41 @@ class StoreScreenshots {
         ),
     )
 
+    // Demo-mode-style system bars, drawn over the app's own background the
+    // way a device does edge-to-edge (Robolectric renders no system UI).
+    // Heights match the insets the app already reserves around its content.
+
+    @Composable
+    private fun StatusBar() {
+        val ink = UnraidTheme.colors.text
+        Row(
+            Modifier.fillMaxWidth().height(28.dp).padding(horizontal = 24.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween,
+        ) {
+            if (systemBars.value) {
+                Text("12:00", color = ink, fontSize = 14.sp, fontWeight = FontWeight.Medium)
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    for (icon in listOf(Icons.Filled.Wifi, Icons.Filled.SignalCellularAlt, Icons.Filled.BatteryFull)) {
+                        Icon(icon, contentDescription = null, tint = ink, modifier = Modifier.size(16.dp))
+                    }
+                }
+            }
+        }
+    }
+
+    @Composable
+    private fun GestureBar() {
+        Box(Modifier.fillMaxWidth().height(20.dp), contentAlignment = Alignment.BottomCenter) {
+            if (systemBars.value) {
+                Box(
+                    Modifier.padding(bottom = 8.dp).width(108.dp).height(4.dp)
+                        .background(UnraidTheme.colors.text, RoundedCornerShape(2.dp)),
+                )
+            }
+        }
+    }
+
     // ── Chrome: the app's real TopBar + TabBar around a tab ──────────
 
     @Composable
@@ -241,7 +306,7 @@ class StoreScreenshots {
         UnraidTheme(themeMode = ThemeMode.Dark) {
             val bg = io.github.nofuturekid.nova.ui.theme.UnraidTheme.colors.bg
             Column(Modifier.fillMaxSize().background(bg)) {
-                Spacer(Modifier.height(28.dp)) // status-bar area (edge-to-edge in the app)
+                StatusBar() // status-bar area (edge-to-edge in the app)
                 TopBar(
                     server = server,
                     connection = ConnectionMode.Local,
@@ -254,7 +319,7 @@ class StoreScreenshots {
                 )
                 Box(Modifier.weight(1f)) { Column(Modifier.fillMaxSize(), content = content) }
                 TabBar(active = tab, onChange = {})
-                Spacer(Modifier.height(20.dp)) // gesture-bar area
+                GestureBar() // gesture-bar area
             }
         }
     }
