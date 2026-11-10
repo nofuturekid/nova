@@ -86,7 +86,6 @@ on:
 # (security-events) and read the repo + Actions metadata; nothing else.
 permissions:
   contents: read
-  security-events: write
   actions: read
 
 concurrency:
@@ -123,6 +122,11 @@ jobs:
     name: Analyze (${{ matrix.language }})
     needs: config
     runs-on: ubuntu-latest
+    # Only this job uploads SARIF; `config` needs no write scope.
+    permissions:
+      contents: read
+      actions: read
+      security-events: write
     strategy:
       fail-fast: false
       matrix:

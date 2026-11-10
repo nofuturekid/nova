@@ -31,8 +31,12 @@ jobs:
       - name: Run actionlint
         run: |
           set -euo pipefail
-          # Official install script, pinned to a specific actionlint release
-          # (the repo convention is versioned pins; rhysd/actionlint ships no
-          # versioned composite action, so we pin the released binary).
-          bash <(curl -fsSL https://raw.githubusercontent.com/rhysd/actionlint/v1.7.7/scripts/download-actionlint.bash) 1.7.7
+          # Pinned release tarball with a verified SHA-256 (rhysd/actionlint
+          # ships no composite action; Dependabot does not track this, so
+          # bump version + checksum together by hand).
+          VER=1.7.7
+          SHA256=023070a287cd8cccd71515fedc843f1985bf96c436b7effaecce67290e7e0757
+          curl -fsSL -o actionlint.tgz "https://github.com/rhysd/actionlint/releases/download/v${VER}/actionlint_${VER}_linux_amd64.tar.gz"
+          echo "${SHA256}  actionlint.tgz" | sha256sum -c -
+          tar -xzf actionlint.tgz actionlint
           ./actionlint -color
