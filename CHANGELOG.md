@@ -16,6 +16,10 @@ release version + date and opens a fresh `[Unreleased]`.
 ## [Unreleased]
 
 ### Fixed
+- **Container details tabs are accessible** — the Info/Logs/Ports/Volumes
+  tabs now use the standard Material tab bar, so screen readers announce
+  them as tabs with the selected one marked and the touch targets are at
+  least 48 dp high.
 - **Memory and network values no longer cut off in the Docker tab and
   container details** — the container list shows memory used, the detail
   view shows used with "of <limit>" below, and long values wrap instead of

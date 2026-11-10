@@ -21,6 +21,8 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.SecondaryTabRow
+import androidx.compose.material3.Tab
 import androidx.compose.material3.Text
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.material3.pulltorefresh.rememberPullToRefreshState
@@ -42,7 +44,6 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.currentStateAsState
 import androidx.compose.ui.unit.sp
-import androidx.compose.foundation.clickable
 import androidx.compose.ui.platform.LocalContext
 import android.content.Intent
 import androidx.core.net.toUri
@@ -297,31 +298,19 @@ fun ContainerDetailSheet(
             }
             Spacer(Modifier.height(16.dp))
 
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clip(RoundedCornerShape(12.dp))
-                    .background(t.muted.copy(alpha = UnraidAlpha.softFill))
-                    .padding(4.dp),
-                horizontalArrangement = Arrangement.spacedBy(4.dp),
+            // Same M3 SecondaryTabRow as the notifications sheet: gives the
+            // tabs Role.Tab + selected semantics and 48 dp touch targets.
+            SecondaryTabRow(
+                selectedTabIndex = tab.ordinal,
+                containerColor = t.surface2,
+                contentColor = t.text,
             ) {
                 DetailTab.values().forEach { tk ->
-                    val isActive = tk == tab
-                    Box(
-                        modifier = Modifier
-                            .weight(1f)
-                            .clip(RoundedCornerShape(9.dp))
-                            .background(if (isActive) t.accentDim else Color.Transparent)
-                            .clickable { tab = tk }
-                            .padding(vertical = 8.dp),
-                        contentAlignment = Alignment.Center,
-                    ) {
-                        Text(
-                            text = tk.name,
-                            color = if (isActive) t.accent else t.muted,
-                            style = MaterialTheme.typography.labelMedium,
-                        )
-                    }
+                    Tab(
+                        selected = tk == tab,
+                        onClick = { tab = tk },
+                        text = { Text(tk.name, style = MaterialTheme.typography.labelMedium, maxLines = 1) },
+                    )
                 }
             }
             Spacer(Modifier.height(16.dp))
