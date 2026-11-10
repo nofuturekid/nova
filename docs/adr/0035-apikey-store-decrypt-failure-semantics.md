@@ -102,3 +102,17 @@ branch and its distinction from `Absent` (the old misleading "Missing
 API key") are covered by unit tests + static review, not the device run.
 Tier-3 (ADR-0027) is satisfied for the testable surface; the
 undecryptable branch stays test/review-covered.
+
+---
+
+## Amendment — 2026-11-10 (the re-enter remedy needs an explicit key-storage reset)
+
+The remedy text above ("re-entry calls `ApiKeyStore.put` and overwrites the bad ciphertext") did not hold for the cause this ADR names. When the Keystore master key is lost, the Tink *keyset* is what is unreadable, not just one ciphertext: `AndroidKeysetManager.build()` throws on every call, so `put` threw too and the unhandled exception in the Add/Edit save crashed the app on every retry.
+
+**No automatic reset.** An unusable keyset or Keystore cannot be told apart reliably from a transient Keystore outage (for example, `KeyStore.containsAlias` returns false on any Keystore error, and a Keystore daemon restart fails several attempts in a row). Any heuristic risks wiping every stored key on a hiccup, so `put` never deletes key material on its own. A failing save shows an error line in the Add/Edit sheet instead of crashing, and leaves everything untouched. A failure in building the AEAD or encrypting is reported as `ApiKeyStore.KeyStorageException`.
+
+**Remedy: explicit reset from the sheet.** For a `KeyStorageException` the sheet offers a "Reset key storage" button. After a destructive confirmation ("deletes the stored API keys of all servers") it deletes the keyset prefs entry, the Keystore master key and all stored ciphertexts, then retries the save once; a failure after the reset shows the error line again. Other servers then report "Missing API key" and are re-entered the same way.
+
+**Hardening kept with this change.** Reset, put and every read (including the ciphertext read in `getResult`) run under one mutex. When no keyset exists yet, the master key is created explicitly; if Tink still ends up with a keyset that is not Keystore-wrapped (its silent plaintext fallback, which existed before this amendment), the new keyset entry is removed and the save fails. An existing keyset, including an old plaintext one, keeps loading. `ServerRepository.upsert` stores the key before the server list, so a failed save leaves no duplicate server, and `activeWithKey` now also combines the key store's change flow, so a key-only edit reaches the running streams even when the server list is unchanged.
+
+Tested on the JVM through internal seams (failed save leaves other keys readable and does not reset, explicit reset then save, racing puts, reset serialised with put, unwrapped fresh keyset rejected, existing keyset kept, key-only change re-emits). Not testable off-device: real Tink, Keystore and DataStore behaviour, and the dialog flow itself.
