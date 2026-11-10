@@ -484,7 +484,7 @@ private fun LogsTabContent(
     }
     if (logs.isEmpty()) {
         Text(
-            text = "No log lines.",
+            text = LOGS_EMPTY_RUNNING_HINT,
             color = t.muted,
             style = MaterialTheme.typography.bodyMedium,
             modifier = Modifier.padding(vertical = 24.dp, horizontal = 12.dp),
@@ -527,6 +527,14 @@ private fun LogsTabContent(
         }
     }
 }
+
+/**
+ * Shown when a RUNNING container returns no log lines. The Unraid API only
+ * returns stdout today, so a container that logs to stderr looks empty.
+ * (Stopped containers keep their own "only available when running" text.)
+ */
+internal const val LOGS_EMPTY_RUNNING_HINT =
+    "No log lines. The container may be logging to stderr, which the Unraid API doesn't return yet."
 
 private fun formatLogTime(iso: String): String {
     // Strip the date portion for compactness: "2026-05-13T18:24:07.123Z" → "18:24:07"

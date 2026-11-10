@@ -16,6 +16,9 @@ release version + date and opens a fresh `[Unreleased]`.
 ## [Unreleased]
 
 ### Fixed
+- **Logs tab explains an empty log** — a running container with no log
+  lines now says it may be logging to stderr, which the Unraid API does not
+  return yet, instead of a bare "No log lines." (#225).
 - **No more background polling** — Settings → Server plugins, Network
   interfaces and the container Logs tab kept refreshing from the server
   while the app was in the background; they now pause until you return.
