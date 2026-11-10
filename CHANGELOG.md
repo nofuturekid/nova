@@ -16,6 +16,9 @@ release version + date and opens a fresh `[Unreleased]`.
 ## [Unreleased]
 
 ### Fixed
+- **VM "Stop" now shuts the VM down gracefully** — it used to cut the power
+  (#228). Stop asks the guest to shut down cleanly; the old behaviour is
+  now a separate "Force stop" button, still behind a confirmation.
 - **Failed actions now tell you why** — stopping a container or VM, array and
   parity actions and notification actions failed silently when the server was
   unreachable or refused them (for example an API key without permission):
@@ -34,6 +37,7 @@ release version + date and opens a fresh `[Unreleased]`.
 - **Live stats for every container** (#224) — on current Unraid API versions
   one container per refresh never got live CPU/memory/IO numbers because the
   server sent its id with terminal control characters attached.
+||||||| parent of 4676e94 (fix(vms): make Stop a graceful shutdown, keep Force stop separate)
 - **Network card shows speed on Unraid 4.35 and newer** — the Overview's
   network card showed no speed on Unraid API 4.35 and newer; it now does
   (related to #217). Live network speed needs Unraid API 4.35 or newer.

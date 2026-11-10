@@ -376,7 +376,8 @@ fun MainScreen(
             onStart  = { vm.startVm(it.id); openVm = null },
             onResume = { vm.resumeVm(it.id); openVm = null },
             onPause  = { vm.pauseVm(it.id); openVm = null },
-            onStop   = { v ->
+            onStop   = { v -> vm.stopVm(v.id, force = false); openVm = null },
+            onForceStop = { v ->
                 confirm = ConfirmRequest(
                     title = "Force stop ${v.name}?",
                     body = "This is equivalent to pulling the power cord. Unsaved data may be lost.",

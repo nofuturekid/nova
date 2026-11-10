@@ -39,8 +39,9 @@ import io.github.nofuturekid.nova.ui.theme.UnraidTheme
  * VM detail bottom-sheet — opened by tapping a VM tile/card. Mirrors
  * ContainerDetailSheet: tapping a VM must not fire an action directly
  * (that made the Grid tile immediately trigger Force-Stop). All
- * lifecycle actions live here behind explicit buttons. Stop/Reset are
- * wired by the caller to the shared confirm dialogs.
+ * lifecycle actions live here behind explicit buttons. Stop is the
+ * graceful shutdown; Force stop/Reset/Reboot are wired by the caller to
+ * the shared confirm dialogs.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -51,6 +52,7 @@ fun VmDetailSheet(
     onResume: (Vm) -> Unit,
     onPause: (Vm) -> Unit,
     onStop: (Vm) -> Unit,
+    onForceStop: (Vm) -> Unit = {},
     onReboot: (Vm) -> Unit,
     onReset: (Vm) -> Unit,
 ) {
@@ -172,6 +174,17 @@ fun VmDetailSheet(
                         leadingIcon = { UC.Power(14.dp, t.danger) },
                     )
                 }
+            }
+            if (vm.state != VmState.Stopped) {
+                Spacer(Modifier.height(6.dp))
+                UnraidButton(
+                    onClick = { onForceStop(vm) },
+                    label = "Force stop",
+                    variant = BtnVariant.Tonal,
+                    tone = Tone.Danger,
+                    fullWidth = true,
+                    leadingIcon = { UC.Power(14.dp, t.danger) },
+                )
             }
             Spacer(Modifier.height(24.dp))
         }
