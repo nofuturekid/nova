@@ -80,6 +80,27 @@ The build JVM is JDK 21; the app bytecode stays Java 17. That split is
 controlled by `app/build.gradle.kts` (ADR-0023) — the container does not
 and must not change it.
 
+## Store screenshots
+
+The phone screenshots for F-Droid
+(`fastlane/metadata/android/en-US/images/phoneScreenshots/`) are rendered
+from the app's real composables and theme (dark, Pixel-class 1080x2400)
+by a JVM test, `StoreScreenshots`, using Robolectric (native graphics)
+and a fictional demo server ("Tower", RFC 5737 addresses). No device or
+server is involved. Regenerate them with:
+
+```bash
+./scripts/store-screenshots.sh
+# or, without Docker: ./gradlew :app:testDirectDebugUnitTest -PnovaScreenshots
+```
+
+The test is excluded from the normal `test` task (and so from
+`local-ci.sh`) and only runs with `-PnovaScreenshots`; the extra test
+dependencies (Robolectric, Roborazzi, Compose ui-test) are test-scope and
+never enter an APK. Edit the demo data and the list of screens in
+`app/src/test/kotlin/io/github/nofuturekid/nova/ui/screenshots/StoreScreenshots.kt`.
+Robolectric downloads its Android jar from Maven Central on first use.
+
 ## Out of scope
 
 This environment is **headless build + lint + Apollo codegen** (plus unit

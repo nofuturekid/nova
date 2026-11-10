@@ -85,6 +85,10 @@ android {
     // redundant. Dropping it is the non-deprecated form and is a no-op
     // for the compiled sources (verified green via ./scripts/local-ci.sh).
 
+    testOptions {
+        unitTests.isIncludeAndroidResources = true
+    }
+
     buildFeatures {
         compose = true
         buildConfig = true
@@ -185,4 +189,31 @@ dependencies {
 
     testImplementation(libs.junit)
     testImplementation(libs.kotlinx.coroutines.test)
+
+    // Store-screenshot rendering (StoreScreenshots.kt) — test scope only,
+    // never packaged into the APK.
+    testImplementation(libs.robolectric)
+    testImplementation(libs.roborazzi)
+    testImplementation(libs.roborazzi.compose)
+    testImplementation(platform(libs.androidx.compose.bom))
+    testImplementation(libs.androidx.compose.ui.test.junit4)
+    // Declares ComponentActivity for createComposeRule; debug variant only,
+    // so it never reaches the release APK.
+    debugImplementation(libs.androidx.compose.ui.test.manifest)
+}
+
+// The store screenshots are rendered by a JVM test (StoreScreenshots) that
+// is EXCLUDED from the normal unit-test run and only runs with
+// -PnovaScreenshots (see docs/local-build.md), so CI time is unchanged.
+tasks.withType<Test>().configureEach {
+    if (project.hasProperty("novaScreenshots")) {
+        filter.includeTestsMatching("*StoreScreenshots")
+        systemProperty("roborazzi.test.record", "true")
+        systemProperty(
+            "nova.screenshots.dir",
+            rootProject.file("fastlane/metadata/android/en-US/images/phoneScreenshots").absolutePath,
+        )
+    } else {
+        filter.excludeTestsMatching("*StoreScreenshots")
+    }
 }
