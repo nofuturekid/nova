@@ -13,6 +13,7 @@ import com.google.crypto.tink.integration.android.AndroidKeysetManager
 import com.google.crypto.tink.integration.android.AndroidKeystoreKmsClient
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.first
@@ -112,7 +113,11 @@ class ApiKeyStore @Inject constructor(
      * Explicit, user-initiated recovery (ADR-0035 amendment): deletes the keyset,
      * the master key and ALL stored API keys. `put` never does this on its own.
      */
-    suspend fun resetKeyStorage() = withContext(Dispatchers.IO) { resetUnderLock(lock, ::resetKeyMaterial) }
+    suspend fun resetKeyStorage() = withContext(Dispatchers.IO) { resetUnderLock(lock) {
+        // Not cancellable: closing the sheet mid-reset must not leave the keyset gone
+        // while ciphertexts remain.
+        withContext(NonCancellable) { resetKeyMaterial() }
+    } }
 
     /**
      * Encrypt and store. A key-storage failure (building the AEAD or encrypting)

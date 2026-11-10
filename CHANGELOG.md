@@ -74,7 +74,7 @@ release version + date and opens a fresh `[Unreleased]`.
   longer show network speed until the API is updated.
 - **Local self-signed trust hardened** — the server name is now checked for every certificate except the one you pinned, so this no longer depends on other app settings.
 - **"Reset certificate" now sticks** — saving or testing a server after resetting its certificate no longer brings the old certificate back; the next connection asks for confirmation again.
-- **Saving a server no longer crashes when key storage is broken** — if Android's secure key storage was reset, saving a server used to crash the app every time. It now shows an error with a "Reset key storage" button (after confirmation it deletes all saved API keys, which you then enter again). A failed save also no longer leaves a duplicate server, and changing only the API key now takes effect immediately.
+- **Saving a server no longer crashes when key storage is broken** — if Android's secure key storage was reset, saving a server used to crash the app every time. It now shows an error with a "Reset key storage" button (after confirmation it deletes all saved API keys, which you then enter again). A save that fails in key storage also no longer leaves a duplicate server, and changing only the API key now takes effect immediately.
 
 ## [0.1.41] - 2026-10-06
 
