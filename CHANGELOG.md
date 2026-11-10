@@ -15,6 +15,13 @@ release version + date and opens a fresh `[Unreleased]`.
 
 ## [Unreleased]
 
+### Fixed
+- **Network card shows speed on Unraid 4.35 and newer** — the Overview's
+  network card showed no speed on Unraid API 4.35 and newer; it now does
+  (related to #217). Live network speed needs Unraid API 4.35 or newer.
+  Servers below 4.35 that relied on a third-party API patch for this no
+  longer show network speed until the API is updated.
+
 ## [0.1.41] - 2026-10-06
 
 Small fix release: connection errors now name their actual cause, and the

@@ -340,29 +340,26 @@ fun GetNetworkInterfacesQuery.Data.toNetworkInterfaces(): List<NetworkInterface>
     }
 }
 
-// ── Network throughput subscription ──────────────────────────────────
+// ── Network throughput (Unraid API 4.35+: one NetworkMetrics entry per interface) ──
+
+// Since 4.35 the server lists every kernel interface, including virtual ones
+// (docker0, br-<hash> user-defined bridges, veth*, vnet*, virbr*, shim-*) that the old shape never contained.
+// They are dropped so selectThroughput's "first non-lo moving interface"
+// fallback cannot land on a container's veth.
+private fun isVirtualIface(name: String): Boolean =
+    name == "lo" || name.startsWith("docker") || name.startsWith("veth") ||
+        name.startsWith("vnet") || name.startsWith("virbr") || name.startsWith("br-") || name.startsWith("shim-")
 
 fun SystemMetricsNetworkSubscription.Data.toIfaceSamples(): List<IfaceSample> =
-    systemMetricsNetwork.interfaces.map {
-        IfaceSample(
-            iface = it.iface,
-            rxBytesPerSec = it.rxBytesPerSec ?: 0.0,
-            txBytesPerSec = it.txBytesPerSec ?: 0.0,
-        )
+    systemMetricsNetwork.filterNot { isVirtualIface(it.name) }.map {
+        IfaceSample(iface = it.name, rxBytesPerSec = it.rxSec, txBytesPerSec = it.txSec)
     }
 
-// Poll-fallback counterpart of the subscription projection above. The two
-// generated `Interface` types share no supertype, so the tiny projection is
-// duplicated (same precedent as the GetMetrics/SystemMetrics* split). On the
-// QUERY side `metrics` and `metrics.network` are both nullable, so a frame
-// without network data maps to no samples — selectThroughput then yields ZERO.
+// Poll-fallback counterpart. The generated types share no supertype, so the tiny
+// projection is duplicated (same precedent as the GetMetrics/SystemMetrics* split).
 fun GetNetworkThroughputQuery.Data.toIfaceSamples(): List<IfaceSample> =
-    metrics?.network?.interfaces.orEmpty().map {
-        IfaceSample(
-            iface = it.iface,
-            rxBytesPerSec = it.rxBytesPerSec ?: 0.0,
-            txBytesPerSec = it.txBytesPerSec ?: 0.0,
-        )
+    metrics?.network.orEmpty().filterNot { isVirtualIface(it.name) }.map {
+        IfaceSample(iface = it.name, rxBytesPerSec = it.rxSec, txBytesPerSec = it.txSec)
     }
 
 // ── CPU + Memory subscriptions (frames fed into combineLiveMetrics) ──
