@@ -121,10 +121,9 @@ class AddEditServerViewModel @Inject constructor(
     fun resetCertificate() {
         val id = existingId
         if (id.isBlank()) return
-        viewModelScope.launch {
-            servers.clearLocalCertPin(id)
-            _state.value = _state.value.copy(hasStoredPin = false)
-        }
+        // State first: a Save tapped before the store write finishes must not re-pin.
+        _state.value = afterCertReset(_state.value)
+        viewModelScope.launch { servers.clearLocalCertPin(id) }
     }
 
     private fun keyMissing(s: AddEditUiState): Boolean =
@@ -209,10 +208,7 @@ class AddEditServerViewModel @Inject constructor(
             // If the user confirmed a self-signed cert at Test time, pin it now
             // (upsert minted the id for a new server). upsert() already clears the
             // pin when trust is off, so only persist when trust is on.
-            val pending = s.pendingLocalCertSha256
-            if (s.trustSelfSignedLocal && pending != null) {
-                servers.setLocalCertPin(saved.id, pending)
-            }
+            pinToPersist(s)?.let { servers.setLocalCertPin(saved.id, it) }
             onDone()
         }
     }
@@ -223,6 +219,17 @@ class AddEditServerViewModel @Inject constructor(
             servers.delete(existingId)
             onDone()
         }
+    }
+
+    companion object {
+        /** State after "Reset certificate": the in-flight fingerprint must go too,
+         *  or Save re-pins it and Test matches it without prompting (internal for tests). */
+        internal fun afterCertReset(s: AddEditUiState): AddEditUiState =
+            s.copy(hasStoredPin = false, pendingLocalCertSha256 = null)
+
+        /** The fingerprint Save persists, or null (internal for tests). */
+        internal fun pinToPersist(s: AddEditUiState): String? =
+            s.pendingLocalCertSha256.takeIf { s.trustSelfSignedLocal }
     }
 }
 

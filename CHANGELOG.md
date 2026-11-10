@@ -73,6 +73,7 @@ release version + date and opens a fresh `[Unreleased]`.
   Servers below 4.35 that relied on a third-party API patch for this no
   longer show network speed until the API is updated.
 - **Local self-signed trust hardened** — the server name is now checked for every certificate except the one you pinned, so this no longer depends on other app settings.
+- **"Reset certificate" now sticks** — saving or testing a server after resetting its certificate no longer brings the old certificate back; the next connection asks for confirmation again.
 
 ## [0.1.41] - 2026-10-06
 
