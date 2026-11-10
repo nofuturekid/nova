@@ -35,13 +35,17 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.launch
+import io.github.nofuturekid.nova.data.local.ApiKeyStore
 import io.github.nofuturekid.nova.data.model.EndpointUrl
 import io.github.nofuturekid.nova.data.model.Server
 import io.github.nofuturekid.nova.data.repository.ServerRepository
 import io.github.nofuturekid.nova.data.repository.TestOutcome
 import io.github.nofuturekid.nova.data.repository.UnraidRepository
 import io.github.nofuturekid.nova.ui.components.BtnVariant
+import io.github.nofuturekid.nova.ui.components.ConfirmDialog
+import io.github.nofuturekid.nova.ui.components.ConfirmRequest
 import io.github.nofuturekid.nova.ui.components.Tone
 import io.github.nofuturekid.nova.ui.components.UC
 import io.github.nofuturekid.nova.ui.components.UnraidButton
@@ -73,6 +77,11 @@ data class AddEditUiState(
     // When non-null, the sheet shows the cert-trust confirm dialog.
     val certDialogSha256: String? = null,
     val certDialogPrevious: String? = null,
+    // Shown above the buttons when Save fails.
+    val saveError: String? = null,
+    // True when the failure was in the device's key storage: offers "Reset key storage".
+    val keyStorageFailed: Boolean = false,
+    val showKeyResetDialog: Boolean = false,
 )
 
 @HiltViewModel
@@ -121,10 +130,9 @@ class AddEditServerViewModel @Inject constructor(
     fun resetCertificate() {
         val id = existingId
         if (id.isBlank()) return
-        viewModelScope.launch {
-            servers.clearLocalCertPin(id)
-            _state.value = _state.value.copy(hasStoredPin = false)
-        }
+        // State first: a Save tapped before the store write finishes must not re-pin.
+        _state.value = afterCertReset(_state.value)
+        viewModelScope.launch { servers.clearLocalCertPin(id) }
     }
 
     private fun keyMissing(s: AddEditUiState): Boolean =
@@ -191,30 +199,67 @@ class AddEditServerViewModel @Inject constructor(
     fun save(onDone: () -> Unit) {
         val s = _state.value
         if (s.name.isBlank()) return
-        viewModelScope.launch {
-            val localUrl = EndpointUrl.compose(s.localHost, s.localSsl)
-            val remoteUrl = EndpointUrl.compose(s.remoteHost, s.remoteSsl)
-            val hostname = EndpointUrl.normalizeHost(s.localHost).ifBlank { EndpointUrl.normalizeHost(s.remoteHost) }
-            val saved = servers.upsert(
-                Server(
-                    id = existingId,
-                    name = s.name.trim(),
-                    hostname = hostname,
-                    localUrl = localUrl,
-                    remoteUrl = remoteUrl,
-                    trustSelfSignedLocal = s.trustSelfSignedLocal,
-                ),
-                apiKey = s.apiKey,
+        _state.value = s.copy(saveError = null, keyStorageFailed = false)
+        viewModelScope.launch { trySave(s, onDone) }
+    }
+
+    private suspend fun trySave(s: AddEditUiState, onDone: () -> Unit) {
+        try {
+            persist(s)
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: ApiKeyStore.KeyStorageException) {
+            _state.value = _state.value.copy(
+                saveError = "Couldn't store the API key in this device's secure key storage.",
+                keyStorageFailed = true,
             )
-            // If the user confirmed a self-signed cert at Test time, pin it now
-            // (upsert minted the id for a new server). upsert() already clears the
-            // pin when trust is off, so only persist when trust is on.
-            val pending = s.pendingLocalCertSha256
-            if (s.trustSelfSignedLocal && pending != null) {
-                servers.setLocalCertPin(saved.id, pending)
-            }
-            onDone()
+            return
+        } catch (_: Exception) {
+            _state.value = _state.value.copy(saveError = "Couldn't save the server. Please try again.")
+            return
         }
+        onDone()
+    }
+
+    fun requestKeyReset() { _state.value = _state.value.copy(showKeyResetDialog = true) }
+    fun dismissKeyReset() { _state.value = _state.value.copy(showKeyResetDialog = false) }
+
+    /** Explicit user-confirmed recovery: wipe all stored keys, then retry the save once. */
+    fun confirmKeyReset(onDone: () -> Unit) {
+        val s = _state.value
+        _state.value = s.copy(showKeyResetDialog = false, saveError = null, keyStorageFailed = false)
+        viewModelScope.launch {
+            try {
+                servers.resetKeyStorage()
+            } catch (e: CancellationException) {
+                throw e
+            } catch (_: Exception) {
+                _state.value = _state.value.copy(saveError = "Couldn't reset key storage. Please try again.")
+                return@launch
+            }
+            trySave(s, onDone)
+        }
+    }
+
+    private suspend fun persist(s: AddEditUiState) {
+        val localUrl = EndpointUrl.compose(s.localHost, s.localSsl)
+        val remoteUrl = EndpointUrl.compose(s.remoteHost, s.remoteSsl)
+        val hostname = EndpointUrl.normalizeHost(s.localHost).ifBlank { EndpointUrl.normalizeHost(s.remoteHost) }
+        val saved = servers.upsert(
+            Server(
+                id = existingId,
+                name = s.name.trim(),
+                hostname = hostname,
+                localUrl = localUrl,
+                remoteUrl = remoteUrl,
+                trustSelfSignedLocal = s.trustSelfSignedLocal,
+            ),
+            apiKey = s.apiKey,
+        )
+        // If the user confirmed a self-signed cert at Test time, pin it now
+        // (upsert minted the id for a new server). upsert() already clears the
+        // pin when trust is off, so only persist when trust is on.
+        pinToPersist(s)?.let { servers.setLocalCertPin(saved.id, it) }
     }
 
     fun delete(onDone: () -> Unit) {
@@ -223,6 +268,17 @@ class AddEditServerViewModel @Inject constructor(
             servers.delete(existingId)
             onDone()
         }
+    }
+
+    companion object {
+        /** State after "Reset certificate": the in-flight fingerprint must go too,
+         *  or Save re-pins it and Test matches it without prompting (internal for tests). */
+        internal fun afterCertReset(s: AddEditUiState): AddEditUiState =
+            s.copy(hasStoredPin = false, pendingLocalCertSha256 = null)
+
+        /** The fingerprint Save persists, or null (internal for tests). */
+        internal fun pinToPersist(s: AddEditUiState): String? =
+            s.pendingLocalCertSha256.takeIf { s.trustSelfSignedLocal }
     }
 }
 
@@ -396,6 +452,19 @@ fun AddEditServerSheet(
 
             Spacer(Modifier.height(8.dp))
 
+            state.saveError?.let {
+                Text(text = it, color = t.danger, style = MaterialTheme.typography.labelSmall)
+                if (state.keyStorageFailed) {
+                    UnraidButton(
+                        onClick = vm::requestKeyReset,
+                        label = "Reset key storage",
+                        variant = BtnVariant.Text,
+                        tone = Tone.Danger,
+                    )
+                }
+                Spacer(Modifier.height(8.dp))
+            }
+
             Row(verticalAlignment = Alignment.CenterVertically) {
                 if (server != null) {
                     UnraidButton(
@@ -425,6 +494,18 @@ fun AddEditServerSheet(
                 )
             }
             Spacer(Modifier.height(24.dp))
+
+            ConfirmDialog(
+                request = if (state.showKeyResetDialog) ConfirmRequest(
+                    title = "Reset key storage?",
+                    body = "The saved API keys can't be read on this device any more. " +
+                        "Resetting deletes the stored API keys of all servers; you will need to enter them again.",
+                    confirmLabel = "Reset",
+                    tone = Tone.Danger,
+                    onConfirm = { vm.confirmKeyReset(onSaved) },
+                ) else null,
+                onDismiss = vm::dismissKeyReset,
+            )
 
             state.certDialogSha256?.let { fp ->
                 AlertDialog(

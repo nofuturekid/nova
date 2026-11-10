@@ -2,16 +2,59 @@ package io.github.nofuturekid.nova.data.api
 
 import io.github.nofuturekid.nova.data.model.ConnectionMode
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
+import org.junit.Assert.assertTrue
 import org.junit.Assert.assertThrows
 import org.junit.Test
 import java.security.cert.CertificateException
 
+// NOTE: the JVM default trust manager differs from the device one. On Android
+// the app's per-domain network security config makes the platform trust
+// manager's hostname-unaware check always throw, so `defaultTrusts` is false
+// there. These tests pin the decision logic itself, independent of that config.
 class TlsTrustDecisionTest {
 
-    // WHY: a CA-valid cert must always pass regardless of pin state, so a
-    // properly-certified local server keeps working without a pin.
-    @Test fun caValid_accepts_even_without_pin() {
+    // WHY: a CA-valid chain keeps working without a pin (properly certified
+    // local server) -- but only because the hostname check below still applies.
+    @Test fun caValid_correctHost_accepts() {
         assertEquals(TrustDecision.Accept, decidePinnedTrust(defaultTrusts = true, pinned = null, presented = "AA"))
+        assertTrue(hostnameTrusted(pinned = null, presented = "AA") { true })
+    }
+
+    // WHY: local trust must not depend on the unrelated network security config:
+    // a publicly trusted cert for another domain must not carry the API key,
+    // pin or no pin. The pin is the anchor,
+    // not the CA chain (ADR-0041), so a non-matching leaf gets the stock check.
+    @Test fun caValid_wrongHost_pinSet_rejects() {
+        assertEquals(TrustDecision.Accept, decidePinnedTrust(true, "AA:BB", "CC:DD")) // chain half only
+        assertFalse(hostnameTrusted(pinned = "AA:BB", presented = "CC:DD") { false })
+    }
+    @Test fun caValid_wrongHost_noPin_rejects() {
+        assertFalse(hostnameTrusted(pinned = null, presented = "CC:DD") { false })
+    }
+
+    // WHY: self-signed LAN certs rarely match the typed host; the pinned leaf
+    // is the only case where the name check may be skipped.
+    @Test fun selfSigned_leafEqualsPin_anyHost_accepts() {
+        assertEquals(TrustDecision.Accept, decidePinnedTrust(false, "AA:BB", "aa:bb"))
+        assertTrue(hostnameTrusted(pinned = "AA:BB", presented = "aa:bb") { false })
+    }
+
+    // WHY: changed-cert path must stay blocked, and a non-pinned leaf must
+    // not get hostname relaxation either.
+    @Test fun selfSigned_leafNotPin_rejects() {
+        assertEquals(TrustDecision.Changed("AA:BB", "CC:DD"), decidePinnedTrust(false, "AA:BB", "CC:DD"))
+        assertFalse(hostnameTrusted(pinned = "AA:BB", presented = "CC:DD") { false })
+    }
+
+    // WHY: a pin match must short-circuit the default verifier (it would fail
+    // on a self-signed IP cert), a mismatch must consult it.
+    @Test fun hostnameTrusted_consultsDefaultOnlyWithoutPinMatch() {
+        var calls = 0
+        assertTrue(hostnameTrusted("AA", "AA") { calls++; false })
+        assertEquals(0, calls)
+        hostnameTrusted("AA", "BB") { calls++; false }
+        assertEquals(1, calls)
     }
 
     // WHY: first untrusted cert must surface its fingerprint for user confirm,

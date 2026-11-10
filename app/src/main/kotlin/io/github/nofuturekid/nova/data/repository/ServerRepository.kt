@@ -40,28 +40,19 @@ class ServerRepository @Inject constructor(
     }
 
     val activeWithKey: Flow<ActiveServer?> =
-        combine(activeServer, connectionMode, store.certPins) { s, mode, pins -> Triple(s, mode, pins) }
-            .map { (s, mode, pins) ->
-                s?.let {
-                    val result = keys.getResult(it.id)
-                    ActiveServer(
-                        server = it,
-                        mode = mode,
-                        apiKey = (result as? ApiKeyResult.Present)?.key.orEmpty(),
-                        keyState = result,
-                        localCertPin = pins[it.id],
-                    )
-                }
-            }
+        activeWithKeyFlow(activeServer, connectionMode, store.certPins, keys.ciphertexts, keys::getResult)
 
     suspend fun upsert(input: Server, apiKey: String): Server {
         val current = store.servers.first()
         val resolved = if (input.id.isBlank()) input.copy(id = UUID.randomUUID().toString()) else input
         val next = current.filter { it.id != resolved.id } + resolved
-        store.setServers(next)
+        // Key first: if it cannot be stored nothing was written, so a retry cannot
+        // leave a duplicate server. (A key-only change reaches running streams via
+        // the key store's flow in activeWithKey, not via the list write.)
         if (apiKey.isNotBlank()) {
             keys.put(resolved.id, apiKey)
         }
+        store.setServers(next)
         if (store.activeServerId.first() == null) store.setActiveServer(resolved.id)
         if (!resolved.trustSelfSignedLocal) store.clearPin(resolved.id)
         return resolved
@@ -85,6 +76,9 @@ class ServerRepository @Inject constructor(
         store.setConnectionMode(mode)
     }
 
+    /** Explicit recovery: deletes ALL stored API keys and the key material (ADR-0035). */
+    suspend fun resetKeyStorage() = keys.resetKeyStorage()
+
     /** Returns the stored API key for a server, or null if none. */
     suspend fun apiKeyFor(id: String): String? = keys.get(id)
 
@@ -93,6 +87,32 @@ class ServerRepository @Inject constructor(
     suspend fun pinFor(serverId: String): String? = store.pinFor(serverId)
 
     companion object {
+        /**
+         * Active server + its key. [keyChanges] is part of the combine so a
+         * key-only change (list unchanged, DataStore skips the write) still
+         * re-emits. Internal for the seam test.
+         */
+        internal fun activeWithKeyFlow(
+            activeServer: Flow<Server?>,
+            connectionMode: Flow<ConnectionMode>,
+            certPins: Flow<Map<String, String>>,
+            keyChanges: Flow<*>,
+            readKey: suspend (String) -> ApiKeyResult,
+        ): Flow<ActiveServer?> =
+            combine(activeServer, connectionMode, certPins, keyChanges) { s, mode, pins, _ -> Triple(s, mode, pins) }
+                .map { (s, mode, pins) ->
+                    s?.let {
+                        val result = readKey(it.id)
+                        ActiveServer(
+                            server = it,
+                            mode = mode,
+                            apiKey = (result as? ApiKeyResult.Present)?.key.orEmpty(),
+                            keyState = result,
+                            localCertPin = pins[it.id],
+                        )
+                    }
+                }
+
         /**
          * Resolves the active [Server] from the stored list + persisted
          * active id. The well-defined "no server" representation is `null`
