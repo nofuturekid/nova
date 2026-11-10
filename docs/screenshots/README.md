@@ -5,7 +5,5 @@ These feed the README. To refresh them, replace the files in place (keep the nam
 - `overview.png` — the Overview tab (array, CPU, memory, network, containers, system)
 - `docker.png` — the Docker tab (container list)
 - `container-detail.png` — a container detail sheet
-- `container-logs.png` — live container logs
-- `settings-changelog.png` — Settings with the in-app changelog open
 
-Portrait, real device or emulator, dark mode (the default), ~1080px wide.
+These are copies of the rendered store screenshots (`fastlane/.../phoneScreenshots/1.png`, `3.png`, `5.png`; demo server, see docs/local-build.md). Portrait, dark mode, ~1080px wide.

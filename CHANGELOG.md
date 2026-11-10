@@ -9,18 +9,13 @@ GitHub's auto "What's Changed" + compare link are appended below it
 (ADR-0010 / ADR-0031).
 
 Contributor rule: every PR that changes user-facing behaviour adds a
-bullet under `## [Unreleased]` in the right group (`Added` / `Changed` /
-`Fixed`). The version-bump PR (ADR-0015) renames `[Unreleased]` to the
-release version + date and opens a fresh `[Unreleased]`.
+bullet under `## [Unreleased]
 
-## [Unreleased]
+## [0.1.42-beta1] - 2026-11-10
 
-### Fixed
-- **Network interfaces screen no longer shows blank hardware fields** —
-  vendor, model, link speed and the virtual flag are only available with a
-  third-party API plugin; rows without data are now left out instead of
-  shown empty. On a stock API the Hardware block still shows the MAC
-  address (#223).
+Beta: actions that fail now tell you why, safer VM and container controls, live network speed on current Unraid API versions, and a hardened self-signed-certificate and key-storage path. Please test against a real server before it is promoted to stable.
+
+### Changed
 - **Container details tabs are accessible** — the Info/Logs/Ports/Volumes
   tabs now use the standard Material tab bar, so screen readers announce
   them as tabs with the selected one marked and the touch targets are at
@@ -33,9 +28,6 @@ release version + date and opens a fresh `[Unreleased]`.
 - **Logs tab explains an empty log** — a running container with no log
   lines now says it may be logging to stderr, which the Unraid API does not
   return yet, instead of a bare "No log lines." (#225).
-- **No more background polling** — Settings → Server plugins, Network
-  interfaces and the container Logs tab kept refreshing from the server
-  while the app was in the background; they now pause until you return.
 - **Confirmation before Restart, Update and VM Reboot** — restarting or
   updating a single container and rebooting a VM now ask first, like Stop
   already did (#229).
@@ -44,6 +36,16 @@ release version + date and opens a fresh `[Unreleased]`.
   Unraid powers the VM off if the guest has not shut down within about 10
   seconds. "Force stop" powers off immediately, as before, behind its own
   confirmation.
+
+### Fixed
+- **Network interfaces screen no longer shows blank hardware fields** —
+  vendor, model, link speed and the virtual flag are only available with a
+  third-party API plugin; rows without data are now left out instead of
+  shown empty. On a stock API the Hardware block still shows the MAC
+  address (#223).
+- **No more background polling** — Settings → Server plugins, Network
+  interfaces and the container Logs tab kept refreshing from the server
+  while the app was in the background; they now pause until you return.
 - **Failed actions now tell you why** — stopping a container or VM, array and
   parity actions and notification actions failed silently when the server was
   unreachable or refused them (for example an API key without permission):
@@ -62,11 +64,6 @@ release version + date and opens a fresh `[Unreleased]`.
 - **Live stats for every container** (#224) — on current Unraid API versions
   one container per refresh never got live CPU/memory/IO numbers because the
   server sent its id with terminal control characters attached.
-||||||| parent of 4676e94 (fix(vms): make Stop a graceful shutdown, keep Force stop separate)
-||||||| parent of 1ab2b8b (fix(ui): confirm VM Stop, scope privacy wording, review follow-ups)
-- **VM "Stop" now shuts the VM down gracefully** — it used to cut the power
-  (#228). Stop asks the guest to shut down cleanly; the old behaviour is
-  now a separate "Force stop" button, still behind a confirmation.
 - **Network card shows speed on Unraid 4.35 and newer** — the Overview's
   network card showed no speed on Unraid API 4.35 and newer; it now does
   (related to #217). Live network speed needs Unraid API 4.35 or newer.
