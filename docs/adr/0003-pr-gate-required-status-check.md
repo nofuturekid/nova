@@ -45,3 +45,7 @@ We also wanted CI to run on **every** proposed change, not just on a merge — s
 - `.github/workflows/ci.yml` — the `build` job is the gating check.
 - ADR-0004 — build-once-promote pipeline depends on this gate.
 - ADR-0009 — docs-only bypass keeps the gate fast.
+
+## Amendment 2026-11-10 — administrators are bound by the protection
+
+The Decision says admins are not routinely exempt and the alternatives section rejects "admin bypass" because it undermines the protection — but the live setting had `enforce_admins=false`, so the owner account (and every agent session using its credentials) could push to `main`, merge a red or out-of-date PR, or bypass `strict`. `enforce_admins` is now **on**. Break-glass means switching it off for the duration, which is a deliberate act. The same change disabled merge commits and rebase merges (squash only; ADR-0014 depends on the `(#NN)` subject). Two corrections to the record: the required check also runs with `strict` (branch must be up to date), which the release guard relies on (ADR-0014 amendment); and the API showed `dismiss_stale_reviews: true`, which has no effect with 0 required approvals.

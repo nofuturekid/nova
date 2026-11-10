@@ -85,3 +85,7 @@ convention only; performing it is out of band.
 - `.github/workflows/release.yml` — `generate_release_notes: true` line.
 - [`CONTRIBUTING.md`](../../CONTRIBUTING.md) — cleanup recipe documented practically.
 - ADR-0004 — release pipeline that introduces the auto-changelog.
+
+## Amendment 2026-11-10 — tags are now mechanically protected
+
+"Never delete a tag" relied on discipline. The repository ruleset "Protect release tags" now applies to `refs/tags/v*` and blocks **update** (moving a tag) and **deletion**; creation stays allowed. Consequences: the re-push recovery above (delete/recreate a tag, steps 1–3) now needs the ruleset disabled temporarily — a deliberate break-glass step, as intended. A wrong tag is fixed by a new commit and a new tag (ADR-0015), never by moving it. The release-entry pruning policy in the previous amendment is unaffected (it deletes Release entries, not tags). Retention is also not yet being applied: the `v0.1.40-beta1…beta10` entries are still published; that is a process item, tracked separately.

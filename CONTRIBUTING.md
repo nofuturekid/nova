@@ -16,8 +16,8 @@ Thanks for wanting to contribute. The workflow is intentionally lightweight.
    ```
 2. Make changes, commit, push.
 3. Open a Pull Request against `main`.
-4. CI (`ci.yml`) runs automatically on the PR. It builds debug + signed release APKs in one shot (≈ 4 min on a cold cache). Wait for green.
-5. Merge when CI is green. Squash-merge is the default if there are many small commits; merge-commit is fine for cohesive ones.
+4. CI (`ci.yml`) runs automatically on the PR. It builds debug + signed release APKs in one shot (≈ 8 min for a code PR; docs-only PRs finish in seconds). Wait for green.
+5. Merge when CI is green. Squash-merge is the only allowed method (the repo disables merge commits and rebase merges); `release.yml` relies on the `(#NN)` in the squash subject.
 
 ## Contribution flow (external contributors)
 
@@ -41,7 +41,7 @@ git tag -a v0.2.0 -m "v0.2.0 — what's new"
 git push origin v0.2.0
 ```
 
-`release.yml` then runs. It does **not** rebuild — it downloads the release APK that `ci.yml` already produced for this commit's SHA, and attaches it to a new GitHub Release.
+`release.yml` then runs. It does **not** rebuild — it downloads the release APK that `ci.yml` already produced for this commit's PR (the PR head SHA), and attaches it to a new GitHub Release.
 
 If you tag too early (before CI is green), the release workflow fails with a clear message; just wait for CI and push the tag again.
 
@@ -80,7 +80,7 @@ Trailing digit is required (`v0.2.0-beta` without a number is rejected). See **[
 | If the PR touches… | Action |
 |---|---|
 | Compose UI / single-file bug fix / docs | Direct stable allowed (ADR-0006). |
-| Docs only (`*.md`, `LICENSE`, `docs/`, AI-assistant configs) | **No version bump, no tag** — CI skips the APK build automatically (ADR-0009). |
+| Docs only (`*.md`, `LICENSE`, `docs/`, AI-assistant configs) | **No version bump, no tag** — CI skips the APK build automatically (ADR-0029). |
 | `schema.graphqls`, GraphQL ops, `GraphQlMapper.kt`, Apollo config | Beta-first required (ADR-0006). |
 | `AndroidManifest.xml` (new permissions/components) | Beta-first required (ADR-0006). |
 | `SettingsStore.kt` keys / DataStore migration | Beta-first required (ADR-0006). |

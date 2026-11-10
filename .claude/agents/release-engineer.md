@@ -15,11 +15,15 @@ the architecture decision and you do **not** promote to stable.
 ## Pipeline model (build-once-promote)
 
 The pipeline is **build-once-promote** (ADR-0004): `ci.yml` builds and signs
-the APK on every PR / push to `main` and uploads it as the `app-release`
-artifact; `release.yml` does **not rebuild** — on a `v*` tag push it resolves
-tag → commit SHA, finds that commit's successful CI run, downloads the
-already-built artifact, and publishes the GitHub Release. A tag can only ship
-if the commit's CI was green.
+the APK on every PR (not on push to `main`, ADR-0014) and uploads it as the
+`app-release` artifact; `release.yml` does **not rebuild** — on a `v*` tag push
+it resolves tag → commit SHA, finds the successful CI run (directly, or via the
+`(#NN)` PR of the squash commit), runs a guard (commit on `main`, PR merged as
+exactly this commit, CI tree == tag tree, `versionName` == tag, `versionCode`
+increased), downloads the already-built artifact, and publishes the GitHub
+Release. A tag can only ship if the commit's CI was green. `v*` tags are
+protected against update and deletion; fix a bad tag with a new commit and
+tag, never by moving it.
 
 Consequences you must respect:
 - A release is the **promotion of a known-good artifact**, never a fresh

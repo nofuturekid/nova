@@ -11,7 +11,7 @@ Native Android client for Unraid NAS servers (Kotlin + Jetpack Compose, Apollo G
 - URL: https://github.com/nofuturekid/nova
 - License: GPL-3.0-only (relicensed from CC BY-NC-SA 4.0 — see ADR-0021)
 - Default branch: `main` (protected)
-- Owner: nofuturekid (admin bypass on)
+- Owner: nofuturekid. `main` protection applies to admins too (`enforce_admins` on since 2026-11-10, ADR-0003); only squash merges are allowed; tags `v*` are protected against update and deletion by the ruleset "Protect release tags" (ADR-0010).
 
 ## Releases shipped so far
 
@@ -122,9 +122,9 @@ app/src/main/
 The "why" for everything in this section lives in ADRs under [`docs/adr/`](docs/adr/). What follows is the operational summary.
 
 - **Branch protection** on `main`: PRs required, required status check `build`, 0 required approvals (solo-dev-friendly). See [ADR-0003](docs/adr/0003-pr-gate-required-status-check.md).
-- **Build-once-promote** split between `ci.yml` (builds debug+release APKs, uploads artifacts) and `release.yml` (`v*` tag → finds the SHA's CI run, downloads its `app-release` artifact, publishes GitHub Release; ~16s, **never rebuilds**). See [ADR-0004](docs/adr/0004-build-once-promote-pipeline.md).
-- **Concurrency**: `cancel-in-progress` only on PR branches, never on main — main runs must complete so `release.yml` can find them. See [ADR-0011](docs/adr/0011-cancel-in-progress-only-on-pr-branches.md).
-- **Docs-only CI bypass**: `ci.yml` skips heavy steps when the diff is `*.md` / `LICENSE` / `docs/` / AI-assistant configs — finishes in ~10s, still reports `SUCCESS` on `build`. No version bump, no tag for these. See [ADR-0009](docs/adr/0009-docs-only-ci-bypass.md).
+- **Build-once-promote** split between `ci.yml` (builds debug+release APKs, uploads artifacts) and `release.yml` (`v*` tag → finds the SHA's CI run, downloads its `app-release` artifact, runs the release guard (commit on `main`, PR merged as this commit, CI tree == tag tree, `versionName` == tag, `versionCode` up), publishes GitHub Release; ~16s, **never rebuilds**). See [ADR-0004](docs/adr/0004-build-once-promote-pipeline.md).
+- **Concurrency**: `ci.yml` cancels superseded runs unconditionally; it no longer runs on push to `main` (ADR-0014), so there is no main run to protect (ADR-0011's carve-out is moot). See [ADR-0011](docs/adr/0011-cancel-in-progress-only-on-pr-branches.md), [ADR-0014](docs/adr/0014-single-ci-run-per-pr.md).
+- **Docs-only CI bypass**: `ci.yml` builds only when a build-affecting path changed (inverted allowlist: `app/`, `gradle/`, wrapper, root Gradle files, `ci.yml`); anything else finishes in ~10s and still reports `SUCCESS` on `build`. No version bump, no tag for these. See [ADR-0029](docs/adr/0029-invert-ci-build-skip-filter.md) (supersedes ADR-0009).
 - **Tag conventions**: stable `v0.X.Y`, pre-release `v0.X.Y-beta1` / `-rc1` with trailing digit required. See [ADR-0005](docs/adr/0005-prerelease-tag-convention.md).
 - **Release-class policy**: pragmatic risk-categorised beta-first. UI/docs → direct stable. Schema / manifest / SettingsStore / dependency bumps / install-flow → beta-first. See [ADR-0006](docs/adr/0006-pragmatic-beta-first-release-policy.md).
 
