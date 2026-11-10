@@ -16,6 +16,23 @@ release version + date and opens a fresh `[Unreleased]`.
 ## [Unreleased]
 
 ### Fixed
+- **Failed actions now tell you why** — stopping a container or VM, array and
+  parity actions and notification actions failed silently when the server was
+  unreachable or refused them (for example an API key without permission):
+  nothing happened and no message appeared. They now show the reason. A failed
+  container stop no longer starts the container again on "Restart", and a
+  failed notification action no longer triggers a refresh as if it had worked.
+- **Container logs keep the last good lines on a hiccup** — one failed refresh
+  of the live log tail replaced the logs with "no logs".
+- **Pull-to-refresh actually refreshes** — pulling down now reloads the data
+  that is on screen, and the spinner stops as soon as the new data has arrived
+  (or the server did not answer) instead of after a series of timeouts.
+- **Notification list updates after an action during a refresh** — archiving
+  or deleting a notification while a refresh was already running could leave
+  the list and the bell badge stale for up to a minute.
+- **Live stats for every container** (#224) — on current Unraid API versions
+  one container per refresh never got live CPU/memory/IO numbers because the
+  server sent its id with terminal control characters attached.
 - **Network card shows speed on Unraid 4.35 and newer** — the Overview's
   network card showed no speed on Unraid API 4.35 and newer; it now does
   (related to #217). Live network speed needs Unraid API 4.35 or newer.
