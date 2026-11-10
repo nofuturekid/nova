@@ -7,56 +7,40 @@ import org.junit.Assert.assertEquals
 import org.junit.Test
 
 class NetworkThroughputMappingTest {
-    @Test fun poll_frame_maps_through_to_selected_primary() {
-        // WHY: a dropped WS must fall back to the 2 s `GetNetworkThroughput`
-        // poll, not a blank card. That fallback only works if the QUERY-side
-        // frame (a DIFFERENT generated type from the subscription) projects to
-        // the same IfaceSample shape and selectThroughput picks the same primary
-        // iface — never `lo`, never the idle non-primary. This pins the poll
-        // projection (added 2026-05-30 once `metrics.network` appeared upstream).
-        val data = networkData(
-            iface("lo", 5.0, 5.0),
-            iface("eth1", 0.0, 0.0),
-            iface("eth0", 3855.0, 3797.0),
+    @Test fun poll_frame_maps_rates_to_selected_primary() {
+        // WHY: Unraid API 4.35+ serves `metrics.network` as a list of
+        // NetworkMetrics{name rxSec txSec}. A dropped WS falls back to the 2 s poll,
+        // which must pick the primary iface (never `lo`, never an idle other NIC).
+        val data = data(net("lo", 5.0, 5.0), net("eth1", 0.0, 0.0), net("eth0", 3855.0, 3797.0))
+        assertEquals(NetworkThroughput(3855.0, 3797.0), selectThroughput(data.toIfaceSamples(), "eth0"))
+    }
+
+    @Test fun virtual_interfaces_are_never_picked_by_the_fallback() {
+        // WHY: 4.35+ lists docker0/veth*/vnet*/shim-* too. If the primary NIC is
+        // unknown, "first non-lo interface that moves bytes" must not land on a
+        // container's veth and show its traffic as the server's.
+        val data = data(
+            net("docker0", 900.0, 10000.0),
+            net("veth19ce726", 1000.0, 14000.0),
+            net("vnet0", 900.0, 1600.0),
+            net("shim-br0", 13000.0, 9800.0),
+            net("br0", 17421.0, 23315.0),
         )
+        assertEquals(NetworkThroughput(17421.0, 23315.0), selectThroughput(data.toIfaceSamples(), null))
+    }
+
+    @Test fun null_metrics_maps_to_zero() {
+        // WHY: `metrics` is nullable on the query side; no data must degrade to
+        // ZERO without an NPE, not crash the fallback.
         assertEquals(
-            NetworkThroughput(3855.0, 3797.0),
-            selectThroughput(data.toIfaceSamples(), "eth0"),
+            NetworkThroughput.ZERO,
+            selectThroughput(GetNetworkThroughputQuery.Data(metrics = null).toIfaceSamples(), "br0"),
         )
     }
 
-    @Test fun null_rates_default_to_zero() {
-        // WHY: rxBytesPerSec/txBytesPerSec are nullable on the live server; a
-        // null must map to 0.0 on the poll path (same as the subscription path),
-        // so the chosen interface still yields a usable NetworkThroughput.
-        val data = networkData(iface("eth0", null, null))
-        assertEquals(
-            NetworkThroughput(0.0, 0.0),
-            selectThroughput(data.toIfaceSamples(), "eth0"),
-        )
-    }
+    private fun data(vararg n: GetNetworkThroughputQuery.Network) =
+        GetNetworkThroughputQuery.Data(metrics = GetNetworkThroughputQuery.Metrics(network = n.toList()))
 
-    @Test fun null_network_root_maps_to_zero() {
-        // WHY: `metrics` and `metrics.network` are BOTH nullable on the query
-        // side (unlike the non-null subscription root). A frame with no network
-        // data must degrade to ZERO without NPE, not crash the fallback.
-        val data = GetNetworkThroughputQuery.Data(
-            metrics = GetNetworkThroughputQuery.Metrics(network = null),
-        )
-        assertEquals(NetworkThroughput.ZERO, selectThroughput(data.toIfaceSamples(), "eth0"))
-    }
-
-    private fun networkData(vararg interfaces: GetNetworkThroughputQuery.Interface) =
-        GetNetworkThroughputQuery.Data(
-            metrics = GetNetworkThroughputQuery.Metrics(
-                network = GetNetworkThroughputQuery.Network(interfaces = interfaces.toList()),
-            ),
-        )
-
-    private fun iface(name: String, rx: Double?, tx: Double?) =
-        GetNetworkThroughputQuery.Interface(
-            iface = name,
-            rxBytesPerSec = rx,
-            txBytesPerSec = tx,
-        )
+    private fun net(name: String, rx: Double, tx: Double) =
+        GetNetworkThroughputQuery.Network(name = name, rxSec = rx, txSec = tx)
 }

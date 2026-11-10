@@ -212,3 +212,24 @@ remain maintainer-only.
 **`dockerContainerStats` remains fallback-less** — it has no query path (confirmed
 2026-05-30: there is genuinely no `Query` field for per-container live stats), so
 it stays on the bare `subscriptionStream` with no degrade target.
+
+## Amendment 2026-11-10 — the `interfaces` shape was not upstream (#217)
+
+The `NetworkUtilization { interfaces { iface rxBytesPerSec txBytesPerSec } }`
+shape this ADR was verified against was added to the maintainer's server by a
+third-party API patch (a plugin of another Unraid app), not by Unraid. Upstream
+`metrics.network` / `systemMetricsNetwork` is `[NetworkMetrics!]!` with
+`name`, `rxSec`, `txSec` (bytes per second), first released in Unraid API 4.35.0
+(unraid/api#2003, merged 2026-05-29; tag v4.35.0 of 2026-06-01 is the first
+release containing it; the PR's very first commit already used `rxSec`/`txSec`,
+so the `interfaces` shape never existed in the PR or in any upstream release).
+On such servers the old query fails validation with
+`Cannot query field "interfaces" on type "NetworkMetrics"`.
+
+The vendored schema, the poll query and the subscription now use the upstream
+shape. Live throughput therefore requires Unraid API 4.35+. A server without
+`metrics.network` is detected once (validation error / HTTP 400), cached per
+server URL as unsupported, and the throughput simply stays absent (no error
+state); inconclusive probes (offline, auth) are not cached. Virtual interfaces
+the upstream list now includes (`docker*`, `veth*`, `vnet*`, `virbr*`, `shim-*`,
+`lo`) are ignored when choosing the interface to show.

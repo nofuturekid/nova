@@ -1,9 +1,11 @@
 package io.github.nofuturekid.nova.data.repository
 
 import com.apollographql.apollo.ApolloClient
+import com.apollographql.apollo.api.Error
 import com.apollographql.apollo.api.Query
 import com.apollographql.apollo.api.Subscription
 import com.apollographql.apollo.exception.ApolloException
+import com.apollographql.apollo.exception.ApolloHttpException
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableSharedFlow
@@ -16,6 +18,7 @@ import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.emitAll
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.map
@@ -127,6 +130,7 @@ class UnraidRepository @Inject constructor(
         const val POLL_INSTALLED_UNRAID_PLUGINS_MS = 30_000L  // .plg inventory rarely changes
         const val POLL_PLUGIN_OPERATIONS_MS = 10_000L  // install jobs progress; polled only while screen open
         const val POLL_NETWORK_INTERFACES_MS = 30_000L // NIC config rarely changes
+        const val NETWORK_SHAPE_RETRY_MS = 15_000L     // re-probe after an inconclusive network-shape probe
 
         /** Consecutive poll failures before the UI drops to an Error state. */
         const val TRANSIENT_ERROR_TOLERANCE = 3
@@ -324,6 +328,51 @@ class UnraidRepository @Inject constructor(
             kotlinx.coroutines.flow.flow {
                 for (snapshot in accumulateStats(frames)) emit(DomainState.Content(snapshot, baseUrl))
             }
+
+        /**
+         * Outcome of probing the network-throughput operation against a server.
+         * [SchemaMismatch] = the server rejected the operation's shape (GraphQL
+         * validation failure, or HTTP 400 which Unraid answers it with);
+         * [Inconclusive] = anything else (offline, auth, cert, 5xx) — never cached.
+         */
+        internal enum class ShapeProbe { Supported, SchemaMismatch, Inconclusive }
+
+        internal fun classifyShapeProbe(
+            exception: ApolloException?,
+            errors: List<Error>,
+            hasData: Boolean,
+        ): ShapeProbe = when {
+            errors.any { e ->
+                e.message.contains("Cannot query field") ||
+                    e.extensions?.get("code") == "GRAPHQL_VALIDATION_FAILED"
+            } -> ShapeProbe.SchemaMismatch
+            exception is ApolloHttpException && exception.statusCode == 400 -> ShapeProbe.SchemaMismatch
+            exception == null && errors.isEmpty() && hasData -> ShapeProbe.Supported
+            else -> ShapeProbe.Inconclusive
+        }
+
+        /**
+         * Decide (and cache per server URL) whether [key] serves `metrics.network`
+         * (Unraid API 4.35+). Older servers reject the field with a validation error,
+         * which fails the whole operation — so they are cached as unsupported and the
+         * throughput card is simply absent. Only definitive answers are cached; an
+         * inconclusive probe returns null so the caller retries instead of pinning a
+         * server to "unsupported" forever. The probe runs once per server, not per poll.
+         */
+        internal suspend fun resolveNetworkSupport(
+            cache: MutableMap<String, Boolean>,
+            key: String,
+            probe: suspend () -> ShapeProbe,
+        ): Boolean? {
+            cache[key]?.let { return it }
+            val resolved = when (probe()) {
+                ShapeProbe.Supported -> true
+                ShapeProbe.SchemaMismatch -> false
+                ShapeProbe.Inconclusive -> null
+            }
+            if (resolved != null) cache[key] = resolved
+            return resolved
+        }
 
         /**
          * Generic subscription-with-poll-fallback combinator (ADR-0026 / ADR-0043).
@@ -610,19 +659,57 @@ class UnraidRepository @Inject constructor(
      * CPU/Mem/Temp now applies. The WS socket lives only while the flow is
      * collected (gated by the caller via [gatedStream] in the ViewModel); the
      * poll runs only while degraded.
+     *
+     * `metrics.network` exists upstream from Unraid API 4.35 (a list of
+     * `NetworkMetrics`). An older server rejects the unknown field, failing the
+     * whole operation, so support is probed once per URL ([resolveNetworkSupport])
+     * and an unsupporting server yields no throughput, quietly.
      */
-    fun networkThroughputStream(): Flow<DomainState<NetworkThroughput>> {
-        val primaryFlow = flow { emit(runCatching { resolvePrimaryIface() }.getOrNull()) }
-        return primaryFlow.flatMapLatest { primary ->
-            subscriptionOrPoll(
-                sub = subscriptionStream(SystemMetricsNetworkSubscription()) { data ->
-                    selectThroughput(data.toIfaceSamples(), primary)
-                },
-                poll = networkThroughputPoll(primary),
-                graceMs = SUB_FALLBACK_GRACE_MS,
-            )
+    fun networkThroughputStream(): Flow<DomainState<NetworkThroughput>> =
+        servers.activeWithKey
+            .distinctUntilChanged()
+            .flatMapLatest { active ->
+                flow {
+                    if (active == null) { emit(DomainState.NoServer); return@flow }
+                    if (active.apiKey.isBlank()) {
+                        emit(DomainState.Error(blankKeyMessage(active))); return@flow
+                    }
+                    val client = buildClient(active)
+                    val key = activeUrl(active)
+                    // Inconclusive probe (offline, auth, ...): retry rather than guess.
+                    var supported = resolveNetworkSupport(networkSupport, key) { probeShape(client) }
+                    while (supported == null) {
+                        delay(NETWORK_SHAPE_RETRY_MS)
+                        supported = resolveNetworkSupport(networkSupport, key) { probeShape(client) }
+                    }
+                    // API < 4.35 has no `metrics.network`: emit nothing (the card stays
+                    // Loading, throughput simply absent) — no Error, no banner.
+                    if (!supported) return@flow
+                    val primary = runCatching { resolvePrimaryIface() }.getOrNull()
+                    emitAll(
+                        subscriptionOrPoll(
+                            sub = subscriptionStream(SystemMetricsNetworkSubscription()) { data ->
+                                selectThroughput(data.toIfaceSamples(), primary)
+                            },
+                            poll = networkThroughputPoll(primary),
+                            graceMs = SUB_FALLBACK_GRACE_MS,
+                        ),
+                    )
+                }
+            }
+
+    /** Per-server-URL cache of `metrics.network` support (see [resolveNetworkSupport]). */
+    private val networkSupport = java.util.concurrent.ConcurrentHashMap<String, Boolean>()
+
+    private suspend fun probeShape(client: ApolloClient): ShapeProbe =
+        try {
+            val resp = client.query(GetNetworkThroughputQuery()).execute()
+            classifyShapeProbe(resp.exception, resp.errors.orEmpty(), resp.data != null)
+        } catch (e: kotlinx.coroutines.CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            ShapeProbe.Inconclusive
         }
-    }
 
     private fun networkThroughputPoll(
         primary: String?,

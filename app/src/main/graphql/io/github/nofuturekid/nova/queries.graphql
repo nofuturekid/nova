@@ -47,17 +47,16 @@ query GetMetrics {
 }
 
 # Poll fallback for the live Network card (mirrors the
-# `systemMetricsNetwork` subscription selection). Kept separate from
+# `systemMetricsNetwork` subscription selection). Unraid API 4.35+ shape;
+# the 4.29.x `interfaces` shape lives in legacy/network.graphql. Kept separate from
 # GetMetrics so the network poll is fetched by its own Flow, independent
 # of the CPU/Mem/Temp poll cadence — see UnraidRepository.networkThroughputPoll.
 query GetNetworkThroughput {
     metrics {
         network {
-            interfaces {
-                iface
-                rxBytesPerSec
-                txBytesPerSec
-            }
+            name
+            rxSec
+            txSec
         }
     }
 }
