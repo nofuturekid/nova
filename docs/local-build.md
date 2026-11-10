@@ -98,7 +98,9 @@ server is involved. Regenerate them with:
 The test is excluded from the normal `test` task (and so from
 `local-ci.sh`) and only runs with `-PnovaScreenshots`; the extra test
 dependencies (Robolectric, Roborazzi, Compose ui-test) are test-scope and
-never enter an APK. Edit the demo data and the list of screens in
+never enter an APK. Robolectric renders no system UI, so the test draws a
+demo-mode-style status bar (12:00, Wi-Fi, signal, battery) and the gesture
+pill itself, in the insets the app already reserves. Edit the demo data and the list of screens in
 `app/src/test/kotlin/io/github/nofuturekid/nova/ui/screenshots/StoreScreenshots.kt`.
 Robolectric downloads its Android jar from Maven Central on first use.
 
