@@ -41,8 +41,8 @@ if [[ "${IN_LOCAL_CI_CONTAINER:-}" == "1" ]]; then
     GRADLE_FLAGS+=(--offline)
     echo ">> OFFLINE mode: --offline + no container network"
   fi
-  # CI does not run unit tests (none exist). Auto-include them if/when
-  # the project grows a test source set, so this stays in lockstep.
+  # CI runs the unit tests (ADR-0036, `test` job). Include them whenever a
+  # test source set exists, so this stays in lockstep.
   if [[ -d app/src/test ]]; then
     GRADLE_TASKS+=(:app:testDirectDebugUnitTest)
     echo ">> test sources detected → adding :app:testDirectDebugUnitTest"

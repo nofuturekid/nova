@@ -124,3 +124,7 @@ documentation aid. Out of scope.
 ## Addendum (2026-05-20) — Repo rename
 
 The Pages URL flipped when the repo was renamed `UnraidControl` → `nova` per ADR-0039 Step 4. The canonical URL is now `https://nofuturekid.github.io/nova/`; GitHub continues to redirect from the old URL but we no longer rely on that. The embedded prototype HTML at `docs/preview/index.html` still shows the old "UnraidControl" branding (it's a 0.1.31-era UI snapshot, not regenerated); a refresh against the current NOVA UI is a separate task.
+
+## Amendment 2026-11-10 — actions pinned by commit SHA
+
+The line "Actions pinned by major tag, matching existing workflow convention" no longer holds. Every `uses:` in every workflow (this one included) is now pinned to the full commit SHA of the release it resolved to, with the version as a trailing comment (`uses: actions/checkout@<sha> # v7.0.1`). The original reason for major-tag pins was the cost of hand-bumping; since ADR-0025, Dependabot's `github-actions` ecosystem bumps the SHA and the `# vX.Y.Z` comment together, so that cost is gone, while a mutable tag lets an upstream re-point run unreviewed code in jobs that hold the signing key or publish releases (CI review M1). The repo setting `sha_pinning_required` can enforce this.

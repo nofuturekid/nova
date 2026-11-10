@@ -5,13 +5,14 @@ name: Release
 #
 # Resolution order for finding the build artifact (ADR-0014):
 #   1. Direct lookup: CI run whose head_sha matches the tagged commit
-#      (covers manual `gh workflow run ci.yml --ref <SHA>` rebuilds).
+#      (covers manual `gh workflow run ci.yml --ref <tag>` rebuilds).
 #   2. PR lookup: parse `(#NN)` from the tagged commit's message,
 #      resolve that PR's head SHA via the GitHub API, find its CI run.
 #      Covers the normal case — squash-merge commit on main → PR-CI artifact.
 #
 # Falls back to a clear error message if neither path resolves; recovery
-# is a manual workflow_dispatch on the tagged commit.
+# is a manual workflow_dispatch on the tag. Before anything is downloaded or
+# published, release-guard.sh checks tag/commit/CI-run consistency.
 on:
   push:
     tags: ['v*']
@@ -33,9 +34,11 @@ jobs:
   release:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0  # need history to resolve tag → commit SHA
+          # contents: write job; git only reads here, gh uses GH_TOKEN.
+          persist-credentials: false
 
       - name: Resolve target commit SHA
         id: sha
@@ -49,31 +52,51 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           SHA: ${{ steps.sha.outputs.sha }}
+          REPO: ${{ github.repository }}
         run: |
           set -e
 
+          # Newest successful ci.yml run for a head SHA that (a) came from a
+          # trusted source — `pull_request` from THIS repo (not a fork) or
+          # `workflow_dispatch` — and (b) actually has a live `app-release`
+          # artifact. A fork PR can reuse a head SHA but never produces the
+          # artifact, so it must not shadow the real run (CI review L4).
+          # Prints "<run id>" or nothing.
+          find_run() {
+            local ids id n
+            ids=$(gh api \
+              "repos/$REPO/actions/workflows/ci.yml/runs?head_sha=$1&status=success&per_page=50" \
+              | jq -r --arg repo "$REPO" '.workflow_runs[]
+                  | select((.event == "pull_request" or .event == "workflow_dispatch")
+                           and .head_repository.full_name == $repo) | .id')
+            for id in $ids; do
+              n=$(gh api "repos/$REPO/actions/runs/$id/artifacts" \
+                --jq '[.artifacts[] | select(.name == "app-release" and (.expired | not))] | length')
+              if [ "$n" -gt 0 ]; then echo "$id"; return 0; fi
+            done
+          }
+
           # Path 1 — direct: CI run whose head_sha == tagged commit.
-          # Hits when someone manually triggered ci.yml on the main commit
-          # (workflow_dispatch with --ref). Normal squash-merge commits
+          # Hits when someone manually triggered ci.yml on the tag
+          # (workflow_dispatch with --ref <tag>). Normal squash-merge commits
           # won't have a direct match and fall through to Path 2.
-          RUN_ID=$(gh api \
-            "repos/${{ github.repository }}/actions/workflows/ci.yml/runs?head_sha=$SHA&status=success&per_page=1" \
-            --jq '.workflow_runs[0].id // empty')
+          RUN_ID=$(find_run "$SHA")
           if [ -n "$RUN_ID" ]; then
             echo "Found CI run $RUN_ID for $SHA (direct match)."
-            echo "id=$RUN_ID" >> "$GITHUB_OUTPUT"
+            { echo "id=$RUN_ID"; echo "head_sha=$SHA"; echo "pr_num="; } >> "$GITHUB_OUTPUT"
             exit 0
           fi
 
           # Path 2 — via PR: parse `(#NN)` from the tagged commit's
           # subject line (GitHub's squash-merge format), resolve PR head
-          # SHA, look up the PR's CI run.
+          # SHA, look up the PR's CI run. The guard step below verifies the
+          # PR really was merged as this commit.
           SUBJECT=$(git log -1 "$SHA" --format=%s)
           PR_NUM=$(echo "$SUBJECT" | grep -oE '\(#[0-9]+\)$' | tr -d '(#)' || true)
           if [ -z "$PR_NUM" ]; then
-            echo "::error::No CI run for $SHA and no PR # in commit message."
+            echo "::error::No CI run with an app-release artifact for $SHA and no PR # in commit message."
             echo "::error::Subject was: $SUBJECT"
-            echo "::error::Direct-push? Run CI manually with:  gh workflow run ci.yml --ref $SHA"
+            echo "::error::Direct-push? Run CI on the tag:  gh workflow run ci.yml --ref ${GITHUB_REF#refs/tags/}  — wait for it, then re-run this release run:  gh run rerun $GITHUB_RUN_ID (tags are protected; do not re-push)."
             exit 1
           fi
 
@@ -83,17 +106,29 @@ jobs:
             exit 1
           fi
 
-          RUN_ID=$(gh api \
-            "repos/${{ github.repository }}/actions/workflows/ci.yml/runs?head_sha=$PR_SHA&status=success&per_page=1" \
-            --jq '.workflow_runs[0].id // empty')
+          RUN_ID=$(find_run "$PR_SHA")
           if [ -z "$RUN_ID" ]; then
-            echo "::error::No successful PR CI run for SHA $PR_SHA (PR #$PR_NUM)."
-            echo "::error::Re-run the PR's CI, then push the tag again."
+            echo "::error::No successful PR CI run with an app-release artifact for SHA $PR_SHA (PR #$PR_NUM)."
+            echo "::error::Re-run the PR's CI (expired artifact: gh workflow run ci.yml --ref ${GITHUB_REF#refs/tags/}), wait for it, then re-run this release run:  gh run rerun $GITHUB_RUN_ID (tags are protected; do not re-push)."
             exit 1
           fi
 
           echo "Found PR #$PR_NUM CI run $RUN_ID (head_sha=$PR_SHA)."
-          echo "id=$RUN_ID" >> "$GITHUB_OUTPUT"
+          { echo "id=$RUN_ID"; echo "head_sha=$PR_SHA"; echo "pr_num=$PR_NUM"; } >> "$GITHUB_OUTPUT"
+
+      # Refuse to promote an artifact that does not belong to this tag: the
+      # commit must be on main, the PR merged as exactly this commit, the CI
+      # tree equal to the tagged tree, versionName == tag, versionCode up.
+      # Logic lives in .github/scripts/release-guard.sh (CI review H2, ADR-0014).
+      - name: Guard — artifact matches tag
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ github.ref_name }}
+          SHA: ${{ steps.sha.outputs.sha }}
+          RUN_ID: ${{ steps.run.outputs.id }}
+          RUN_HEAD_SHA: ${{ steps.run.outputs.head_sha }}
+          PR_NUM: ${{ steps.run.outputs.pr_num }}
+        run: .github/scripts/release-guard.sh
 
       # The `app-release` artifact contains the `direct`-flavor APK only
       # (ADR-0040). CI builds both flavors at release type but uploads
@@ -102,7 +137,7 @@ jobs:
       # `app-direct-release.apk` (was `app-release.apk`), which the
       # `Rename APK` step below picks up generically via `find … *.apk`.
       - name: Download release APK from CI run
-        uses: actions/download-artifact@v8
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
           name: app-release
           path: artifacts/apk
@@ -110,7 +145,7 @@ jobs:
           github-token: ${{ github.token }}
 
       - name: Download mapping from CI run
-        uses: actions/download-artifact@v8
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
           name: mapping
           path: artifacts/mapping
@@ -167,7 +202,7 @@ jobs:
           fi
 
       - name: Publish GitHub Release
-        uses: softprops/action-gh-release@v3
+        uses: softprops/action-gh-release@8a0cd651e5b2365bd640854a3fa5dfc70e4875f3 # v3.0.4
         with:
           files: |
             ${{ steps.rename.outputs.apk }}

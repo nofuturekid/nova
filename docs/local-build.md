@@ -33,8 +33,9 @@ that is expected locally; no secrets are needed or added.
 
 > The task list lives in **one** place: the `GRADLE_TASKS` array at the top
 > of `scripts/local-ci.sh`. If CI's tasks change, change only that array to
-> keep them in lockstep. Unit tests are auto-included if a `app/src/test`
-> source set ever appears (none today; CI does not run tests either).
+> keep them in lockstep. Unit tests (`:app:testDirectDebugUnitTest`) are
+> auto-included when `app/src/test` exists, matching CI's `test` job
+> (ADR-0036).
 
 ## How the cache works
 
@@ -103,8 +104,8 @@ Robolectric downloads its Android jar from Maven Central on first use.
 
 ## Out of scope
 
-This environment is **headless build + lint + Apollo codegen** (plus unit
-tests if/when they exist). It deliberately does **not** run the Android
+This environment is **headless build + lint + Apollo codegen + unit
+tests**. It deliberately does **not** run the Android
 emulator or instrumented / UI tests — those need `/dev/kvm` and are a
 separate concern, not handled here.
 

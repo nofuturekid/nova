@@ -63,3 +63,15 @@ gh workflow run ci.yml --ref <SHA>
 - ADR-0004 — build-once-promote pipeline that this refines.
 - ADR-0009 — docs-only bypass (still in PR-CI).
 - ADR-0011 — `cancel-in-progress` rule; partially moot now but kept for `workflow_dispatch`.
+
+## Amendment 2026-11-10 — release guard, trusted-run lookup, recovery command
+
+A CI review found that the lookup above binds artifact to tag only indirectly (by `head_sha` or by the `(#NN)` subject), and that the printed recovery command does not work. Three changes to `release.yml`:
+
+- **Recovery command.** `gh workflow run --ref` accepts a branch or tag name, not a SHA, so every `gh workflow run ci.yml --ref <SHA>` above (Decision, Trade-offs, the failure log) reads `gh workflow run ci.yml --ref <tag>`. The dispatch run's `head_sha` is then the tagged commit and the direct path hits.
+- **Trusted-run lookup.** Both paths select the newest successful `ci.yml` run for the head SHA that is a `pull_request` from this repository or a `workflow_dispatch` **and** still has the `app-release` artifact. A fork PR can reuse a head SHA but never produces the artifact, so it can no longer shadow the real run.
+- **Release guard** (`.github/scripts/release-guard.sh`, run before download/publish). It fails the release unless: the tagged commit is an ancestor of `origin/main`; on the PR path the PR is `MERGED` with `mergeCommit == tagged SHA`; the tree of the CI run's head commit equals the tagged commit's tree (holds under `strict` branch protection); `v<versionName at SHA> == tag` (the pre-release suffix is part of `versionName`, ADR-0013); and `versionCode at SHA` is greater than at the previous `v*` tag (ADR-0015). It is the mechanical form of the "release can only ship what CI built from this commit" invariant (ADR-0004); `v0.1.40-beta1` shipped a `0.1.39` build under a `0.1.40-beta1` tag before the guard existed.
+
+- **Recovery without re-pushing tags.** With `refs/tags/v*` protected against update/deletion, "then push the tag again" no longer works. Recovery is: re-run the failed release run (`gh run rerun <run-id>`); for a missing or expired artifact run `gh workflow run ci.yml --ref <tag>`, wait for it, then re-run the release run. A guard failure on a version mismatch uses up that tag; fix forward with a new commit and the next version. The guard also rejects tags that are not `vX.Y.Z` or `vX.Y.Z-(alpha|beta|rc|pre)N`, so a digitless pre-release tag can no longer be published as stable (ADR-0005).
+
+The same change set made squash the only allowed merge method on `main` (the `(#NN)` subject now always exists) and protects `refs/tags/v*` against update and deletion, which closes the "revisit" trigger about merge methods above.

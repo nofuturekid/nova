@@ -91,3 +91,7 @@ The original sourceSet-split sketch is preserved above for posterity. If reprodu
 - ADR-0038 / ADR-0039 — Lime trademark compliance + rename to NOVA (predecessors that enabled going public).
 - F-Droid Inclusion Policy: <https://f-droid.org/docs/Inclusion_Policy/>
 - Google Play Developer Policy on in-app updates: <https://support.google.com/googleplay/android-developer/answer/9888379>
+
+## Amendment 2026-11-10 — both flavors are signed in CI
+
+The Signing paragraph says the `store` flavor is "unsigned in CI output". `app/build.gradle.kts` signs both release flavors with the release keystore when it is present, so CI's `assembleRelease` output for `store` is signed too. This is harmless: the `store` APK is not uploaded (only `direct` is), and F-Droid / Play re-sign it with their own keys regardless.

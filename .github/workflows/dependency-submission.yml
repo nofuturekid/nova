@@ -38,10 +38,14 @@ jobs:
   submit:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          # The job has contents: write and then runs Gradle (every plugin);
+          # don't leave the token in .git/config for that code to read.
+          persist-credentials: false
 
       - name: Set up JDK 21
-        uses: actions/setup-java@v6.1.0
+        uses: actions/setup-java@b843ebf9b913146b38da2eaa7aeddf76074ae1ad # v6.1.0
         with:
           distribution: temurin
           java-version: '21'
@@ -49,4 +53,11 @@ jobs:
       - name: Submit Gradle dependency graph
         # Resolves every project/configuration and submits the full
         # transitive graph itself — no extra build steps required.
-        uses: gradle/actions/dependency-submission@v6
+        uses: gradle/actions/dependency-submission@8da46b539cd8fe6ab27ca75128919a18d757604c # v6.4.1
+        with:
+          # Same hygiene as ADR-0036 decision 2: the action DOES have this
+          # input (default `enhanced` = proprietary caching provider).
+          cache-provider: basic
+          # Validate the wrapper jar; this job runs the wrapper on every
+          # push to main with a write token and the action default is false.
+          validate-wrappers: true

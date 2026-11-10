@@ -11,7 +11,8 @@
 # a repo setting (not expressible here), see ADR-0025.
 version: 2
 updates:
-  # GitHub Actions pins (checkout / setup-java / gradle-actions /
+  # GitHub Actions pins — full commit SHAs with a `# vX.Y.Z` comment;
+  # Dependabot bumps both together (checkout / setup-java / gradle-actions /
   # upload-/download-artifact / action-gh-release). These we previously
   # bumped by hand (ADR-0023 PR-2) — the highest-value, lowest-risk
   # automation.
