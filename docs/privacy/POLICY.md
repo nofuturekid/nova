@@ -18,10 +18,12 @@ NOVA initiates network requests to:
 
 - **Your own Unraid server**, at the addresses you configured, using the Unraid API/Connect plugin's GraphQL endpoint. All app functionality runs through this.
 - **GitHub** (`api.github.com`, `objects.githubusercontent.com`), only when:
-  - You open Settings (a background check for app updates is initiated), or you press "Check now"
+  - The app starts (a check for app updates runs once at launch), you open Settings, or you press "Check now"
   - You install an in-app update (the APK is downloaded from a GitHub Release asset)
 
   These requests appear in GitHub's standard server logs with no NOVA-specific identifier beyond the default `User-Agent` header. *(`direct` flavor only — see "Per-flavor differences" below.)*
+
+- **Container icon hosts** (both flavors). The Docker tab and container details show each container's icon. The icon URL is supplied by your own Unraid server (from the container's template), and is usually hosted by a third party chosen by the template author — for example `raw.githubusercontent.com`, `cdn.jsdelivr.net` or `github.com`. The app fetches these URLs directly, so those hosts see your IP address and the standard request headers. NOVA never adds credentials or identifiers to these requests, and decides neither which hosts are contacted nor which icons exist: that comes from the templates on your server.
 
 The app does **not** send data to any other service. No analytics, no telemetry, no crash reporting, no advertising SDKs, no third-party authentication providers.
 
@@ -42,8 +44,8 @@ Your API key material and server URLs are explicitly **excluded** from Android c
 
 NOVA declares these Android permissions (visible in the app's permission list under Android Settings):
 
-- **`INTERNET`** — required to reach your Unraid server and GitHub
-- **`POST_NOTIFICATIONS`** (Android 13+) — for surfacing your Unraid server's notifications via the system tray. NOVA does not subscribe to push notifications from any server; it polls your Unraid server over your own network.
+- **`INTERNET`** — required to reach your Unraid server, container icon hosts and (`direct` flavor) GitHub
+- **`ACCESS_NETWORK_STATE`** — lets the app check whether a network is available
 - **`REQUEST_INSTALL_PACKAGES`** *(`direct` flavor only — GitHub-distributed APK)* — required for the in-app updater to install a newer APK. The F-Droid and Play Store flavors of NOVA do not declare this permission.
 
 ## Per-flavor differences
@@ -51,7 +53,7 @@ NOVA declares these Android permissions (visible in the app's permission list un
 NOVA ships in two flavors that differ only in their distribution channel:
 
 - **`direct`** — installed from the [GitHub Releases page](https://github.com/nofuturekid/nova/releases). Includes the in-app updater (talks to `api.github.com` and downloads APKs from GitHub Releases over HTTPS).
-- **`store`** — installed from F-Droid (and, in the future, the Google Play Store). The in-app updater is absent. App updates are managed by your store of choice. No network traffic to GitHub from the running app.
+- **`store`** — installed from F-Droid (and, in the future, the Google Play Store). The in-app updater is absent. App updates are managed by your store of choice. No network traffic to GitHub from the running app. Container icons are still fetched from the URLs your server provides (see "Data the app sends").
 
 ## Update integrity (`direct` flavor only)
 
