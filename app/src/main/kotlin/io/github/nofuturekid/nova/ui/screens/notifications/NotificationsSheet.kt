@@ -45,6 +45,7 @@ import io.github.nofuturekid.nova.ui.components.UnraidButton
 import io.github.nofuturekid.nova.ui.components.UnraidIconButton
 import io.github.nofuturekid.nova.ui.theme.UnraidAlpha
 import io.github.nofuturekid.nova.ui.theme.UnraidTheme
+import io.github.nofuturekid.nova.ui.util.notificationSummary
 
 /**
  * Two-segment notifications sheet over the live API's `list(filter)`.
@@ -106,7 +107,7 @@ fun NotificationsSheet(
                     if (data != null) {
                         Spacer(Modifier.height(2.dp))
                         Text(
-                            text = "${data.unreadAlert} alerts · ${data.unreadWarning} warnings · ${data.unreadInfo} info",
+                            text = notificationSummary(data.unreadAlert, data.unreadWarning, data.unreadInfo),
                             color = t.muted,
                             style = MaterialTheme.typography.bodySmall,
                         )

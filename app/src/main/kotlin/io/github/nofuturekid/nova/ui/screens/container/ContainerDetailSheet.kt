@@ -62,6 +62,8 @@ import io.github.nofuturekid.nova.ui.components.onTone
 import io.github.nofuturekid.nova.ui.theme.JetBrainsMono
 import io.github.nofuturekid.nova.ui.theme.UnraidAlpha
 import io.github.nofuturekid.nova.ui.theme.UnraidTheme
+import io.github.nofuturekid.nova.ui.util.memLimit
+import io.github.nofuturekid.nova.ui.util.memUsed
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
@@ -373,8 +375,9 @@ private fun InfoTabContent(c: Container, liveStats: ContainerLiveStats?) {
                     )
                     StatBlock(
                         label = "Memory",
-                        value = live?.memUsage ?: "—",
+                        value = live?.let { memUsed(it.memUsage) } ?: "—",
                         modifier = Modifier.weight(1f),
+                        caption = live?.let { memLimit(it.memUsage) }?.let { "of $it" },
                     )
                 }
                 // netIO / blockIO are cumulative Docker counters since container
@@ -404,7 +407,7 @@ private fun InfoTabContent(c: Container, liveStats: ContainerLiveStats?) {
 }
 
 @Composable
-private fun StatBlock(label: String, value: String, modifier: Modifier = Modifier) {
+private fun StatBlock(label: String, value: String, modifier: Modifier = Modifier, caption: String? = null) {
     val t = UnraidTheme.colors
     Column(modifier = modifier) {
         Text(
@@ -417,13 +420,16 @@ private fun StatBlock(label: String, value: String, modifier: Modifier = Modifie
             text = value,
             color = t.text,
             // titleLarge (not headlineMedium): the live memory/net/disk
-            // values are preformatted "used / limit" pairs that overflow a
-            // half-width column at headline size; titleLarge keeps them on
-            // one ellipsized line while staying the row's emphasis weight.
+            // values can be preformatted "RX / TX" pairs that overflow a
+            // half-width column at headline size; titleLarge plus up to two
+            // lines keeps them readable while staying the row's emphasis weight.
             style = MaterialTheme.typography.titleLarge,
-            maxLines = 1,
+            maxLines = 2,
             overflow = TextOverflow.Ellipsis,
         )
+        caption?.let {
+            Text(text = it, color = t.muted, style = MaterialTheme.typography.labelSmall)
+        }
     }
 }
 

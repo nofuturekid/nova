@@ -16,6 +16,11 @@ release version + date and opens a fresh `[Unreleased]`.
 ## [Unreleased]
 
 ### Fixed
+- **Memory and network values no longer cut off in the Docker tab and
+  container details** — the container list shows memory used, the detail
+  view shows used with "of <limit>" below, and long values wrap instead of
+  being truncated on narrow phones. The notifications header now reads
+  "1 alert · 1 warning" instead of "1 alerts · 1 warnings" (#226).
 - **Logs tab explains an empty log** — a running container with no log
   lines now says it may be logging to stderr, which the Unraid API does not
   return yet, instead of a bare "No log lines." (#225).
