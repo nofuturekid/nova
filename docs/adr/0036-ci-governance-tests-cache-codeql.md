@@ -220,3 +220,7 @@ only).
   scope update, `cache-provider: basic`.
 </content>
 </invoke>
+
+## Amendment 2026-11-10 — dependency-submission has a `cache-provider` input
+
+Decision 2 left `dependency-submission.yml` untouched on the premise that `gradle/actions/dependency-submission` has no `cache-provider` input. It does (default `enhanced`, the proprietary provider; the run log confirmed it was in use). The decision itself stands and now covers that workflow too: `cache-provider: basic` is set there, together with `validate-wrappers: true` (the action default is `false`, and this job runs the wrapper on every push to main with a write token). Only the premise was wrong.
