@@ -58,6 +58,7 @@ import io.github.nofuturekid.nova.ui.screens.NoServerState
 import io.github.nofuturekid.nova.ui.screens.main.MainViewModel
 import io.github.nofuturekid.nova.ui.theme.UnraidAlpha
 import io.github.nofuturekid.nova.ui.theme.UnraidTheme
+import io.github.nofuturekid.nova.ui.util.memUsed
 
 @Composable
 fun DockerTab(
@@ -294,7 +295,7 @@ private fun ContainerRow(
                     ) {
                         Text("%.1f%% CPU".format(liveStats.cpuPercent),
                             color = t.muted, style = MaterialTheme.typography.labelSmall)
-                        Text(liveStats.memUsage,
+                        Text(memUsed(liveStats.memUsage),
                             color = t.muted, style = MaterialTheme.typography.labelSmall,
                             maxLines = 1, overflow = TextOverflow.Ellipsis)
                     }

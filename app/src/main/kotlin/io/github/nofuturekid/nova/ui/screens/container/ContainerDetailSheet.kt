@@ -21,6 +21,8 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.SecondaryTabRow
+import androidx.compose.material3.Tab
 import androidx.compose.material3.Text
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.material3.pulltorefresh.rememberPullToRefreshState
@@ -38,8 +40,10 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.compose.LocalLifecycleOwner
+import androidx.lifecycle.compose.currentStateAsState
 import androidx.compose.ui.unit.sp
-import androidx.compose.foundation.clickable
 import androidx.compose.ui.platform.LocalContext
 import android.content.Intent
 import androidx.core.net.toUri
@@ -59,6 +63,8 @@ import io.github.nofuturekid.nova.ui.components.onTone
 import io.github.nofuturekid.nova.ui.theme.JetBrainsMono
 import io.github.nofuturekid.nova.ui.theme.UnraidAlpha
 import io.github.nofuturekid.nova.ui.theme.UnraidTheme
+import io.github.nofuturekid.nova.ui.util.memLimit
+import io.github.nofuturekid.nova.ui.util.memUsed
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
@@ -93,9 +99,12 @@ fun ContainerDetailSheet(
     var logsFailed by remember(container.id) { mutableStateOf(false) }
     // Live tail: while the Logs tab is open on a running container, re-fetch
     // on an interval. The keyed LaunchedEffect cancels the loop when the
-    // tab changes, the container stops, or the sheet is dismissed.
-    LaunchedEffect(tab, container.id, container.status) {
-        if (tab == DetailTab.Logs && container.status == ContainerStatus.Running) {
+    // tab changes, the container stops, the sheet is dismissed or the app
+    // leaves the STARTED state (backgrounded).
+    val lifecycleState by LocalLifecycleOwner.current.lifecycle.currentStateAsState()
+    val started = lifecycleState.isAtLeast(Lifecycle.State.STARTED)
+    LaunchedEffect(tab, container.id, container.status, started) {
+        if (started && tab == DetailTab.Logs && container.status == ContainerStatus.Running) {
             if (logs == null) logsLoading = true
             while (true) {
                 try {
@@ -289,31 +298,19 @@ fun ContainerDetailSheet(
             }
             Spacer(Modifier.height(16.dp))
 
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clip(RoundedCornerShape(12.dp))
-                    .background(t.muted.copy(alpha = UnraidAlpha.softFill))
-                    .padding(4.dp),
-                horizontalArrangement = Arrangement.spacedBy(4.dp),
+            // Same M3 SecondaryTabRow as the notifications sheet: gives the
+            // tabs Role.Tab + selected semantics and 48 dp touch targets.
+            SecondaryTabRow(
+                selectedTabIndex = tab.ordinal,
+                containerColor = t.surface2,
+                contentColor = t.text,
             ) {
                 DetailTab.values().forEach { tk ->
-                    val isActive = tk == tab
-                    Box(
-                        modifier = Modifier
-                            .weight(1f)
-                            .clip(RoundedCornerShape(9.dp))
-                            .background(if (isActive) t.accentDim else Color.Transparent)
-                            .clickable { tab = tk }
-                            .padding(vertical = 8.dp),
-                        contentAlignment = Alignment.Center,
-                    ) {
-                        Text(
-                            text = tk.name,
-                            color = if (isActive) t.accent else t.muted,
-                            style = MaterialTheme.typography.labelMedium,
-                        )
-                    }
+                    Tab(
+                        selected = tk == tab,
+                        onClick = { tab = tk },
+                        text = { Text(tk.name, style = MaterialTheme.typography.labelMedium, maxLines = 1) },
+                    )
                 }
             }
             Spacer(Modifier.height(16.dp))
@@ -367,8 +364,9 @@ private fun InfoTabContent(c: Container, liveStats: ContainerLiveStats?) {
                     )
                     StatBlock(
                         label = "Memory",
-                        value = live?.memUsage ?: "—",
+                        value = live?.let { memUsed(it.memUsage) } ?: "—",
                         modifier = Modifier.weight(1f),
+                        caption = live?.let { memLimit(it.memUsage) }?.let { "of $it" },
                     )
                 }
                 // netIO / blockIO are cumulative Docker counters since container
@@ -398,7 +396,7 @@ private fun InfoTabContent(c: Container, liveStats: ContainerLiveStats?) {
 }
 
 @Composable
-private fun StatBlock(label: String, value: String, modifier: Modifier = Modifier) {
+private fun StatBlock(label: String, value: String, modifier: Modifier = Modifier, caption: String? = null) {
     val t = UnraidTheme.colors
     Column(modifier = modifier) {
         Text(
@@ -411,13 +409,16 @@ private fun StatBlock(label: String, value: String, modifier: Modifier = Modifie
             text = value,
             color = t.text,
             // titleLarge (not headlineMedium): the live memory/net/disk
-            // values are preformatted "used / limit" pairs that overflow a
-            // half-width column at headline size; titleLarge keeps them on
-            // one ellipsized line while staying the row's emphasis weight.
+            // values can be preformatted "RX / TX" pairs that overflow a
+            // half-width column at headline size; titleLarge plus up to two
+            // lines keeps them readable while staying the row's emphasis weight.
             style = MaterialTheme.typography.titleLarge,
-            maxLines = 1,
+            maxLines = 2,
             overflow = TextOverflow.Ellipsis,
         )
+        caption?.let {
+            Text(text = it, color = t.muted, style = MaterialTheme.typography.labelSmall)
+        }
     }
 }
 
@@ -478,7 +479,7 @@ private fun LogsTabContent(
     }
     if (logs.isEmpty()) {
         Text(
-            text = "No log lines.",
+            text = LOGS_EMPTY_RUNNING_HINT,
             color = t.muted,
             style = MaterialTheme.typography.bodyMedium,
             modifier = Modifier.padding(vertical = 24.dp, horizontal = 12.dp),
@@ -521,6 +522,14 @@ private fun LogsTabContent(
         }
     }
 }
+
+/**
+ * Shown when a RUNNING container returns no log lines. The Unraid API only
+ * returns stdout today, so a container that logs to stderr looks empty.
+ * (Stopped containers keep their own "only available when running" text.)
+ */
+internal const val LOGS_EMPTY_RUNNING_HINT =
+    "No log lines. The container may be logging to stderr, which the Unraid API doesn't return yet."
 
 private fun formatLogTime(iso: String): String {
     // Strip the date portion for compactness: "2026-05-13T18:24:07.123Z" → "18:24:07"

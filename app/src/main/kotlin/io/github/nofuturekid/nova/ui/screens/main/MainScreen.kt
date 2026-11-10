@@ -37,7 +37,7 @@ import androidx.compose.material3.pulltorefresh.rememberPullToRefreshState
 import androidx.compose.ui.semantics.Role
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.collectAsState
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -101,18 +101,18 @@ fun MainScreen(
     vm: MainViewModel = hiltViewModel(),
 ) {
     val t = UnraidTheme.colors
-    val ui by vm.ui.collectAsState()
-    val tab by vm.selectedTab.collectAsState()
-    val infoState by vm.infoState.collectAsState()
-    val metricsState by vm.metricsState.collectAsState()
-    val networkState by vm.networkThroughputState.collectAsState()
-    val temperatureState by vm.temperatureState.collectAsState()
-    val dockerLiveStats by vm.dockerLiveStats.collectAsState()
-    val arrayState by vm.arrayState.collectAsState()
-    val dockerState by vm.dockerState.collectAsState()
-    val vmsState by vm.vmsState.collectAsState()
-    val notificationsState by vm.notificationsState.collectAsState()
-    val displayThresholds by vm.displayThresholds.collectAsState()
+    val ui by vm.ui.collectAsStateWithLifecycle()
+    val tab by vm.selectedTab.collectAsStateWithLifecycle()
+    val infoState by vm.infoState.collectAsStateWithLifecycle()
+    val metricsState by vm.metricsState.collectAsStateWithLifecycle()
+    val networkState by vm.networkThroughputState.collectAsStateWithLifecycle()
+    val temperatureState by vm.temperatureState.collectAsStateWithLifecycle()
+    val dockerLiveStats by vm.dockerLiveStats.collectAsStateWithLifecycle()
+    val arrayState by vm.arrayState.collectAsStateWithLifecycle()
+    val dockerState by vm.dockerState.collectAsStateWithLifecycle()
+    val vmsState by vm.vmsState.collectAsStateWithLifecycle()
+    val notificationsState by vm.notificationsState.collectAsStateWithLifecycle()
+    val displayThresholds by vm.displayThresholds.collectAsStateWithLifecycle()
     val scope = rememberCoroutineScope()
 
     // Pause polling when app is backgrounded (ADR-0017). Bound to the
@@ -145,9 +145,9 @@ fun MainScreen(
     val pullState = rememberPullToRefreshState()
     var refreshing by remember { mutableStateOf(false) }
 
-    val updateState by vm.updateState.collectAsState()
-    val installState by vm.installState.collectAsState()
-    val dismissedTag by vm.dismissedUpdateTag.collectAsState()
+    val updateState by vm.updateState.collectAsStateWithLifecycle()
+    val installState by vm.installState.collectAsStateWithLifecycle()
+    val dismissedTag by vm.dismissedUpdateTag.collectAsStateWithLifecycle()
     var showUpdateDialog by remember { mutableStateOf(false) }
     val permissionLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.StartActivityForResult(),
@@ -288,7 +288,16 @@ fun MainScreen(
                         stats = dockerLiveStats,
                         onOpenContainer = { setOpenContainer(it) },
                         onStart = { c -> vm.startContainer(c.id) },
-                        onRestart = { c -> vm.restartContainer(c.id) },
+                        onRestart = { c ->
+                            confirm = ConfirmRequest(
+                                title = "Restart ${c.name}?",
+                                body = "The container will be restarted and briefly unavailable.",
+                                confirmLabel = "Restart",
+                                tone = Tone.Info,
+                                icon = { UC.Restart(22.dp, t.info) },
+                                onConfirm = { vm.restartContainer(c.id); confirm = null },
+                            )
+                        },
                         onStop = { c ->
                             confirm = ConfirmRequest(
                                 title = "Stop ${c.name}?",
@@ -342,7 +351,7 @@ fun MainScreen(
             ?: dockerContent?.value?.firstOrNull { it.name == openContainer!!.name }
             ?: openContainer!!
         val baseUrl = dockerContent?.serverBaseUrl.orEmpty()
-        val updatingIds by vm.updatingContainerIds.collectAsState()
+        val updatingIds by vm.updatingContainerIds.collectAsStateWithLifecycle()
         ContainerDetailSheet(
             container = shown,
             serverBaseUrl = baseUrl,
@@ -354,7 +363,16 @@ fun MainScreen(
             onRefresh = { vm.refresh() },
             onDismiss = { setOpenContainer(null) },
             onStart   = { vm.startContainer(it.id); setOpenContainer(null) },
-            onRestart = { vm.restartContainer(it.id) },
+            onRestart = { c ->
+                confirm = ConfirmRequest(
+                    title = "Restart ${c.name}?",
+                    body = "The container will be restarted and briefly unavailable.",
+                    confirmLabel = "Restart",
+                    tone = Tone.Info,
+                    icon = { UC.Restart(22.dp, t.info) },
+                    onConfirm = { vm.restartContainer(c.id); confirm = null },
+                )
+            },
             onStop    = { c ->
                 confirm = ConfirmRequest(
                     title = "Stop ${c.name}?",
@@ -365,7 +383,16 @@ fun MainScreen(
                     onConfirm = { vm.stopContainer(c.id); confirm = null; setOpenContainer(null) },
                 )
             },
-            onUpdate  = { c -> vm.updateContainer(c.id) },
+            onUpdate  = { c ->
+                confirm = ConfirmRequest(
+                    title = "Update ${c.name}?",
+                    body = "It will pull its latest image and recreate the container — it'll be unavailable during the update.",
+                    confirmLabel = "Update",
+                    tone = Tone.Info,
+                    icon = { UC.Refresh(22.dp, t.info) },
+                    onConfirm = { vm.updateContainer(c.id); confirm = null },
+                )
+            },
         )
     }
 
@@ -378,6 +405,16 @@ fun MainScreen(
             onPause  = { vm.pauseVm(it.id); openVm = null },
             onStop   = { v ->
                 confirm = ConfirmRequest(
+                    title = "Stop ${v.name}?",
+                    body = "The guest is asked to shut down. If it has not shut down within about 10 seconds, Unraid powers the VM off.",
+                    confirmLabel = "Stop",
+                    tone = Tone.Danger,
+                    icon = { UC.Stop(22.dp, t.danger) },
+                    onConfirm = { vm.stopVm(v.id, force = false); confirm = null; openVm = null },
+                )
+            },
+            onForceStop = { v ->
+                confirm = ConfirmRequest(
                     title = "Force stop ${v.name}?",
                     body = "This is equivalent to pulling the power cord. Unsaved data may be lost.",
                     confirmLabel = "Force stop",
@@ -386,7 +423,16 @@ fun MainScreen(
                     onConfirm = { vm.stopVm(v.id, force = true); confirm = null; openVm = null },
                 )
             },
-            onReboot = { vm.rebootVm(it.id); openVm = null },
+            onReboot = { v ->
+                confirm = ConfirmRequest(
+                    title = "Reboot ${v.name}?",
+                    body = "The VM is asked to reboot cleanly. Services in the guest will be briefly unavailable.",
+                    confirmLabel = "Reboot",
+                    tone = Tone.Info,
+                    icon = { UC.Restart(22.dp, t.info) },
+                    onConfirm = { vm.rebootVm(v.id); confirm = null; openVm = null },
+                )
+            },
             onReset  = { v ->
                 confirm = ConfirmRequest(
                     title = "Reset ${v.name}?",
@@ -430,7 +476,7 @@ fun MainScreen(
 
     ConfirmDialog(request = confirm, onDismiss = { confirm = null })
 
-    val certPrompt by vm.certPrompt.collectAsState()
+    val certPrompt by vm.certPrompt.collectAsStateWithLifecycle()
     certPrompt?.let { p ->
         val t = UnraidTheme.colors
         AlertDialog(
