@@ -69,7 +69,7 @@ host build would.
 
 - **Image (pinned, reproducible toolchain):** Temurin JDK 21 (immutable
   Adoptium version tag), Android cmdline-tools (pinned build number),
-  `platforms;android-36`, `build-tools;36.0.0`, `platform-tools`,
+  `platforms;android-37.0`, `build-tools;36.0.0`, `platform-tools`,
   licenses accepted. This mirrors the GitHub Actions runner environment
   (`actions/setup-java` + `android-actions/setup-android`).
 - **Named volume (mutable, not baked):** the Gradle user home — project
@@ -114,7 +114,7 @@ separate concern, not handled here.
 ## Reproducibility notes / chosen versions
 
 Pinned in the repo and mirrored by the image: AGP, Gradle (wrapper),
-Kotlin, KSP, Hilt, Compose BOM, Apollo, JDK 21, compileSdk 36, minSdk 26.
+Kotlin, KSP, Hilt, Compose BOM, Apollo, JDK 21, compileSdk 37 (targetSdk 36), minSdk 26.
 
 Versions **not** pinned in the repo that this image had to choose:
 
@@ -122,8 +122,8 @@ Versions **not** pinned in the repo that this image had to choose:
 |---|---|---|
 | Base image | `eclipse-temurin:21.0.5_11-jdk-jammy` | Immutable Adoptium version tag (no `latest`); JDK 21 per ADR-0023 |
 | Android cmdline-tools | build `11076708` | Stable, widely mirrored; sdkmanager fetches package lists at install time |
-| Android build-tools | `36.0.0` | Pairs with compileSdk 36 / AGP 9.2.x |
-| Android platform | `android-36` | compileSdk 36 |
+| Android build-tools | `36.0.0` | Pairs with AGP 9.2.x |
+| Android platform | `android-37.0` | compileSdk 37 (targetSdk stays 36) |
 
 `platform-tools` is the one component `sdkmanager` does not expose a
 per-revision package id for, so it resolves to the current revision at
