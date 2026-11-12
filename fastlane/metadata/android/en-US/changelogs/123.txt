@@ -1,0 +1,6 @@
+The parity card now appears on a real server while a parity operation runs or is paused.
+A server that cannot be reached says so in plain words, with details one tap away.
+Tapping Install twice no longer starts the update twice.
+Settings no longer crashes when the install-permission screen is missing.
+VMs no longer show 0 vCPU and 0 GB when the server does not report them.
+Updates now come from the project's new home, github.com/hellwand/nova.
