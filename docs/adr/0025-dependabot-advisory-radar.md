@@ -124,3 +124,5 @@ handled; the radar posture above is unchanged.
 - **Never dismiss ahead of a bump.** Nothing is dismissed before a bump that
   would close it automatically; re-read the alert list after each toolchain
   bump and decide on what is left.
+
+2026-11-13: after the Android Gradle Plugin update the open alerts fell from 53 to 8.
