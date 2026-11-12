@@ -10,7 +10,7 @@ plugins {
 
 android {
     namespace = "io.github.nofuturekid.nova"
-    compileSdk = 36
+    compileSdk = 37
 
     defaultConfig {
         applicationId = "io.github.nofuturekid.nova"

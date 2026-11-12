@@ -3,7 +3,7 @@
 # Mirrors the GitHub Actions environment (.github/workflows/ci.yml):
 #   - Temurin JDK 21 as the BUILD JVM (ADR-0023). App bytecode stays
 #     Java 17 — that is controlled by app/build.gradle.kts, NOT here.
-#   - Android cmdline-tools + platform-36 + build-tools 36.0.0 +
+#   - Android cmdline-tools + platform-37.0 + build-tools 36.0.0 +
 #     platform-tools, licenses accepted (matches android-actions/setup-android).
 #
 # The image bakes ONLY the toolchain. Project Maven dependencies and the
@@ -22,7 +22,7 @@ FROM eclipse-temurin:21.0.5_11-jdk-jammy
 # Android commandline tools build number (the _latest.zip is content-stable
 # per build number; sdkmanager itself fetches package lists at install time).
 ARG CMDLINE_TOOLS_BUILD=11076708
-ARG ANDROID_PLATFORM=android-36
+ARG ANDROID_PLATFORM=android-37.0
 ARG ANDROID_BUILD_TOOLS=36.0.0
 # Match the host user so files written into the bind-mounted repo (and the
 # named Gradle volume) are owned by the host user, not root.
