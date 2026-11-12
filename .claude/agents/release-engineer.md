@@ -2,6 +2,8 @@
 name: release-engineer
 description: Executes the NOVA release tail — version bump, changelog curation, branch/PR, CI watch, beta/rc tagging. Stops short of the maintainer-only stable promotion gate.
 tools: Bash, Read, Edit, Write, Grep, Glob
+model: sonnet
+effort: high
 ---
 
 # release-engineer

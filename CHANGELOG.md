@@ -15,9 +15,9 @@ release version + date and opens a fresh `[Unreleased]`.
 
 ## [Unreleased]
 
-## [0.1.43-beta1] - 2026-11-12
+## [0.1.43] - 2026-11-12
 
-Beta: the parity card appears on a real server, a server that cannot be reached says so in plain words, and a robustness batch (double-tap Install, missing install-permission screen, VM list without zeros). It is also the first build that looks for updates at the project's new home, github.com/hellwand/nova. Please test against a real server before it is promoted to stable.
+The parity card appears on a real server, a server that cannot be reached says so in plain words, and a robustness batch (double-tap Install, missing install-permission screen, VM list without zeros). It is also the first version that looks for updates at the project's new home, github.com/hellwand/nova.
 
 ### Changed
 - **The project moved to github.com/hellwand/nova** — the app now looks
