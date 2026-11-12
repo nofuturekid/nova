@@ -38,18 +38,11 @@ const MODEL_STD = { model: "sonnet", effort: "medium" };
 // Keep identical to the pattern in nova-pr.js and to the prose of R-FREEZE.
 const FROZEN_RE =
   /^(app\/|gradle\/|gradlew(\.bat)?$|settings\.gradle\.kts$|build\.gradle\.kts$|gradle\.properties$|\.github\/(?!SECURITY\.md$|workflows\/pages\.yml$))/;
-const FAILED = [
-  "FAILURE",
-  "CANCELLED",
-  "TIMED_OUT",
-  "ACTION_REQUIRED",
-  "STARTUP_FAILURE",
-  "STALE",
-  "ERROR",
-];
+// Pass-list: any completed conclusion not listed here counts as failed (fail closed).
+const PASSING = ["SUCCESS", "NEUTRAL", "SKIPPED"];
 const MERGEABLE_STATES = ["CLEAN", "HAS_HOOKS"];
 const SHA_RE = /^[0-9a-f]{40}$/;
-const PATH_RE = /^\/[A-Za-z0-9._\/-]+$/;
+const PATH_RE = /^(\/[A-Za-z0-9._-]+)+$/;
 const BRANCH_RE = /^[a-z0-9/._-]+$/;
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 
@@ -138,6 +131,8 @@ const PRECHECK = {
     state: { type: "string", description: "OPEN, MERGED or CLOSED" },
     is_draft: { type: "boolean" },
     base_ref: { type: "string" },
+    head_ref: { type: "string", description: "headRefName" },
+    is_cross_repository: { type: "boolean", description: "isCrossRepository" },
     head_sha: { type: "string", description: "headRefOid, 40 hex characters" },
     merge_state: {
       type: "string",
@@ -155,6 +150,10 @@ const PRECHECK = {
       type: "array",
       items: { type: "string" },
       description: "every changed path (filename) from the paginated files API",
+    },
+    renamed_files: {
+      type: "integer",
+      description: 'number of entries whose status is "renamed"',
     },
     previous_files: {
       type: "array",
@@ -182,6 +181,8 @@ const PRECHECK = {
     "state",
     "is_draft",
     "base_ref",
+    "head_ref",
+    "is_cross_repository",
     "head_sha",
     "merge_state",
     "mergeable",
@@ -190,6 +191,7 @@ const PRECHECK = {
     "changed_files",
     "files",
     "previous_files",
+    "renamed_files",
     "checks",
   ],
 };
@@ -234,6 +236,11 @@ const PINS = {
             type: "string",
             description: "the version tag named in the comment",
           },
+          resolved_commit: {
+            type: "string",
+            description:
+              "the 40-character commit SHA the tag resolves to upstream (after dereferencing), as printed",
+          },
           sha_matches_tag: {
             type: "boolean",
             description:
@@ -246,6 +253,7 @@ const PINS = {
           "action",
           "sha",
           "tag",
+          "resolved_commit",
           "sha_matches_tag",
           "evidence",
         ],
@@ -299,10 +307,10 @@ const CLEANUP = {
 function precheckPrompt(pr) {
   return `${context("fact check")}
 TASK precheck PR #${pr.number}: READ-ONLY (R-READONLY). Change nothing, post nothing, do not create a worktree or switch branches. Prefix every network call with "timeout 120". Collect facts only; do not judge whether the PR may be merged.
-1. timeout 120 gh pr view ${pr.number} -R ${REPO_SLUG} --json number,state,isDraft,baseRefName,headRefOid,mergeStateStatus,mergeable,author,changedFiles,statusCheckRollup
+1. timeout 120 gh pr view ${pr.number} -R ${REPO_SLUG} --json number,state,isDraft,baseRefName,headRefName,isCrossRepository,headRefOid,mergeStateStatus,mergeable,author,changedFiles,statusCheckRollup
    If mergeStateStatus is UNKNOWN, wait 5 seconds and ask again, at most 3 times, then report UNKNOWN.
-2. All changed paths, complete (paginated): timeout 120 gh api --paginate "repos/${REPO_SLUG}/pulls/${pr.number}/files" --jq '.[] | [.filename, (.previous_filename // "")] | @tsv'
-   files = every filename; previous_files = every non-empty previous_filename (renames). Do not shorten or sample these lists.
+2. All changed paths, complete (paginated): timeout 120 gh api --paginate "repos/${REPO_SLUG}/pulls/${pr.number}/files" --jq '.[] | [.filename, .status, (.previous_filename // "")] | @tsv'
+   files = every filename, byte for byte as printed; previous_files = every non-empty previous_filename; renamed_files = the number of lines whose status is "renamed". Do not shorten, sample, re-quote or normalise these lists.
 3. author_login and author_is_bot come from the author object of step 1 (for example login "app/dependabot" with is_bot true). For each entry of statusCheckRollup give its name (the "name" of a check run or the "context" of a status), its status and its conclusion (empty string if not completed). For a plain status context (no check run) report status COMPLETED and its state as the conclusion, or an empty conclusion if the state is PENDING.
 Return the values exactly as the commands print them.`;
 }
@@ -317,7 +325,7 @@ gh pr comment ${pr.number} -R ${REPO_SLUG} --body-file - <<'EOF'
 EOF
    Do NOT use gh pr update-branch, the "Update branch" button, the API equivalent or a manual rebase: a run triggered by a human actor takes a different, unverified secrets path in ci.yml. Then wait until the head commit differs from ${pre.head_sha} (gh pr view ${pr.number} -R ${REPO_SLUG} --json headRefOid --jq .headRefOid). If Dependabot answers that it will not or cannot rebase, or the head did not change within the limit, return refreshed false and quote its answer in notes.`;
   } else if (kind === "update-branch") {
-    refresh = `The branch is BEHIND main. Bring it up to date with: gh pr update-branch ${pr.number} -R ${REPO_SLUG}. Then wait until the head commit differs from ${pre.head_sha}.`;
+    refresh = `The branch is BEHIND main. First run gh pr view ${pr.number} -R ${REPO_SLUG} --json author --jq .author.login; if the login contains dependabot, do not refresh anything and return refreshed false with that login in notes. Otherwise bring it up to date with: gh pr update-branch ${pr.number} -R ${REPO_SLUG}. Then wait until the head commit differs from ${pre.head_sha}.`;
   } else {
     refresh = "The branch is not behind; do not refresh anything.";
   }
@@ -356,24 +364,30 @@ TASK cleanup after the merge train. These PRs were merged by squash:
 ${lines || "   (none with a worktree)"}
 For each entry above (never anything else):
 1. git -C ${cfg.checkout} fetch origin --prune (nothing else is reading this checkout now).
-2. Containment check: every local commit of the branch must already be in the merged PR. Run git -C ${cfg.checkout} fetch origin refs/pull/<number>/head and then git -C ${cfg.checkout} merge-base --is-ancestor <branch> FETCH_HEAD (exit status 0 means contained; the PR head may be ahead of the local branch because the train refreshed it). Also git -C <worktree> status --short must print nothing. If either check fails, keep the worktree and branch and list them under kept with the reason; never force.
+2. Facts first: gh pr view <number> -R ${REPO_SLUG} --json state --jq .state must print MERGED, and git -C <worktree> branch --show-current must print <branch>. Containment check: every local commit of the branch must already be in the merged PR. Run git -C ${cfg.checkout} fetch origin refs/pull/<number>/head and then git -C ${cfg.checkout} merge-base --is-ancestor refs/heads/<branch> FETCH_HEAD (exit status 0 means contained; the PR head may be ahead of the local branch because the train refreshed it). Also git -C <worktree> status --short must print nothing. If either check fails, keep the worktree and branch and list them under kept with the reason; never force.
 3. Otherwise: git -C ${cfg.checkout} worktree remove <worktree> ; git -C ${cfg.checkout} branch -D <branch> (squash merges are never "merged" for plain branch -d).
-Then, once, the only allowed write in the main checkout (R-WORKTREE): git -C ${cfg.checkout} status --short must print nothing; then git -C ${cfg.checkout} pull --ff-only. If the status is not empty, do not pull and report it in problems.
+Then, once, the only allowed write in the main checkout (R-WORKTREE): git -C ${cfg.checkout} branch --show-current must print main and git -C ${cfg.checkout} status --short must print nothing; then git -C ${cfg.checkout} pull --ff-only. If either check fails, do not pull and report it in problems.
 Report git -C ${cfg.checkout} log --oneline -6 and git -C ${cfg.checkout} worktree list.`;
 }
 
 // ---- code gates -----------------------------------------------------------
 
+// A path the code cannot judge reliably (untrimmed, quoted, ./ or / prefix) is refused.
+function oddPath(f) {
+  return (
+    typeof f !== "string" ||
+    f === "" ||
+    f !== f.trim() ||
+    /^(\.{1,2}\/|\/|")/.test(f)
+  );
+}
 function frozenPaths(pre) {
   return (pre.files || [])
     .concat(pre.previous_files || [])
     .filter((f) => FROZEN_RE.test(f));
 }
 function isDependabot(pre) {
-  return (
-    pre.author_is_bot === true &&
-    String(pre.author_login).toLowerCase().includes("dependabot")
-  );
+  return String(pre.author_login).toLowerCase().includes("dependabot");
 }
 function buildOk(pre) {
   return pre.checks.some(
@@ -399,6 +413,13 @@ function gate(pr, pre, final) {
   if (pre.is_draft) reasons.push("PR is a draft");
   if (pre.base_ref !== "main")
     reasons.push(`base branch is ${pre.base_ref}, not main`);
+  if (
+    pr.branch !== undefined &&
+    (pre.head_ref !== pr.branch || pre.is_cross_repository !== false)
+  )
+    reasons.push(
+      `PR head is ${pre.head_ref}${pre.is_cross_repository ? " (fork)" : ""}, not the given branch ${pr.branch}`,
+    );
   if (!SHA_RE.test(pre.head_sha || ""))
     reasons.push("head SHA is missing or malformed");
   if (!Array.isArray(pre.files) || pre.files.length === 0)
@@ -407,6 +428,17 @@ function gate(pr, pre, final) {
     reasons.push(
       `changed-file list is incomplete (${pre.files.length} listed, ${pre.changed_files} changed)`,
     );
+  if (!Array.isArray(pre.previous_files))
+    reasons.push("previous-file list is missing");
+  else if (pre.previous_files.length !== pre.renamed_files)
+    reasons.push(
+      `rename list is incomplete (${pre.previous_files.length} previous names, ${pre.renamed_files} renames)`,
+    );
+  if (
+    Array.isArray(pre.files) &&
+    pre.files.concat(pre.previous_files || []).some(oddPath)
+  )
+    reasons.push("a changed path is not in canonical form");
   if (!Array.isArray(pre.checks)) reasons.push("check list is missing");
   if (reasons.length) return { ok: false, reasons };
   if (
@@ -422,13 +454,16 @@ function gate(pr, pre, final) {
   const dep = isDependabot(pre);
   if (pr.dependabot === true && !dep)
     reasons.push("declared as Dependabot PR but the author is not Dependabot");
-  const failed = pre.checks.filter((c) => FAILED.includes(c.conclusion));
+  const failed = pre.checks.filter(
+    (c) => c.conclusion !== "" && !PASSING.includes(c.conclusion),
+  );
   if (failed.length)
     reasons.push(`failed check(s): ${failed.map((c) => c.name).join(", ")}`);
   if (pre.merge_state === "DIRTY" || pre.mergeable === "CONFLICTING")
     reasons.push("merge conflict with main");
   if (final) {
     if (!buildOk(pre)) reasons.push('required check "build" is not SUCCESS');
+    if (pending(pre)) reasons.push("a check is still running");
     if (!MERGEABLE_STATES.includes(pre.merge_state))
       reasons.push(`merge state is ${pre.merge_state}`);
   }
@@ -489,11 +524,16 @@ async function trainOne(pr) {
     if (!g.ok) return { merged: false, reasons: g.reasons };
   }
 
-  // Dependabot PRs that only touch workflow files: every pin must resolve to its claimed tag.
-  if (
-    g.dependabot &&
-    pre.files.every((f) => f.startsWith(".github/workflows/"))
-  ) {
+  // Dependabot PRs that touch .github/: workflow files only, and every pin of every file
+  // must resolve to its claimed tag. The code compares the SHAs itself.
+  if (g.dependabot && pre.files.some((f) => f.startsWith(".github/"))) {
+    if (!pre.files.every((f) => f.startsWith(".github/workflows/")))
+      return {
+        merged: false,
+        reasons: [
+          "Dependabot PR mixes workflow files with other paths; merge it by hand",
+        ],
+      };
     const pins = await agent(
       pinsPrompt(pr),
       agentOpts(
@@ -505,7 +545,13 @@ async function trainOne(pr) {
       pins &&
       pins.only_pin_changes === true &&
       pins.pins.length > 0 &&
-      pins.pins.every((p) => p.sha_matches_tag === true && SHA_RE.test(p.sha));
+      pins.pins.every(
+        (p) =>
+          SHA_RE.test(p.sha) &&
+          p.resolved_commit === p.sha &&
+          p.sha_matches_tag === true,
+      ) &&
+      pre.files.every((f) => pins.pins.some((p) => p.file === f));
     if (!ok)
       return {
         merged: false,

@@ -50,7 +50,7 @@ const BUILD_AFFECTING_RE =
 const LINK_PATTERN = "claude" + "\\.ai/code";
 const TRAILER_PATTERN = "Claude" + "-Session";
 
-const PATH_RE = /^\/[A-Za-z0-9._\/-]+$/;
+const PATH_RE = /^(\/[A-Za-z0-9._-]+)+$/;
 const BRANCH_RE = /^[a-z0-9/._-]+$/;
 const SLUG_RE = /^[a-z0-9-]+$/;
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
@@ -338,6 +338,14 @@ function notReady(t, rec) {
     else if (rv.must_fix.length > 0) {
       if (!rec.fix || rec.fix.status !== "done")
         why.push("must-fix items were not fixed");
+      else if (rec.fix.rejected.length > 0)
+        why.push(
+          `fixer rejected ${rec.fix.rejected.length} must-fix item(s); the coordinator decides`,
+        );
+      else if (rec.fix.applied.length < rv.must_fix.length)
+        why.push(
+          `fixer applied ${rec.fix.applied.length} of ${rv.must_fix.length} must-fix items`,
+        );
     } else if (rv.verdict !== "approve")
       why.push("reviewer asked for changes but listed no must-fix item");
   }

@@ -38,8 +38,8 @@ the coordinator names.
    Check your own diff and commit message for session links before pushing.
 7. **Never merge.** Merging, marking a draft ready, tags and releases belong
    to other roles (R-MERGE, R-RELEASE).
-8. **Advisor.** Per R-ADVISOR, only after the same failure came back twice or
-   before a step that is hard to reverse.
+8. **Advisor.** Treat it as a last resort (R-ADVISOR): a repeated identical
+   failure, or an action that cannot be undone, is the only reason to call it.
 
 ## Report
 
