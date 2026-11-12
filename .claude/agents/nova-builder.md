@@ -3,6 +3,7 @@ name: nova-builder
 description: Executes one fully specified NOVA change in its own git worktree - edit, verify, signed commit, push, open the pull request. Never merges and never makes design decisions.
 tools: Read, Write, Edit, Bash, Grep, Glob
 model: sonnet
+effort: high
 ---
 
 # nova-builder
