@@ -20,7 +20,7 @@ convention exists (see `docs/adr/README.md`).
 
 2. **Copy the template.** Copy `docs/adr/template.md` verbatim to
    `docs/adr/NNNN-<kebab-title>.md`. The title is the decision in **imperative
-   mood**, kebab-cased (e.g. `0042-cache-server-icons-on-disk.md`). Match the
+   mood**, kebab-cased (e.g. `0046-cache-server-icons-on-disk.md`). Match the
    filename convention in `README.md` (`NNNN-kebab-case-title.md`).
 
 3. **Fill the metadata only.** Edit the new file's header:

@@ -1,6 +1,6 @@
 # ADR-0043: Roll the GraphQL subscription transport out to CPU, memory, temperature, and docker stats
 
-- **Status**: Proposed
+- **Status**: Accepted
 - **Date**: 2026-05-30
 - **Tags**: data, api, performance
 

@@ -1,6 +1,6 @@
 # ADR-0042: GraphQL subscription transport — network throughput pilot
 
-- **Status**: Proposed
+- **Status**: Accepted
 - **Date**: 2026-05-30
 - **Tags**: data, api, performance
 
