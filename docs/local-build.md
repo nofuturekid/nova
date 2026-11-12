@@ -114,7 +114,7 @@ separate concern, not handled here.
 ## Reproducibility notes / chosen versions
 
 Pinned in the repo and mirrored by the image: AGP, Gradle (wrapper),
-Kotlin, KSP, Hilt, Compose BOM, Apollo, JDK 21, compileSdk 36, minSdk 26.
+Kotlin, KSP, Hilt, Compose BOM, Apollo, JDK 21, compileSdk 37 (targetSdk 36), minSdk 26.
 
 Versions **not** pinned in the repo that this image had to choose:
 
