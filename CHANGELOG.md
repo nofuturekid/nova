@@ -15,11 +15,17 @@ release version + date and opens a fresh `[Unreleased]`.
 
 ## [Unreleased]
 
-## [0.1.42-beta2] - 2026-11-10
+## [0.1.42] - 2026-11-12
 
-Beta: actions that fail now tell you why, safer VM and container controls, live network speed on current Unraid API versions, and a hardened self-signed-certificate and key-storage path. Please test against a real server before it is promoted to stable. (v0.1.42-beta1 was tagged but
-never published — its release pipeline check failed — so this beta is the
-first build of the 0.1.42 cycle.)
+Actions that fail now tell you why, safer VM and container controls, live
+network speed on current Unraid API versions, a hardened self-signed
+certificate and key-storage path, and an icon and screenshots for the
+store listing.
+
+### Added
+- **Icon and screenshots in the store listing** — the F-Droid listing now
+  shows the NOVA icon and six screenshots (Overview, Array, Docker, VMs,
+  container details and notifications) (#212, thanks @licaon-kter).
 
 ### Changed
 - **Container details tabs are accessible** — the Info/Logs/Ports/Volumes
@@ -42,6 +48,15 @@ first build of the 0.1.42 cycle.)
   Unraid powers the VM off if the guest has not shut down within about 10
   seconds. "Force stop" powers off immediately, as before, behind its own
   confirmation.
+- **Privacy policy updated** — the policy (effective 2026-11-10) now also
+  says that the certificate fingerprint you pin for a self-signed server is
+  stored on your device per server and left out of backups; that the app
+  checks for updates when it starts as well as in Settings (direct
+  download version only); that container icons are loaded straight from
+  the addresses your own Unraid server provides, usually third-party hosts
+  that can see your IP address; and its list of Android permissions now
+  names the internet and network-state permissions (the notification
+  permission is no longer listed because the app does not declare it).
 
 ### Fixed
 - **Network interfaces screen no longer shows blank hardware fields** —
@@ -71,10 +86,10 @@ first build of the 0.1.42 cycle.)
   one container per refresh never got live CPU/memory/IO numbers because the
   server sent its id with terminal control characters attached.
 - **Network card shows speed on Unraid 4.35 and newer** — the Overview's
-  network card showed no speed on Unraid API 4.35 and newer; it now does
-  (related to #217). Live network speed needs Unraid API 4.35 or newer.
-  Servers below 4.35 that relied on a third-party API patch for this no
-  longer show network speed until the API is updated.
+  network card showed no speed on Unraid API 4.35 and newer; it now does.
+  Live network speed needs Unraid API 4.35 or newer. Servers below 4.35
+  that relied on a third-party API patch for this no longer show network
+  speed until the API is updated (#217, thanks @lcadhd).
 - **Local self-signed trust hardened** — the server name is now checked for every certificate except the one you pinned, so this no longer depends on other app settings.
 - **"Reset certificate" now sticks** — saving or testing a server after resetting its certificate no longer brings the old certificate back; the next connection asks for confirmation again.
 - **Saving a server no longer crashes when key storage is broken** — if Android's secure key storage was reset, saving a server used to crash the app every time. It now shows an error with a "Reset key storage" button (after confirmation it deletes all saved API keys, which you then enter again). A save that fails in key storage also no longer leaves a duplicate server, and changing only the API key now takes effect immediately.

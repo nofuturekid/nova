@@ -1,0 +1,7 @@
+Failed actions now tell you why instead of failing silently.
+VM Stop asks the guest to shut down first; Restart, Update and VM Reboot ask for confirmation.
+Live network speed works again on Unraid API 4.35 and newer.
+Pull-to-refresh really refreshes, and nothing polls in the background anymore.
+Safer self-signed certificate pinning and a recovery path when Android key storage breaks.
+Memory values no longer cut off on narrow phones.
+Privacy policy updated.
