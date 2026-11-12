@@ -39,6 +39,19 @@ Total release-workflow runtime: ~16 seconds.
 **Trigger to revisit**
 - If artifact retention proves expensive or we want longer-lived "release-able" commits, switch to a build-on-tag fallback that uses the same signed-keystore inputs.
 
+## Amendment 2026-11-12 — release-key signing is limited to human-authored pull requests and manual dispatch
+
+The `build-release` job used to sign with the keystore from the Actions secrets on every same-repo pull request. GitHub withholds secrets from Dependabot pull requests, but not from pull requests that other bots open from same-repo branches (the Renovate app, installed for the organization). A dependency update authored by a bot would then run third-party build code next to the release key. The earlier rule (`github.actor != 'dependabot[bot]'`) only decided whether an empty secret was an error; it did not keep the secret away from anyone.
+
+Decision:
+
+- The signing secrets are passed into the job environment only for `workflow_dispatch` and for same-repo pull requests whose **author** (`github.event.pull_request.user`) is neither of type `Bot` nor a login ending in `[bot]`. The author is used, not `github.actor`: a human re-run or "update branch" on a bot pull request changes the actor but not the author.
+- Bot-authored and fork pull requests still **compile** the minified release variant of both flavors; the fallback in `app/build.gradle.kts` signs it with the debug key. Only signing with the release key, the signature check against it and the `app-release` / `mapping` uploads are skipped, so a green bot pull request still proves the R8 build.
+- The aggregator `build` now accepts only `success` from `build-release` (`skipped` was a legitimate pass for fork and Dependabot pull requests before; it no longer occurs on a build-affecting run), so a failed release compilation blocks the single required check.
+- Promotion is unchanged: `release.yml` only ever promotes the `app-release` artifact of a run on the tagged commit, and bot-authored pull requests never produce one.
+
+Residual: the secrets still exist in the `secrets` context of a same-repo run; they are kept out of every step environment, not out of the runner job. Separating the signing into its own job would be the next step if this ever needs to be stricter.
+
 ## Alternatives considered
 
 - **Build on tag push** (the naive approach) — slower and introduces drift.

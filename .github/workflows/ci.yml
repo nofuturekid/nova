@@ -13,11 +13,28 @@ name: CI
 # It builds only when a *build-affecting* path changed — an inverted
 # allowlist (ADR-0029, supersedes ADR-0009's docs deny-list). `build-debug`
 # and `build-release` run in parallel — independent compilations. Each sets
-# up its own Gradle cache via `gradle/actions/setup-gradle` (whatever cache
-# that action maintains; `cache-read-only` on PRs so untrusted fork PRs
-# can't write it — ADR-0018 was Reversed 2026-05-17 and its dedicated
-# cache-warm.yml deleted, so nothing actively warms the cache). `build` is a
-# tiny aggregator that branch protection requires as the single status check.
+# up its own Gradle cache via `gradle/actions/setup-gradle` with
+# `cache-read-only` on PRs, so untrusted fork PRs can't write it. ADR-0018
+# was Reversed 2026-05-17 and its dedicated cache-warm.yml deleted; the only
+# writer left is dependency-submission.yml on push to main (observed since
+# 2026-11-10), whose cache key is a hash of the Gradle files. A PR that
+# changes those files (every Dependabot and release PR does) misses that
+# entry and builds cold. `build` is a tiny aggregator that branch
+# protection requires as the single status check.
+#
+# Release signing (ADR-0004, amendment 2026-11-12): the release keystore
+# secrets reach the job environment only for manual dispatch and for
+# same-repo pull requests AUTHORED by a human. Pull requests authored by a
+# bot (Dependabot, Renovate, ...) and fork pull requests still COMPILE the
+# minified release variant of both flavors, but debug-signed by the
+# fallback in app/build.gradle.kts, and skip signing, the signature check
+# and the `app-release` upload. Why the author and not `github.actor`: a
+# human re-run or "update branch" on a bot pull request changes the actor
+# but not the author, and the secrets must stay away from third-party
+# build code whoever pressed the button. GitHub withholds secrets from
+# Dependabot pull requests by itself; other bots that push same-repo
+# branches (the Renovate app, installed for the organization) are not
+# covered by that, hence the explicit rule here.
 on:
   pull_request:
   workflow_dispatch:
@@ -39,6 +56,7 @@ concurrency:
 jobs:
   setup:
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     outputs:
       code: ${{ steps.filter.outputs.code }}
     steps:
@@ -78,7 +96,10 @@ jobs:
             echo "code=true" >> "$GITHUB_OUTPUT"
             exit 0
           fi
-          CHANGED=$(git diff --name-only "$BASE" "$HEAD")
+          # --no-renames: a rename out of a build-affecting path (app/ -> docs/)
+          # must list the OLD path too, or the allowlist below would only see
+          # the docs path and skip the build.
+          CHANGED=$(git diff --name-only --no-renames "$BASE" "$HEAD")
           echo "Changed files:"
           echo "  ${CHANGED//$'\n'/$'\n'  }"
           # INVERTED allowlist (ADR-0029): enumerate ONLY the small, stable
@@ -118,6 +139,7 @@ jobs:
     needs: setup
     if: needs.setup.outputs.code == 'true'
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
@@ -165,6 +187,11 @@ jobs:
     needs: setup
     if: needs.setup.outputs.code == 'true'
     runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      # The one place that decides whether the release key may be used
+      # (see the comment block at the top of this file). Not a secret.
+      SIGN_ALLOWED: ${{ github.event_name == 'workflow_dispatch' || (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository && github.event.pull_request.user.type != 'Bot' && !endsWith(github.event.pull_request.user.login, '[bot]')) }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
@@ -185,22 +212,30 @@ jobs:
         with:
           log-accepted-android-sdk-licenses: false
 
-      - name: Decode release keystore (if available)
+      # Release-key gate. SIGN_ALLOWED (job env above) is decided from the
+      # pull request AUTHOR, never from github.actor, and every step that
+      # touches a signing secret takes it through
+      # `env.SIGN_ALLOWED == 'true' && secrets.X || ''`, so the value is an
+      # empty string unless signing is allowed. Allowed:
+      #   - workflow_dispatch (a maintainer picked the ref on purpose);
+      #   - a same-repo pull request whose author is neither of type Bot nor
+      #     a login ending in [bot].
+      # Everything else (bot-authored PRs incl. Dependabot and Renovate, and
+      # fork PRs) compiles unsigned-by-us: see the Gradle fallback below.
+      - name: Decode release keystore (if allowed and available)
         id: keystore
         env:
-          KEYSTORE_B64: ${{ secrets.KEYSTORE_B64 }}
-          # Secrets are legitimately absent only for fork and Dependabot PRs.
-          # On any other run (repo branch, manual dispatch) a missing secret
-          # is a misconfiguration and must not turn the gate green with no
-          # signed artifact (CI review L5).
-          SECRET_EXPECTED: ${{ github.event_name == 'workflow_dispatch' || (github.event.pull_request.head.repo.full_name == github.repository && github.actor != 'dependabot[bot]') }}
+          KEYSTORE_B64: ${{ env.SIGN_ALLOWED == 'true' && secrets.KEYSTORE_B64 || '' }}
         run: |
           if [ -z "$KEYSTORE_B64" ]; then
-            if [ "$SECRET_EXPECTED" = "true" ]; then
-              echo "::error::KEYSTORE_B64 is empty on a same-repo run — secret missing or renamed; refusing to pass the gate without a signed release APK."
+            # Where signing is allowed a missing secret is a misconfiguration
+            # and must not turn the gate green with no signed artifact
+            # (CI review L5).
+            if [ "$SIGN_ALLOWED" = "true" ]; then
+              echo "::error::KEYSTORE_B64 is empty although signing is allowed for this run — secret missing or renamed; refusing to pass the gate without a signed release APK."
               exit 1
             fi
-            echo "::warning::KEYSTORE_B64 not available (fork/Dependabot PR); skipping release build"
+            echo "::warning::Release key not used (bot-authored or fork pull request) — compiling the release variant debug-signed, no signing, no app-release artifact"
             echo "available=false" >> "$GITHUB_OUTPUT"
           else
             echo "$KEYSTORE_B64" | base64 -d > app/release.keystore
@@ -208,18 +243,34 @@ jobs:
           fi
 
       # Release build = both flavors (ADR-0040). `assembleRelease`
-      # builds every release variant — currently direct + store —
-      # verifying both compile + sign every PR. Only the `direct` APK is
-      # uploaded to GitHub Releases (release.yml); the `store` APK is
-      # built by F-Droid themselves from source (and later by Play App
-      # Signing), so it's a compile-only gate here.
+      # builds every release variant — currently direct + store — with R8
+      # minification, on EVERY run that reaches this job. With the keystore
+      # (human same-repo PR, dispatch) the variants are signed with the
+      # release key; without it app/build.gradle.kts falls back to the debug
+      # signing config, so a bot-authored or fork PR still proves the R8
+      # build. Only the `direct` APK is uploaded to GitHub Releases
+      # (release.yml); the `store` APK is built by F-Droid themselves from
+      # source (and later by Play App Signing), so it's a compile-only gate.
       - name: Build release APKs (direct + store)
-        if: steps.keystore.outputs.available == 'true'
         env:
-          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
-          KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
-          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
+          KEYSTORE_PASSWORD: ${{ env.SIGN_ALLOWED == 'true' && secrets.KEYSTORE_PASSWORD || '' }}
+          KEY_ALIAS: ${{ env.SIGN_ALLOWED == 'true' && secrets.KEY_ALIAS || '' }}
+          KEY_PASSWORD: ${{ env.SIGN_ALLOWED == 'true' && secrets.KEY_PASSWORD || '' }}
         run: ./gradlew :app:assembleRelease --stacktrace
+
+      # Compile-only runs: prove both minified release APKs exist, so a
+      # build that "succeeds" without producing them cannot pass.
+      - name: Check unsigned-by-us release APKs exist (direct + store)
+        if: steps.keystore.outputs.available != 'true'
+        run: |
+          for flavor in direct store; do
+            APK=$(find "app/build/outputs/apk/$flavor/release" -maxdepth 1 -name '*.apk' 2>/dev/null | sort | head -1)
+            if [ -z "$APK" ]; then
+              echo "::error::No release APK for flavor $flavor — assembleRelease produced nothing."
+              exit 1
+            fi
+            echo "Compiled (debug-signed fallback): $APK"
+          done
 
       - name: Verify release APK signature (direct flavor)
         if: steps.keystore.outputs.available == 'true'
@@ -263,6 +314,7 @@ jobs:
     needs: setup
     if: needs.setup.outputs.code == 'true'
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
@@ -307,6 +359,7 @@ jobs:
     needs: [setup, build-debug, build-release, test]
     if: always()
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - name: Aggregate result
         env:
@@ -343,21 +396,19 @@ jobs:
             exit 1
           fi
 
-          # Fork/no-keystore contract (explicit, not emergent — finding 3):
-          # build-release signs + uploads the release APK only when
-          # KEYSTORE_B64 is present. On a fork PR the secret is unavailable,
-          # the sign/upload steps are skipped, and the job ends `success`
-          # with no release artifact — that is the INTENDED state for fork
-          # PRs. A fork/Dependabot PR is never what ships: release.yml only
-          # promotes a same-repo run's artifact and checks it against the
-          # tag (ADR-0004/0014). So `skipped` is a legitimate pass here
-          # in addition to `success`; only a genuine failure/cancel of
-          # build-release blocks the gate. On same-repo runs a missing
-          # keystore fails the decode step instead of skipping, so they
-          # always end `success` with a signed artifact.
-          if [ "$RELEASE_RESULT" = "success" ] || [ "$RELEASE_RESULT" = "skipped" ]; then
-            echo "Gate passed — debug=$DEBUG_RESULT release=$RELEASE_RESULT (skipped = fork/no-keystore, intended)."
+          # Release contract (ADR-0004, amendment 2026-11-12): build-release
+          # runs on EVERY build-affecting run and compiles the minified
+          # release variant of both flavors. With the keystore (human
+          # same-repo PR, dispatch) it also signs, verifies and uploads
+          # `app-release`; for bot-authored and fork PRs it compiles
+          # debug-signed and skips those three steps. Either way the job
+          # ends `success`. `skipped` is NOT a pass any more: this job's
+          # `if` equals the gate above, so a skipped build-release on a
+          # build-affecting run means the gate wiring broke, and a failed
+          # or cancelled release compilation must block the required check.
+          if [ "$RELEASE_RESULT" = "success" ]; then
+            echo "Gate passed — debug=$DEBUG_RESULT release=$RELEASE_RESULT test=$TEST_RESULT."
             exit 0
           fi
-          echo "::error::Release build did not pass — release=$RELEASE_RESULT (expected success, or skipped on a fork PR)."
+          echo "::error::Release build did not succeed — release=$RELEASE_RESULT (expected success)."
           exit 1
