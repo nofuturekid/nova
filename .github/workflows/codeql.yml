@@ -99,6 +99,7 @@ jobs:
   config:
     name: Resolve scan scope
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     outputs:
       langs: ${{ steps.scope.outputs.langs }}
     steps:
@@ -122,6 +123,9 @@ jobs:
     name: Analyze (${{ matrix.language }})
     needs: config
     runs-on: ubuntu-latest
+    # The weekly java-kotlin scan compiles the app under the CodeQL tracer,
+    # slower than a plain Gradle job.
+    timeout-minutes: 45
     # Only this job uploads SARIF; `config` needs no write scope.
     permissions:
       contents: read
