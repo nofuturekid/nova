@@ -80,7 +80,7 @@ Native Android client for Unraid NAS servers (Kotlin + Jetpack Compose, Apollo G
 _Toolchain raised in the 0.1.28 cycle — see ADR-0023 (AGP-9) / ADR-0024
 (storage) / ADR-0020 (KSP2)._
 
-- Kotlin **2.3.21**, AGP **9.2.1**, Gradle **9.5.1**, JDK **21**
+- Kotlin **2.3.21**, AGP **9.5.1**, Gradle **9.9.0**, JDK **21**
 - AGP-9 built-in-Kotlin DSL (no `org.jetbrains.kotlin.android` plugin)
 - compileSdk/targetSdk **36**, minSdk **26** (app bytecode = Java 17)
 - Jetpack Compose BOM **2026.05.00**, Material 3 + custom M3 type scale
