@@ -33,7 +33,7 @@ export const meta = {
 //   max_product_questions  integer 0-5, default 2 (judge only)
 // Returns { status: done|partial|blocked, mode, lanes[], judgement, skipped[], problems[] }.
 
-const REPO_SLUG = "nofuturekid/nova";
+const REPO_SLUG = "hellwand/nova";
 const PATH_RE = /^(\/[A-Za-z0-9._-]+)+$/;
 const KEY_RE = /^[a-z0-9-]+$/;
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;

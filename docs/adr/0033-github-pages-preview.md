@@ -136,3 +136,7 @@ Pages no longer publishes the prototype. `.github/workflows/pages.yml` assembles
 The 0.1.31 prototype (`docs/preview/index.html`) is retired from Pages. The file stays in the repository; nothing publishes it. This replaces the "Trigger to revisit" case of refreshing or removing the preview: the real screenshots on the website take its place.
 
 Correction to the addendum of 2026-05-20: it says "GitHub continues to redirect from the old URL". For the Pages site that is not right. The GitHub documentation on transferring a repository says: "we don't redirect GitHub Pages associated with the repository" (docs.github.com, "Transferring a repository"; only the links to the repository on the web and Git activity are redirected). The documentation on renaming a repository recommends a custom domain for a Pages site so that "the site's URL isn't impacted by renaming the repository". So a project site is served only under the current owner and repository name, and links to an old Pages URL stop working after a rename or a transfer. They have to be updated when the name or the owner changes.
+
+## Amendment 2026-11-12 — repository moved to the hellwand organization
+
+The repository moved from `nofuturekid/nova` to `hellwand/nova` (transfer on 2026-11-12, see issue #260). The site is now served at `https://hellwand.github.io/nova/`. The old address `https://nofuturekid.github.io/nova/` is served by a redirect page in the personal user-site repository, because GitHub does not redirect Pages sites after a transfer (see the correction above).
