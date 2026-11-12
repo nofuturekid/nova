@@ -92,13 +92,13 @@ fun OverviewTab(
     // Nothing yet → either Loading or surface the first Error.
     if (info == null && metrics == null && array == null && containers == null && vms == null) {
         val err = listOfNotNull(
-            (infoState as? DomainState.Error)?.message,
-            (metricsState as? DomainState.Error)?.message,
-            (arrayState as? DomainState.Error)?.message,
-            (dockerState as? DomainState.Error)?.message,
-            (vmsState as? DomainState.Error)?.message,
+            infoState as? DomainState.Error,
+            metricsState as? DomainState.Error,
+            arrayState as? DomainState.Error,
+            dockerState as? DomainState.Error,
+            vmsState as? DomainState.Error,
         ).firstOrNull()
-        if (err != null) ErrorState(err) else LoadingState()
+        if (err != null) ErrorState(err.message, detail = err.detail) else LoadingState()
         return
     }
 

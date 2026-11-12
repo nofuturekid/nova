@@ -894,16 +894,16 @@ class UnraidRepository @Inject constructor(
             dataIsNull = resp.data == null,
         )) {
             is RespClass.Cert -> throw resp.exception!!   // surface to domainStream (cause chain carries the typed cert exception)
-            is RespClass.Failed -> DomainState.Error(c.message)
+            is RespClass.Failed -> resp.exception?.toQueryError("Network error") ?: DomainState.Error(c.message)
             RespClass.Empty -> DomainState.Error("Empty GraphQL response")
             RespClass.Ok -> DomainState.Content(map(resp.data!!))
         }
     } catch (e: ApolloException) {
         if (e.certIssue() != null) throw e   // defensive: if execute() ever throws
-        DomainState.Error(e.failureMessage("Network error"))
+        e.toQueryError("Network error")
     } catch (e: Exception) {
         if (e.certIssue() != null) throw e
-        DomainState.Error(e.failureMessage("Unexpected error"))
+        e.toQueryError("Unexpected error")
     }
 
     private fun <T> DomainState<T>.withBaseUrl(baseUrl: String): DomainState<T> = when (this) {

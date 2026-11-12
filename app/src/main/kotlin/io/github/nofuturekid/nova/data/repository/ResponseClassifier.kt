@@ -7,6 +7,11 @@ import com.apollographql.apollo.exception.ApolloHttpException
 import com.apollographql.apollo.exception.ApolloNetworkException
 import io.github.nofuturekid.nova.data.api.CertIssue
 import io.github.nofuturekid.nova.data.api.certIssue
+import java.io.InterruptedIOException
+import java.net.SocketException
+import java.net.UnknownHostException
+import java.security.cert.CertificateException
+import javax.net.ssl.SSLException
 
 /**
  * Classification of an Apollo response. Apollo Kotlin 5's `execute()` does NOT
@@ -65,6 +70,39 @@ fun Throwable.failureMessage(fallback: String): String {
 }
 
 private const val MAX_CAUSE_CHARS = 200
+
+/** Plain sentence shown under "Can't reach the server" when the transport itself failed (#266). */
+const val UNREACHABLE_MESSAGE = "Check that the server is online and the address is correct."
+
+/**
+ * True when this failure means the server could not be reached at all: an
+ * [ApolloNetworkException] whose cause chain holds a connectivity error (no
+ * DNS answer, refused or unroutable connection, timeout). TLS and parsing
+ * failures are deliberately not matched: their text is the diagnosis and the
+ * user needs it (certificate dialogs, #217).
+ */
+fun Throwable.isServerUnreachable(): Boolean {
+    if (this !is ApolloNetworkException) return false
+    val chain = generateSequence<Throwable>(this) { it.cause }.take(MAX_CAUSE_DEPTH).toList()
+    if (chain.any { it is SSLException || it is CertificateException }) return false
+    return chain.any {
+        it is UnknownHostException || it is SocketException || it is InterruptedIOException ||
+            it::class.simpleName == "GaiException" // android.system.GaiException, not on the JVM test classpath
+    }
+}
+
+private const val MAX_CAUSE_DEPTH = 10
+
+/**
+ * The [DomainState.Error] for a failed query. An unreachable server gets the
+ * plain [UNREACHABLE_MESSAGE] with the raw text kept in
+ * [DomainState.Error.detail]; every other failure (HTTP status, GraphQL
+ * errors, parsing, certificates) keeps its specific [failureMessage].
+ */
+fun Throwable.toQueryError(fallback: String): DomainState.Error {
+    val text = failureMessage(fallback)
+    return if (isServerUnreachable()) DomainState.Error(UNREACHABLE_MESSAGE, detail = text) else DomainState.Error(text)
+}
 
 /**
  * A mutation (or other one-shot action) the server did not accept. [message]

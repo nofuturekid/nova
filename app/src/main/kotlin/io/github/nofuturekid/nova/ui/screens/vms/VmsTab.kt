@@ -58,7 +58,7 @@ fun VmsTab(
     when (state) {
         DomainState.Loading    -> LoadingState()
         DomainState.NoServer   -> NoServerState(onAdd = onAddServer)
-        is DomainState.Error   -> ErrorState(state.message)
+        is DomainState.Error   -> ErrorState(state.message, detail = state.detail)
         is DomainState.Content -> {
             val vms = state.value
             if (vms.isEmpty()) {

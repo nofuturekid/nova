@@ -12,6 +12,10 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextAlign
@@ -43,8 +47,11 @@ fun ErrorState(
     message: String,
     onRetry: (() -> Unit)? = null,
     modifier: Modifier = Modifier,
+    /** Raw technical text behind a "Show details" toggle; null when [message] is already the whole story. */
+    detail: String? = null,
 ) {
     val t = UnraidTheme.colors
+    var showDetail by rememberSaveable { mutableStateOf(false) }
     Column(
         modifier = modifier
             .fillMaxSize()
@@ -67,6 +74,23 @@ fun ErrorState(
             style = MaterialTheme.typography.bodyMedium,
             textAlign = TextAlign.Center,
         )
+        if (detail != null) {
+            Spacer(Modifier.height(4.dp))
+            UnraidButton(
+                onClick = { showDetail = !showDetail },
+                label = if (showDetail) "Hide details" else "Show details",
+                variant = BtnVariant.Text,
+                tone = Tone.Accent,
+            )
+            if (showDetail) {
+                Text(
+                    text = detail,
+                    color = t.muted,
+                    style = MaterialTheme.typography.labelSmall,
+                    textAlign = TextAlign.Center,
+                )
+            }
+        }
         if (onRetry != null) {
             Spacer(Modifier.height(16.dp))
             UnraidButton(

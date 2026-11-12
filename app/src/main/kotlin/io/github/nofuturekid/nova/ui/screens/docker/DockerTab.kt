@@ -75,7 +75,7 @@ fun DockerTab(
     when (state) {
         DomainState.Loading    -> LoadingState()
         DomainState.NoServer   -> NoServerState(onAdd = onAddServer)
-        is DomainState.Error   -> ErrorState(state.message)
+        is DomainState.Error   -> ErrorState(state.message, detail = state.detail)
         is DomainState.Content -> DockerContent(
             containers = state.value,
             serverBaseUrl = state.serverBaseUrl,
