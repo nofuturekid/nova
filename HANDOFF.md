@@ -74,6 +74,7 @@ Native Android client for Unraid NAS servers (Kotlin + Jetpack Compose, Apollo G
 | **v0.1.42**          | **release** | Stable promotion of the 0.1.42 cycle (beta2): failed actions show why, graceful VM stop + confirmations, network speed on stock Unraid API 4.35+, no background polling, hardened self-signed trust, store icon and screenshots, privacy policy corrections                                                   |
 | v0.1.43-beta1        | pre-release | Beta: parity card shows while a parity operation runs, plain-words message for an unreachable server, double-tap Install and missing install-permission screen fixed, VM list hides 0 vCPU / 0 GB; first release from hellwand/nova                                                                           |
 | **v0.1.43**          | **release** | Stable promotion of the 0.1.43 cycle (beta1): parity card shows while a parity operation runs, plain-words message for an unreachable server, double-tap Install and missing install-permission screen fixed, VM list hides 0 vCPU / 0 GB; first release from hellwand/nova **(Latest)**                      |
+| v0.1.44-beta1        | pre-release | Beta: toolchain-only, no app changes. Build tools and libraries updated (Kotlin 2.4, AGP 9.5, Gradle 9.9, compileSdk 37, Compose, okhttp 5.5, Apollo 5.2, Tink 1.24); nothing should look or behave differently                                                                                               |
 
 ## Stack
 
@@ -82,14 +83,14 @@ _Toolchain raised in the 0.1.28 cycle — see ADR-0023 (AGP-9) / ADR-0024
 
 - Kotlin **2.4.21**, AGP **9.5.1**, Gradle **9.9.0**, JDK **21**
 - AGP-9 built-in-Kotlin DSL (no `org.jetbrains.kotlin.android` plugin)
-- compileSdk/targetSdk **36**, minSdk **26** (app bytecode = Java 17)
-- Jetpack Compose BOM **2026.05.00**, Material 3 + custom M3 type scale
-- Apollo Kotlin **5.0.0**
-- Hilt **2.59.2** + **KSP2** (2.3.8)
-- **DataStore (Preferences) + Google Tink AEAD** for the API-key store
+- compileSdk **37**, targetSdk **36**, minSdk **26** (app bytecode = Java 17)
+- Jetpack Compose BOM **2026.09.00**, Material 3 + custom M3 type scale
+- Apollo Kotlin **5.2.0**
+- Hilt **2.60.1** + **KSP2** (2.3.12)
+- **DataStore (Preferences) + Google Tink AEAD** (Tink 1.24.0) for the API-key store
   (Android-Keystore-wrapped keyset; `security-crypto` removed, ADR-0024)
 - Coil **3.6.3** for AsyncImage
-- okhttp **5.3.2**, kotlinx.coroutines **1.11.0**, serialization **1.13.0**
+- okhttp **5.5.1**, kotlinx.coroutines **1.11.0**, serialization **1.13.0**
 - Dependabot (github-actions + gradle, monthly, no auto-merge — ADR-0025)
 - Distribution flavors `direct` (GitHub APK; declares `REQUEST_INSTALL_PACKAGES`, in-app updater enabled) and `store` (the F-Droid build; updater disabled at runtime via `BuildConfig.HAS_UPDATER = false`) — ADR-0040
 - Tests: JUnit 4; Robolectric 4.17 + Roborazzi 1.78 only for the store screenshots (`-PnovaScreenshots`); Gradle wrapper pinned by `distributionSha256Sum`
