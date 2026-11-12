@@ -45,12 +45,12 @@ The `build-release` job used to sign with the keystore from the Actions secrets 
 
 Decision:
 
-- The signing secrets are passed into the job environment only for `workflow_dispatch` and for same-repo pull requests whose **author** (`github.event.pull_request.user`) is neither of type `Bot` nor a login ending in `[bot]`. The author is used, not `github.actor`: a human re-run or "update branch" on a bot pull request changes the actor but not the author.
-- Bot-authored and fork pull requests still **compile** the minified release variant of both flavors; the fallback in `app/build.gradle.kts` signs it with the debug key. Only signing with the release key, the signature check against it and the `app-release` / `mapping` uploads are skipped, so a green bot pull request still proves the R8 build.
-- The aggregator `build` now accepts only `success` from `build-release` (`skipped` was a legitimate pass for fork and Dependabot pull requests before; it no longer occurs on a build-affecting run), so a failed release compilation blocks the single required check.
+- Signing runs in its own job, `build-release`, whose job-level `if` admits only `workflow_dispatch` and same-repo pull requests whose **author** (`github.event.pull_request.user`) is neither of type `Bot` nor a login ending in `[bot]`. The author is used, not `github.actor`: a human re-run or "update branch" on a bot pull request changes the actor but not the author. The decision is made on the `github` context before any runner starts, so no step can change it (a step-level `env` gate could be flipped through `$GITHUB_ENV`), and for every other run no runner receives the signing secrets at all.
+- Bot-authored and fork pull requests run `build-release-unsigned` instead, the exact negation of that condition. It references no secret and compiles the minified release variant of both flavors, which the fallback in `app/build.gradle.kts` signs with the debug key, so a green bot pull request still proves the R8 build.
+- The aggregator `build` requires exactly one of the two release jobs to succeed and the other to be skipped.
 - Promotion is unchanged: `release.yml` only ever promotes the `app-release` artifact of a run on the tagged commit, and bot-authored pull requests never produce one.
 
-Residual: the secrets still exist in the `secrets` context of a same-repo run; they are kept out of every step environment, not out of the runner job. Separating the signing into its own job would be the next step if this ever needs to be stricter.
+Residual: a human-authored pull request that pulls in bot-written changes is still signed; whoever opens the pull request is responsible for its content.
 
 ## Alternatives considered
 
