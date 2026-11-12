@@ -15,6 +15,13 @@ release version + date and opens a fresh `[Unreleased]`.
 
 ## [Unreleased]
 
+## [0.1.44-beta1] - 2026-11-13
+
+Beta: nothing new in the app. The build tools and libraries behind it were brought up to date, and this beta is there to confirm that nothing looks or behaves differently. Please use it as you normally would and tell us if anything seems off.
+
+### Changed
+- **Build tools and libraries updated** — Kotlin 2.4, Android Gradle Plugin 9.5, Jetpack Compose, okhttp 5.5, Apollo 5.2 and Tink 1.24 (among others) are newer. Nothing should look or behave differently; this beta exists to confirm that.
+
 ## [0.1.43] - 2026-11-12
 
 The parity card appears on a real server, a server that cannot be reached says so in plain words, and a robustness batch (double-tap Install, missing install-permission screen, VM list without zeros). It is also the first version that looks for updates at the project's new home, github.com/hellwand/nova.
