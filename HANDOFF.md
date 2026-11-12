@@ -80,7 +80,7 @@ Native Android client for Unraid NAS servers (Kotlin + Jetpack Compose, Apollo G
 _Toolchain raised in the 0.1.28 cycle — see ADR-0023 (AGP-9) / ADR-0024
 (storage) / ADR-0020 (KSP2)._
 
-- Kotlin **2.3.21**, AGP **9.5.1**, Gradle **9.9.0**, JDK **21**
+- Kotlin **2.4.21**, AGP **9.5.1**, Gradle **9.9.0**, JDK **21**
 - AGP-9 built-in-Kotlin DSL (no `org.jetbrains.kotlin.android` plugin)
 - compileSdk/targetSdk **36**, minSdk **26** (app bytecode = Java 17)
 - Jetpack Compose BOM **2026.05.00**, Material 3 + custom M3 type scale
@@ -88,8 +88,8 @@ _Toolchain raised in the 0.1.28 cycle — see ADR-0023 (AGP-9) / ADR-0024
 - Hilt **2.59.2** + **KSP2** (2.3.8)
 - **DataStore (Preferences) + Google Tink AEAD** for the API-key store
   (Android-Keystore-wrapped keyset; `security-crypto` removed, ADR-0024)
-- Coil **3.4.0** for AsyncImage
-- okhttp **5.3.2**, kotlinx.coroutines **1.11.0**, serialization **1.11.0**
+- Coil **3.6.3** for AsyncImage
+- okhttp **5.3.2**, kotlinx.coroutines **1.11.0**, serialization **1.13.0**
 - Dependabot (github-actions + gradle, monthly, no auto-merge — ADR-0025)
 - Distribution flavors `direct` (GitHub APK; declares `REQUEST_INSTALL_PACKAGES`, in-app updater enabled) and `store` (the F-Droid build; updater disabled at runtime via `BuildConfig.HAS_UPDATER = false`) — ADR-0040
 - Tests: JUnit 4; Robolectric 4.17 + Roborazzi 1.78 only for the store screenshots (`-PnovaScreenshots`); Gradle wrapper pinned by `distributionSha256Sum`
