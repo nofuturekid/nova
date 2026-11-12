@@ -119,11 +119,14 @@ data class DisplayThresholds(
     val cpuCritC: Int?,
 )
 
+/**
+ * A running or paused parity operation. The API reports the same status for a
+ * parity check, a parity sync, a disk rebuild and a clear and does not say which
+ * one it is. It provides neither an error count nor a remaining time.
+ */
 data class ParityCheck(
     val progress: Float,        // 0..1
     val speedMbps: Double,
-    val errors: Int,
-    val etaSeconds: Int,
     val paused: Boolean,
 )
 

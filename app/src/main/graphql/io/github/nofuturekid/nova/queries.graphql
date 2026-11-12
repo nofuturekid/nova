@@ -72,7 +72,7 @@ query GetArray {
         parities  { id name device size status temp type isSpinning rotational numErrors warning critical }
         disks     { id name device size status temp fsSize fsFree fsUsed type isSpinning rotational numErrors warning critical }
         caches    { id name device size status temp fsSize fsFree fsUsed type isSpinning rotational numErrors warning critical }
-        parityCheckStatus { progress speed errors running paused }
+        parityCheckStatus { status progress speed errors running paused }
     }
 }
 

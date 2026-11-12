@@ -6,6 +6,7 @@ import io.github.nofuturekid.nova.graphql.GetArrayQuery
 import io.github.nofuturekid.nova.graphql.type.ArrayDiskStatus
 import io.github.nofuturekid.nova.graphql.type.ArrayDiskType
 import io.github.nofuturekid.nova.graphql.type.ArrayState
+import io.github.nofuturekid.nova.graphql.type.ParityCheckStatus as GParityStatus
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
@@ -173,12 +174,63 @@ class ArrayMappingTest {
         assertFalse("parity disk must NOT be isPoolMember (no fs is expected for parity)", p.isPoolMember)
     }
 
+    // ── Parity operation card (issue #244) ────────────────────────────
+    //
+    // WHY: the Unraid API never fills running/paused/errors of
+    // array.parityCheckStatus, only `status`. The mapper used to keep the
+    // parity object only for running == true, so the card never appeared on a
+    // stock server. These tests pin that `status` alone decides.
+
+    @Test fun parity_status_running_with_running_null_shows_an_unpaused_operation() {
+        val info = arrayData(
+            parityStatus = parityStatus(status = GParityStatus.RUNNING, progress = 42, speed = "182.5 MB/s"),
+        ).toArrayInfo()
+        val p = info.parity
+        assertTrue("RUNNING must yield a parity object even though running is null", p != null)
+        assertFalse("RUNNING is not paused", p!!.paused)
+        assertEquals("progress is parsed as before (42 percent -> 0.42)", 0.42f, p.progress, 0.0001f)
+        assertEquals("speed is parsed as before", 182.5, p.speedMbps, 0.0001)
+    }
+
+    @Test fun parity_status_paused_with_paused_null_is_paused() {
+        val p = arrayData(
+            parityStatus = parityStatus(status = GParityStatus.PAUSED, progress = 10, speed = "1.5 GB/s"),
+        ).toArrayInfo().parity
+        assertTrue("PAUSED must yield a parity object", p != null)
+        assertTrue("PAUSED must set paused although the paused field is null", p!!.paused)
+        assertEquals(0.1f, p.progress, 0.0001f)
+        assertEquals("GB/s is converted to MB/s as before", 1500.0, p.speedMbps, 0.0001)
+    }
+
+    @Test fun parity_status_completed_and_never_run_show_no_card() {
+        // WHY: a finished or never-started check must not leave a stale card.
+        for (s in listOf(GParityStatus.COMPLETED, GParityStatus.NEVER_RUN, GParityStatus.CANCELLED, GParityStatus.FAILED)) {
+            assertNull("$s must not show the card", arrayData(parityStatus = parityStatus(status = s)).toArrayInfo().parity)
+        }
+    }
+
+    @Test fun parity_running_flag_alone_still_shows_the_card_as_fallback() {
+        // WHY: a server that does fill the legacy fields keeps working.
+        val p = arrayData(
+            parityStatus = parityStatus(status = GParityStatus.COMPLETED, running = true, paused = true),
+        ).toArrayInfo().parity
+        assertTrue(p != null)
+        assertTrue("paused == true is honoured as fallback", p!!.paused)
+    }
+
+    @Test fun parity_unknown_status_value_does_not_crash_or_show_the_card() {
+        // WHY: Apollo adds UNKNOWN__ for enum values a newer server adds; the
+        // mapper compares plainly instead of an exhaustive `when`.
+        assertNull(arrayData(parityStatus = parityStatus(status = GParityStatus.UNKNOWN__)).toArrayInfo().parity)
+    }
+
     // ── Builders ─────────────────────────────────────────────────────
 
     private fun arrayData(
         disks: List<GetArrayQuery.Disk> = emptyList(),
         parities: List<GetArrayQuery.Parity> = emptyList(),
         caches: List<GetArrayQuery.Cach> = emptyList(),
+        parityStatus: GetArrayQuery.ParityCheckStatus? = null,
     ) = GetArrayQuery.Data(
         array = GetArrayQuery.Array(
             state = ArrayState.STARTED,
@@ -188,8 +240,23 @@ class ArrayMappingTest {
             parities = parities,
             disks = disks,
             caches = caches,
-            parityCheckStatus = null,
+            parityCheckStatus = parityStatus,
         ),
+    )
+
+    private fun parityStatus(
+        status: GParityStatus,
+        progress: Int? = null,
+        speed: String? = null,
+        running: Boolean? = null,
+        paused: Boolean? = null,
+    ) = GetArrayQuery.ParityCheckStatus(
+        status = status,
+        progress = progress,
+        speed = speed,
+        errors = null,
+        running = running,
+        paused = paused,
     )
 
     private fun disk(
