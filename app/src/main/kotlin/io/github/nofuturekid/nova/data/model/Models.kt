@@ -174,8 +174,10 @@ data class Vm(
     val id: String,
     val name: String,
     val state: VmState,
-    val vcpus: Int,
-    val memGb: Int,
+    /** Null while unknown: the Unraid API does not expose it (never show a fake 0). */
+    val vcpus: Int?,
+    /** Null while unknown, like [vcpus]. */
+    val memGb: Int?,
     val gpu: String?,
 )
 

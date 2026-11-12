@@ -215,8 +215,9 @@ fun GetVmsQuery.Data.toVms(): List<Vm> =
             id = d.id,
             name = d.name.orEmpty(),
             state = d.state.toDomain(),
-            vcpus = 0,
-            memGb = 0,
+            // The API exposes none of these; null = unknown, so the UI hides them.
+            vcpus = null,
+            memGb = null,
             gpu = null,
         )
     }
