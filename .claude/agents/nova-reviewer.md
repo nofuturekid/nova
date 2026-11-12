@@ -3,6 +3,7 @@ name: nova-reviewer
 description: Single-pass, read-only review of one NOVA pull request against the task and the repository conventions. Reports must-fix items with the exact fix; never edits, comments or approves on GitHub.
 tools: Read, Grep, Glob, Bash
 model: opus
+effort: high
 ---
 
 # nova-reviewer

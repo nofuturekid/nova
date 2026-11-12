@@ -39,6 +39,19 @@ Total release-workflow runtime: ~16 seconds.
 **Trigger to revisit**
 - If artifact retention proves expensive or we want longer-lived "release-able" commits, switch to a build-on-tag fallback that uses the same signed-keystore inputs.
 
+## Amendment 2026-11-12 — release-key signing is limited to human-authored pull requests and manual dispatch
+
+The `build-release` job used to sign with the keystore from the Actions secrets on every same-repo pull request. GitHub withholds secrets from Dependabot pull requests, but not from pull requests that other bots open from same-repo branches (the Renovate app, installed for the organization). A dependency update authored by a bot would then run third-party build code next to the release key. The earlier rule (`github.actor != 'dependabot[bot]'`) only decided whether an empty secret was an error; it did not keep the secret away from anyone.
+
+Decision:
+
+- Signing runs in its own job, `build-release`, whose job-level `if` admits only `workflow_dispatch` and same-repo pull requests whose **author** (`github.event.pull_request.user`) is neither of type `Bot` nor a login ending in `[bot]`. The author is used, not `github.actor`: a human re-run or "update branch" on a bot pull request changes the actor but not the author. The decision is made on the `github` context before any runner starts, so no step can change it (a step-level `env` gate could be flipped through `$GITHUB_ENV`), and for every other run no runner receives the signing secrets at all.
+- Bot-authored and fork pull requests run `build-release-unsigned` instead, the exact negation of that condition. It references no secret and compiles the minified release variant of both flavors, which the fallback in `app/build.gradle.kts` signs with the debug key, so a green bot pull request still proves the R8 build.
+- The aggregator `build` requires exactly one of the two release jobs to succeed and the other to be skipped.
+- Promotion is unchanged: `release.yml` only ever promotes the `app-release` artifact of a run on the tagged commit, and bot-authored pull requests never produce one.
+
+Residual: a human-authored pull request that pulls in bot-written changes is still signed; whoever opens the pull request is responsible for its content.
+
 ## Alternatives considered
 
 - **Build on tag push** (the naive approach) — slower and introduces drift.
