@@ -72,6 +72,7 @@ Native Android client for Unraid NAS servers (Kotlin + Jetpack Compose, Apollo G
 | v0.1.42-beta1        | burnt tag   | Tagged but never published: release APK verification failed on the runner (apksigner 37 output format); superseded by beta2                                                                                                                                                                                   |
 | v0.1.42-beta2        | pre-release | Beta: failed actions show why, graceful VM stop + confirmations, network speed on stock Unraid API 4.35+, no background polling, store screenshots                                                                                                                                                            |
 | **v0.1.42**          | **release** | Stable promotion of the 0.1.42 cycle (beta2): failed actions show why, graceful VM stop + confirmations, network speed on stock Unraid API 4.35+, no background polling, hardened self-signed trust, store icon and screenshots, privacy policy corrections **(Latest)**                                      |
+| v0.1.43-beta1        | pre-release | Beta: parity card shows while a parity operation runs, plain-words message for an unreachable server, double-tap Install and missing install-permission screen fixed, VM list hides 0 vCPU / 0 GB; first release from hellwand/nova                                                                           |
 
 ## Stack
 
