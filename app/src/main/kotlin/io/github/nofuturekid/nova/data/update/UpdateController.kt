@@ -76,10 +76,16 @@ class UpdateController(
         // second call is a no-op: ignore it rather than launch a coroutine
         // that would clobber the first install's progress back to
         // Downloading(0f) and commit a duplicate session.
-        val state = _installState.value
-        if (state !is InstallState.Idle && state !is InstallState.Failed) return
+        //
+        // The slot is claimed atomically BEFORE launching (#241): a plain
+        // read-then-launch left a window in which two calls made before the
+        // coroutine had run both saw Idle and both started an install.
+        while (true) {
+            val state = _installState.value
+            if (state !is InstallState.Idle && state !is InstallState.Failed) return
+            if (_installState.compareAndSet(state, InstallState.Downloading(0f))) break
+        }
         scope.launch {
-            _installState.value = InstallState.Downloading(0f)
             try {
                 val apk = installer.download(
                     info.downloadUrl,
@@ -108,4 +114,5 @@ class UpdateController(
     fun installFailed(message: String) {
         _installState.value = InstallState.Failed(message)
     }
+
 }

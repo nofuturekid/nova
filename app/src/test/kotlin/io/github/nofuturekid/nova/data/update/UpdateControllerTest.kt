@@ -3,6 +3,7 @@ package io.github.nofuturekid.nova.data.update
 import android.content.Intent
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.runTest
@@ -332,5 +333,54 @@ class UpdateControllerTest {
             2,
             installs.get(),
         )
+    }
+
+    /**
+     * WHY (#241): the guard used to read the state and only set
+     * Downloading inside the launched coroutine, so two calls made before
+     * the dispatcher ran both saw Idle and both started a download plus a
+     * PackageInstaller session. With a StandardTestDispatcher nothing runs
+     * until the scheduler advances, which is exactly that window. If the
+     * slot is not claimed synchronously, downloads/installs become 2 and
+     * this fails.
+     */
+    @Test
+    fun twoCallsBeforeTheDispatcherAdvancesStartOneInstall() = runTest {
+        val scope = TestScope(StandardTestDispatcher(testScheduler))
+        val downloads = AtomicInteger(0)
+        val installs = AtomicInteger(0)
+        val installer = object : ApkInstaller {
+            override suspend fun download(
+                url: String,
+                expectedSizeBytes: Long,
+                expectedDigest: String?,
+                onProgress: (Float) -> Unit,
+            ): File {
+                downloads.incrementAndGet()
+                return File("app.apk")
+            }
+            override fun install(apk: File) { installs.incrementAndGet() }
+        }
+        val controller = UpdateController(installer, scope)
+
+        controller.installUpdate(info)
+        controller.installUpdate(info) // double-tap before anything ran
+        assertEquals(
+            "the slot is claimed synchronously, before the coroutine runs",
+            InstallState.Downloading(0f),
+            controller.installState.value,
+        )
+        scope.testScheduler.advanceUntilIdle()
+
+        assertEquals("one download for two taps", 1, downloads.get())
+        assertEquals("one install session for two taps", 1, installs.get())
+
+        // Retry after Failed must still work: the claim is not a one-shot latch.
+        InstallStatusReceiver.emitForTest(InstallEvent.Failed("system rejected"))
+        scope.testScheduler.advanceUntilIdle()
+        assertTrue(controller.installState.value is InstallState.Failed)
+        controller.installUpdate(info)
+        scope.testScheduler.advanceUntilIdle()
+        assertEquals("retry after Failed starts a new run", 2, downloads.get())
     }
 }
