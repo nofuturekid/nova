@@ -122,7 +122,7 @@ Versions **not** pinned in the repo that this image had to choose:
 |---|---|---|
 | Base image | `eclipse-temurin:21.0.5_11-jdk-jammy` | Immutable Adoptium version tag (no `latest`); JDK 21 per ADR-0023 |
 | Android cmdline-tools | build `11076708` | Stable, widely mirrored; sdkmanager fetches package lists at install time |
-| Android build-tools | `36.0.0` | Pairs with AGP 9.2.x |
+| Android build-tools | `36.0.0` | Pairs with AGP 9.5.x |
 | Android platform | `android-37.0` | compileSdk 37 (targetSdk stays 36) |
 
 `platform-tools` is the one component `sdkmanager` does not expose a
