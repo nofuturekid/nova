@@ -53,12 +53,12 @@ NOVA declares these Android permissions (visible in the app's permission list un
 
 NOVA ships in two flavors that differ only in their distribution channel:
 
-- **`direct`** — installed from the [GitHub Releases page](https://github.com/nofuturekid/nova/releases). Includes the in-app updater (talks to `api.github.com` and downloads APKs from GitHub Releases over HTTPS).
+- **`direct`** — installed from the [GitHub Releases page](https://github.com/hellwand/nova/releases). Includes the in-app updater (talks to `api.github.com` and downloads APKs from GitHub Releases over HTTPS).
 - **`store`** — installed from F-Droid (and, in the future, the Google Play Store). The in-app updater is absent. App updates are managed by your store of choice. No GitHub traffic for app updates or update checks. Container icons are still fetched from the URLs your server provides (see "Data the app sends").
 
 ## Update integrity (`direct` flavor only)
 
-In-app updates verify the downloaded APK against a SHA-256 hash and byte-size match published in the GitHub release asset metadata, over HTTPS. Mismatch fails closed — nothing is installed. See [ADR-0034](https://github.com/nofuturekid/nova/blob/main/docs/adr/0034-update-and-data-at-rest-hardening.md) for the rationale.
+In-app updates verify the downloaded APK against a SHA-256 hash and byte-size match published in the GitHub release asset metadata, over HTTPS. Mismatch fails closed — nothing is installed. See [ADR-0034](https://github.com/hellwand/nova/blob/main/docs/adr/0034-update-and-data-at-rest-hardening.md) for the rationale.
 
 ## Your rights
 
@@ -70,8 +70,8 @@ Unraid® is a registered trademark of Lime Technology, Inc. NOVA is an independe
 
 ## Changes to this policy
 
-Changes are versioned in this repository under [`docs/privacy/`](https://github.com/nofuturekid/nova/tree/main/docs/privacy). Material changes are mentioned in the app's release notes (`CHANGELOG.md`).
+Changes are versioned in this repository under [`docs/privacy/`](https://github.com/hellwand/nova/tree/main/docs/privacy). Material changes are mentioned in the app's release notes (`CHANGELOG.md`).
 
 ## Contact
 
-Bug reports and questions are best filed as GitHub issues: <https://github.com/nofuturekid/nova/issues>. The maintainer is identified on the GitHub profile.
+Bug reports and questions are best filed as GitHub issues: <https://github.com/hellwand/nova/issues>. The repository is owned by the GitHub organization `hellwand`; the maintainer is identified on the organization and member profiles.

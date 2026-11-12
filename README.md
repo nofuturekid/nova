@@ -4,25 +4,25 @@
 
 **NOVA for Unraid® — your NAS in your pocket. A fast, native Android app for keeping an eye on — and a hand on — your Unraid® server.**
 
-[![Project website](https://img.shields.io/badge/Project%20website-screenshots%20%26%20install-22d3a4?style=for-the-badge&logo=googlechrome&logoColor=white)](https://nofuturekid.github.io/nova/)
+[![Project website](https://img.shields.io/badge/Project%20website-screenshots%20%26%20install-22d3a4?style=for-the-badge&logo=googlechrome&logoColor=white)](https://hellwand.github.io/nova/)
 
 _Screenshots, install options and the privacy summary on the project website._
 
-[![Stable](https://img.shields.io/github/v/release/nofuturekid/nova?sort=semver&label=stable&color=blue&style=flat-square&logo=github)](https://github.com/nofuturekid/nova/releases/latest)
-[![Beta](https://img.shields.io/github/v/release/nofuturekid/nova?include_prereleases&label=beta&color=orange&style=flat-square&logo=github)](https://github.com/nofuturekid/nova/releases)
-[![Downloads](https://img.shields.io/github/downloads/nofuturekid/nova/total?label=downloads&style=flat-square&logo=github)](https://github.com/nofuturekid/nova/releases)
+[![Stable](https://img.shields.io/github/v/release/hellwand/nova?sort=semver&label=stable&color=blue&style=flat-square&logo=github)](https://github.com/hellwand/nova/releases/latest)
+[![Beta](https://img.shields.io/github/v/release/hellwand/nova?include_prereleases&label=beta&color=orange&style=flat-square&logo=github)](https://github.com/hellwand/nova/releases)
+[![Downloads](https://img.shields.io/github/downloads/hellwand/nova/total?label=downloads&style=flat-square&logo=github)](https://github.com/hellwand/nova/releases)
 
-[![Platform](https://img.shields.io/badge/platform-Android-3DDC84?style=flat-square&logo=android&logoColor=white)](https://github.com/nofuturekid/nova/releases)
-[![Min Android](https://img.shields.io/badge/Android-8.0%2B-3DDC84?style=flat-square&logo=android&logoColor=white)](https://github.com/nofuturekid/nova/releases)
+[![Platform](https://img.shields.io/badge/platform-Android-3DDC84?style=flat-square&logo=android&logoColor=white)](https://github.com/hellwand/nova/releases)
+[![Min Android](https://img.shields.io/badge/Android-8.0%2B-3DDC84?style=flat-square&logo=android&logoColor=white)](https://github.com/hellwand/nova/releases)
 [![Made with Kotlin](https://img.shields.io/badge/Kotlin-Jetpack%20Compose-7F52FF?style=flat-square&logo=kotlin&logoColor=white)](https://kotlinlang.org)
 
-[![CI](https://img.shields.io/github/actions/workflow/status/nofuturekid/nova/ci.yml?branch=main&label=CI&style=flat-square&logo=githubactions&logoColor=white)](https://github.com/nofuturekid/nova/actions/workflows/ci.yml)
-[![CodeQL](https://img.shields.io/github/actions/workflow/status/nofuturekid/nova/codeql.yml?branch=main&label=CodeQL&style=flat-square&logo=github&logoColor=white)](https://github.com/nofuturekid/nova/security/code-scanning)
+[![CI](https://img.shields.io/github/actions/workflow/status/hellwand/nova/ci.yml?branch=main&label=CI&style=flat-square&logo=githubactions&logoColor=white)](https://github.com/hellwand/nova/actions/workflows/ci.yml)
+[![CodeQL](https://img.shields.io/github/actions/workflow/status/hellwand/nova/codeql.yml?branch=main&label=CodeQL&style=flat-square&logo=github&logoColor=white)](https://github.com/hellwand/nova/security/code-scanning)
 [![License: GPL v3](https://img.shields.io/badge/license-GPLv3-blue.svg?style=flat-square)](./LICENSE)
 
 [![Dependabot](https://img.shields.io/badge/Dependabot-enabled-025E8C?style=flat-square&logo=dependabot&logoColor=white)](.github/dependabot.yml)
-[![Forks](https://img.shields.io/github/forks/nofuturekid/nova?style=flat-square&logo=github)](https://github.com/nofuturekid/nova/network/members)
-[![Open issues](https://img.shields.io/github/issues/nofuturekid/nova?style=flat-square&logo=github)](https://github.com/nofuturekid/nova/issues)
+[![Forks](https://img.shields.io/github/forks/hellwand/nova?style=flat-square&logo=github)](https://github.com/hellwand/nova/network/members)
+[![Open issues](https://img.shields.io/github/issues/hellwand/nova?style=flat-square&logo=github)](https://github.com/hellwand/nova/issues)
 
 </div>
 
@@ -34,7 +34,7 @@ It talks to your server through the official Unraid API (the Connect plugin's Gr
 
 ## Screenshots
 
-**Project website:** <https://nofuturekid.github.io/nova/> — screenshots, install options and a summary of the privacy policy.
+**Project website:** <https://hellwand.github.io/nova/> — screenshots, install options and a summary of the privacy policy.
 
 <div align="center">
 
@@ -76,7 +76,7 @@ A few things bend to taste in **Settings**:
 
 ## Getting started
 
-1. **Install** NOVA — either from [F-Droid](https://f-droid.org/packages/io.github.nofuturekid.nova/) (stable releases only) or as the latest APK from the [Releases page](https://github.com/nofuturekid/nova/releases). (For the APK, Android will ask you to allow installing from your browser/files app — that's expected for apps outside the Play Store.)
+1. **Install** NOVA — either from [F-Droid](https://f-droid.org/packages/io.github.nofuturekid.nova/) (stable releases only) or as the latest APK from the [Releases page](https://github.com/hellwand/nova/releases). (For the APK, Android will ask you to allow installing from your browser/files app — that's expected for apps outside the Play Store.)
    - Betas are GitHub pre-releases, so they come as an APK from the Releases page. The in-app updater keeps it current when **Include pre-releases** is switched on in Settings; Obtainium works too.
    - The F-Droid build and the GitHub APK are signed with different keys, so switching between them needs an uninstall first (your saved servers and API keys go with the app). See [ADR-0040](./docs/adr/0040-fdroid-play-distribution-flavors.md).
 2. On your Unraid server, generate an **API key**: web UI → _Settings → Management Access → API / Connect_.
@@ -95,7 +95,7 @@ Unraid® is a registered trademark of Lime Technology, Inc. NOVA is an independe
 
 ## Privacy & data handling
 
-- **Full policy:** <https://github.com/nofuturekid/nova/blob/main/docs/privacy/POLICY.md>
+- **Full policy:** <https://github.com/hellwand/nova/blob/main/docs/privacy/POLICY.md>
 - **Your API key stays on your device.** It's encrypted at rest using Android Keystore via Google's Tink library, and explicitly excluded from cloud backup / device-transfer.
 - **No analytics, no telemetry, no tracking services.** The app talks to your Unraid server's API; in the GitHub (`direct`) build it also asks GitHub's API for app updates (at app start, when you open Settings, or on "Check now"); and it loads container icons from the URLs your own server supplies (often GitHub or a CDN).
 - **Update downloads** go directly from GitHub Releases to your device over HTTPS. The downloaded APK is verified by byte-size match and constant-time SHA-256 against the published release asset before any install attempt; mismatch fails closed. See [ADR-0034](./docs/adr/0034-update-and-data-at-rest-hardening.md) for the rationale.

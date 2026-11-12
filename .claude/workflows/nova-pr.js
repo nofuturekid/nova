@@ -37,7 +37,7 @@ export const meta = {
 //              draft: open as a draft PR; a draft is never reviewed as ready and never merged.
 // Returns { status: done|partial|blocked, tasks[], merge, skipped[], problems[] }.
 
-const REPO_SLUG = "nofuturekid/nova";
+const REPO_SLUG = "hellwand/nova";
 
 // Frozen while a beta waits for on-device acceptance (R-FREEZE). Identical to nova-merge-train.js.
 const FROZEN_RE =

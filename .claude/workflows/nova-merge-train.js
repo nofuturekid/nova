@@ -30,7 +30,7 @@ export const meta = {
 //                     dependabot is only a consistency assertion: the PR author decides the path.
 // Returns { status: done|partial|blocked, merged[], refused[], skipped[], problems[], cleanup }.
 
-const REPO_SLUG = "nofuturekid/nova";
+const REPO_SLUG = "hellwand/nova";
 const MODEL_LIGHT = { model: "sonnet", effort: "low" };
 const MODEL_STD = { model: "sonnet", effort: "medium" };
 

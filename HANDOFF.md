@@ -8,10 +8,11 @@ Native Android client for Unraid NAS servers (Kotlin + Jetpack Compose, Apollo G
 
 ## Repo
 
-- URL: https://github.com/nofuturekid/nova
+- URL: https://github.com/hellwand/nova
 - License: GPL-3.0-only (relicensed from CC BY-NC-SA 4.0 — see ADR-0021)
 - Default branch: `main` (protected)
-- Owner: nofuturekid. `main` protection applies to admins too (`enforce_admins` on since 2026-11-10, ADR-0003); only squash merges are allowed; tags `v*` are protected against update and deletion by the ruleset "Protect release tags" (ADR-0010).
+- Owner: the GitHub organization `hellwand` (the maintainer's account `nofuturekid` is its owner). `main` protection applies to admins too (`enforce_admins` on since 2026-11-10, ADR-0003); only squash merges are allowed; tags `v*` are protected against update and deletion by the ruleset "Protect release tags" (ADR-0010).
+- Moved: the repository moved from `nofuturekid/nova` to `hellwand/nova` on 2026-11-12. Nothing may ever be created, forked or renamed into `nofuturekid/nova`, and `hellwand/nova` must not be forked into the personal account under the name `nova`: installed app versions up to 0.1.42 find updates only through GitHub's redirect from the old name, and a repository of that name would break it.
 
 ## Releases shipped so far
 
@@ -197,7 +198,7 @@ JSON-scalar decision rationale (incl. why-not-String): [ADR-0007](docs/adr/0007-
 - **KSP2 + Hilt 2.59.2** (ADR-0020/0023): the old `ksp.useKSP2=false` / Hilt-2.52 pin is gone. Hilt requires Kotlin ≥ 2.1.10 — it is coupled to the toolchain (ADR-0023 rollback note: Hilt can't be reverted in isolation).
 - **`DockerContainer.mounts` is `JSON` (single scalar) NOT `[JSON!]`** — the JSON content itself is an encoded array of mount objects. Easy to mistype based on intuition; v0.1.11 made the snapshot fail server-wide because of this exact wrong type. Parse via `parseMountsArray` in `GraphQlMapper.kt`.
 - **JSON scalar → kotlin.Any via Apollo's `AnyAdapter`** — the Unraid GraphQL `JSON` scalar serialises as inline JSON values (objects/arrays/primitives), not pre-stringified text. Custom `kotlin.String` adapters crash. We map it to `kotlin.Any` with `com.apollographql.apollo.api.AnyAdapter` (public, built-in). Don't try to write your own with `reader.readAny()` — that's `@ApolloInternal`.
-- **In-app updater** lives under `data/update/`: `UpdateRepository` polls `https://api.github.com/repos/nofuturekid/nova/releases` (no auth, 60 req/h rate limit fine for on-start checks), `UpdateInstaller` downloads APK to `cacheDir/updates/` and uses `PackageInstaller` for the install handshake, `InstallStatusReceiver` catches the session callback via a `BroadcastReceiver` declared in the manifest. The `REQUEST_INSTALL_PACKAGES` permission is declared in the `direct` flavor manifest only (`app/src/direct/AndroidManifest.xml`); the updater code itself is compiled into both flavors and disabled at runtime when `BuildConfig.HAS_UPDATER` is false (`store`). On first install Android prompts the user to whitelist us at `Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES`. The Settings screen exposes the "Include pre-releases" toggle + manual "Check now". Banner on MainScreen dismisses per-tag via `dismissedUpdateTag` in DataStore.
+- **In-app updater** lives under `data/update/`: `UpdateRepository` polls `https://api.github.com/repos/nofuturekid/nova/releases` (the compiled-in old name, resolved through GitHub's redirect to `hellwand/nova`; the constant moves in the next app release; no auth, 60 req/h rate limit fine for on-start checks), `UpdateInstaller` downloads APK to `cacheDir/updates/` and uses `PackageInstaller` for the install handshake, `InstallStatusReceiver` catches the session callback via a `BroadcastReceiver` declared in the manifest. The `REQUEST_INSTALL_PACKAGES` permission is declared in the `direct` flavor manifest only (`app/src/direct/AndroidManifest.xml`); the updater code itself is compiled into both flavors and disabled at runtime when `BuildConfig.HAS_UPDATER` is false (`store`). On first install Android prompts the user to whitelist us at `Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES`. The Settings screen exposes the "Include pre-releases" toggle + manual "Check now". Banner on MainScreen dismisses per-tag via `dismissedUpdateTag` in DataStore.
 - Cleartext HTTP requires `android:usesCleartextTraffic="true"` in the manifest. LAN access against `http://192.168.x.x` needs this. The base-config in `network_security_config.xml` permits cleartext; the GitHub hosts (`api.github.com`, `github.com`, `objects.githubusercontent.com`) are pinned to HTTPS.
 - **CI `test` job (ADR-0036) can transiently fail at Gradle _configuration_** with a plugin-not-resolvable error (e.g. `com.google.devtools.ksp` not found) on a plugin-portal/registry blip — it fetches plugins fresh under PR `cache-read-only`. **Re-run the job; it is not a code defect** (see ADR-0036 "Known consequence — transient plugin-fetch in the `test` job" note; PR #163 2026-05-19).
 
@@ -227,7 +228,7 @@ Minimum server API: every operation the app sends, except the two network-speed 
 ## Local development
 
 ```bash
-git clone https://github.com/nofuturekid/nova
+git clone https://github.com/hellwand/nova
 cd nova
 ./scripts/local-ci.sh                 # recommended: pinned container, same tasks as CI (docs/local-build.md)
 ./gradlew :app:assembleDirectDebug    # host debug build, no keystore needed (flavors: direct | store)
@@ -321,7 +322,7 @@ executed as a blocking CI gate (ADR-0036), resilient action launchers
   `NOVA for Unraid®`, applicationId `io.github.nofuturekid.nova`), decided in
   ADR-0038/0039 and shipped as 0.1.33 (existing UnraidControl installs do not
   auto-update). Repo renamed `UnraidControl` → `nova` in 0.1.34-beta1; Pages
-  URL https://nofuturekid.github.io/nova/. iOS / web targets remain
+  URL https://hellwand.github.io/nova/. iOS / web targets remain
   non-committal (their own ADR if ever pursued; GPL-v3-vs-App-Store-ToS is a
   real concern).
 - VM vCPU/RAM/GPU stay placeholder zeros — `VmDomain` doesn't expose them.
@@ -331,11 +332,11 @@ executed as a blocking CI gate (ADR-0036), resilient action launchers
 ## Useful gh commands
 
 ```bash
-gh pr list --repo nofuturekid/nova
-gh run list --repo nofuturekid/nova --limit 10
-gh release list --repo nofuturekid/nova
-gh run download <id> --repo nofuturekid/nova --name app-release
-gh secret list --repo nofuturekid/nova
+gh pr list --repo hellwand/nova
+gh run list --repo hellwand/nova --limit 10
+gh release list --repo hellwand/nova
+gh run download <id> --repo hellwand/nova --name app-release
+gh secret list --repo hellwand/nova
 ```
 
 ## Resuming work — quick start
