@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# graphql-smoke — live smoke test of UnraidControl's READ-ONLY GraphQL ops
+# graphql-smoke — live smoke test of NOVA's READ-ONLY GraphQL ops
 # against the real Unraid server.
 #
 # Drift-free: it sends the ACTUAL queries.graphql document and selects each
