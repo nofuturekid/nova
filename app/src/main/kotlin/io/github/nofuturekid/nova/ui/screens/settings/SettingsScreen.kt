@@ -419,7 +419,7 @@ fun SettingsScreen(
                         TextButton(onClick = {
                             ctx.startActivity(
                                 Intent(Intent.ACTION_VIEW,
-                                    Uri.parse("https://github.com/nofuturekid/nova"))
+                                    Uri.parse("https://github.com/hellwand/nova"))
                             )
                         }) { Text("View on GitHub", color = t.accent) }
                     }
@@ -427,7 +427,7 @@ fun SettingsScreen(
                         TextButton(onClick = {
                             ctx.startActivity(
                                 Intent(Intent.ACTION_VIEW,
-                                    Uri.parse("https://github.com/nofuturekid/nova/releases"))
+                                    Uri.parse("https://github.com/hellwand/nova/releases"))
                             )
                         }) { Text("View on GitHub", color = t.accent) }
                     }
@@ -437,7 +437,7 @@ fun SettingsScreen(
                             .clickable {
                                 ctx.startActivity(
                                     Intent(Intent.ACTION_VIEW,
-                                        Uri.parse("https://github.com/nofuturekid/nova/blob/main/docs/privacy/POLICY.md"))
+                                        Uri.parse("https://github.com/hellwand/nova/blob/main/docs/privacy/POLICY.md"))
                                 )
                             }
                             .padding(vertical = 8.dp),

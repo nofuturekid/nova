@@ -337,7 +337,21 @@ type ArrayDisk {
     critical: Int
 }
 
+# The API reports RUNNING and PAUSED for every parity operation (check, sync,
+# disk rebuild, clear) and does not say which one it is. `running`, `paused` and
+# `errors` below are declared but the Unraid API never fills them; `status` is
+# the reliable field.
+enum ParityCheckStatus {
+    NEVER_RUN
+    RUNNING
+    PAUSED
+    COMPLETED
+    CANCELLED
+    FAILED
+}
+
 type ParityCheck {
+    status: ParityCheckStatus!
     progress: Int
     speed: String
     errors: Int

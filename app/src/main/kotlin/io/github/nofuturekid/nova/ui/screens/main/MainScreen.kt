@@ -270,9 +270,9 @@ fun MainScreen(
                         onResumeParity = { vm.resumeParityCheck() },
                         onCancelParity = {
                             confirm = ConfirmRequest(
-                                title = "Cancel the parity check?",
-                                body = "Progress is discarded. You'll have to start over from the beginning next time.",
-                                confirmLabel = "Cancel check",
+                                title = "Stop the parity operation?",
+                                body = "This stops the running parity operation (check, sync or rebuild). Progress is discarded, and a new run starts from the beginning.",
+                                confirmLabel = "Stop operation",
                                 tone = Tone.Danger,
                                 icon = { UC.Stop(22.dp, t.danger) },
                                 onConfirm = { vm.cancelParityCheck(); confirm = null },

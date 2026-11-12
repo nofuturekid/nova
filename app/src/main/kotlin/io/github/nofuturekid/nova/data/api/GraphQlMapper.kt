@@ -52,6 +52,7 @@ import io.github.nofuturekid.nova.graphql.type.ArrayDiskStatus
 import io.github.nofuturekid.nova.graphql.type.ArrayDiskType
 import io.github.nofuturekid.nova.graphql.type.ArrayState as GArrayState
 import io.github.nofuturekid.nova.graphql.type.ContainerState as GContainerState
+import io.github.nofuturekid.nova.graphql.type.ParityCheckStatus as GParityStatus
 import io.github.nofuturekid.nova.graphql.type.NotificationImportance as GNotifImportance
 import io.github.nofuturekid.nova.graphql.type.NotificationType as GNotifType
 import io.github.nofuturekid.nova.graphql.type.PluginInstallStatus as GPluginInstallStatus
@@ -165,15 +166,17 @@ fun GetArrayQuery.Data.toArrayInfo(): ArrayInfo {
         state = arrBlock.state.toDomain(),
         totalTb = totalTb,
         usedTb = usedTb,
+        // The Unraid API never fills running/paused/errors; `status` is the
+        // reliable field. Plain comparisons, not an exhaustive `when`: Apollo
+        // adds an UNKNOWN__ value for enum members this schema does not list.
+        // running == true stays as a fallback for servers that do fill it.
         parity = arrBlock.parityCheckStatus?.takeIf {
-            it.running == true
+            it.status == GParityStatus.RUNNING || it.status == GParityStatus.PAUSED || it.running == true
         }?.let { p ->
             ParityCheck(
                 progress = (p.progress ?: 0) / 100f,
                 speedMbps = parseSpeedMbps(p.speed),
-                errors = p.errors ?: 0,
-                etaSeconds = 0,
-                paused = p.paused == true,
+                paused = p.status == GParityStatus.PAUSED || p.paused == true,
             )
         },
         disks = parities + data + caches,

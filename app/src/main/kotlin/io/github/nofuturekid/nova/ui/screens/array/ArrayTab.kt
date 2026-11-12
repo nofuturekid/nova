@@ -118,7 +118,7 @@ private fun ArrayContent(
                                 text = when {
                                     !arrayOn -> "Stopped"
                                     errored  -> "Disk error"
-                                    parity   -> "Parity check"
+                                    parity   -> "Parity operation"
                                     else     -> "Started"
                                 },
                                 color = t.text,
@@ -160,7 +160,7 @@ private fun ArrayContent(
                         ) {
                             Row {
                                 Text(
-                                    if (pc.paused) "Parity check paused" else "Parity check in progress",
+                                    if (pc.paused) "Parity operation paused" else "Parity operation in progress",
                                     color = t.info,
                                     style = MaterialTheme.typography.labelLarge,
                                 )
@@ -176,13 +176,10 @@ private fun ArrayContent(
                             Spacer(Modifier.height(8.dp))
                             Row {
                                 Text(
-                                    "${"%.0f".format(pc.speedMbps)} MB/s · ${countLabel(pc.errors, "error")}",
+                                    "${"%.0f".format(pc.speedMbps)} MB/s",
                                     color = t.muted,
                                     style = MaterialTheme.typography.labelSmall,
                                 )
-                                Spacer(Modifier.weight(1f))
-                                val eta = formatEta(pc.etaSeconds)
-                                if (eta.isNotEmpty()) Text("~$eta remaining", color = t.muted, style = MaterialTheme.typography.labelSmall)
                             }
                             Spacer(Modifier.height(10.dp))
                             Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
@@ -217,7 +214,7 @@ private fun ArrayContent(
                                 )
                             }
                         }
-                    } else if (arrayOn) {
+                    } else if (arrayOn && !parity) {
                         Spacer(Modifier.height(12.dp))
                         UnraidButton(
                             onClick = onStartParity,
@@ -502,10 +499,3 @@ private fun DiskCard(disk: Disk, errored: Boolean, globalDiskWarnC: Int? = null,
 
 private fun formatTb(tb: Double): String =
     if (tb < 1) "${(tb * 1000).toInt()} GB" else "%.2f TB".format(tb)
-
-private fun formatEta(seconds: Int): String {
-    if (seconds <= 0) return ""
-    val h = seconds / 3600
-    val m = (seconds % 3600) / 60
-    return if (h > 0) "${h}h ${m}m" else "${m}m"
-}

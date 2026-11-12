@@ -114,7 +114,7 @@ class UpdateRepository @Inject constructor() {
     }
 
     companion object {
-        private const val REPO = "nofuturekid/nova"
+        private const val REPO = "hellwand/nova"
 
         private fun parseIso8601(raw: String?): Long? {
             if (raw.isNullOrBlank()) return null

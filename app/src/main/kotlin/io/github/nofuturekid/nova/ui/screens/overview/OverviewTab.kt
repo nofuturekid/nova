@@ -241,7 +241,7 @@ private fun OverviewContent(
                                 .padding(horizontal = 12.dp, vertical = 10.dp),
                         ) {
                             Row {
-                                Text(if (p.paused) "Parity check paused" else "Parity check running", color = t.info, style = MaterialTheme.typography.labelMedium)
+                                Text(if (p.paused) "Parity operation paused" else "Parity operation running", color = t.info, style = MaterialTheme.typography.labelMedium)
                                 Spacer(Modifier.weight(1f))
                                 Text(
                                     "${(p.progress * 100).toInt()}% · ${"%.0f".format(p.speedMbps)} MB/s",
