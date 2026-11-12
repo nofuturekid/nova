@@ -15,6 +15,22 @@ release version + date and opens a fresh `[Unreleased]`.
 
 ## [Unreleased]
 
+### Fixed
+- **Tapping Install twice no longer starts the update twice** — a double
+  tap on "Install" in the update dialog now starts exactly one download
+  and one install (#241).
+- **Settings no longer crashes when the install-permission screen is
+  missing** — on a phone without the "install unknown apps" screen, the
+  update dialog in Settings now shows "Can't open the install-permission
+  screen on this device" instead of closing the app (#242).
+- **VMs no longer show "0 vCPU · 0 GB"** — the VM list and the VM details
+  hide the CPU, memory and GPU values while the server does not report
+  them, instead of showing zeros (#243).
+- **A server that cannot be reached now says so in plain words** — the
+  error screen shows "Check that the server is online and the address is
+  correct." instead of a long technical error text. The technical text is
+  still available under "Show details" (#266).
+
 ## [0.1.42] - 2026-11-12
 
 Actions that fail now tell you why, safer VM and container controls, live
