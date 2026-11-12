@@ -347,6 +347,7 @@ gh secret list --repo nofuturekid/nova
 5. Wait for CI green
 6. `gh pr merge <n> --squash --delete-branch`
 7. Shipping a release? Do not tag the feature merge. Open a separate version-bump PR (ADR-0015, see "Release procedure" above); once it is green and squash-merged, tag that squash commit on `main`: `git tag -a vX.Y.Z[-betaN] -m "..." && git push origin vX.Y.Z[-betaN]`
+8. Claude Code: saved workflows `nova-research`, `nova-pr`, `nova-merge-train` (`.claude/workflows/`); rules in `.claude/CLAUDE.md` ("Working rules"). See CONTRIBUTING.md, "Claude Code setup".
 
 ### Schema changes
 
