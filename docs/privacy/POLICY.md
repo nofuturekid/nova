@@ -74,4 +74,4 @@ Changes are versioned in this repository under [`docs/privacy/`](https://github.
 
 ## Contact
 
-Bug reports and questions are best filed as GitHub issues: <https://github.com/hellwand/nova/issues>. The repository is owned by the GitHub organization `hellwand`; the maintainer is identified on the organization and member profiles.
+Bug reports and questions are best filed as GitHub issues: <https://github.com/hellwand/nova/issues>. The repository is owned by the GitHub organization `hellwand`; the maintainer is identified on the GitHub profile <https://github.com/nofuturekid>.

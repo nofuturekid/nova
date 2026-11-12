@@ -217,7 +217,7 @@ ships a formal Privacy Policy referenced from both app and stores.
 
 ### Added
 - **Distribution flavors** — the app now builds in two product flavors: **`direct`** (status quo — GitHub Releases with the in-app updater intact) and **`store`** (F-Droid + future Play distribution, with the in-app updater UI hidden and `REQUEST_INSTALL_PACKAGES` excluded from the manifest). Same app from the user's perspective — same `applicationId`, same UI minus the Updates section in store builds. Per ADR-0040.
-- **Privacy Policy** — formal policy at [`docs/privacy/POLICY.md`](https://github.com/hellwand/nova/blob/main/docs/privacy/POLICY.md), linked from Settings → About (new "Privacy Policy ›" row between "Releases" and "Open-source licenses"); README "Privacy & data handling" section gains a link to the full policy. No behavioural change — formalises the existing data-handling model (API-key on-device-encrypted, no telemetry, no third-party services in either flavor).
+- **Privacy Policy** — formal policy at [`docs/privacy/POLICY.md`](https://github.com/nofuturekid/nova/blob/main/docs/privacy/POLICY.md), linked from Settings → About (new "Privacy Policy ›" row between "Releases" and "Open-source licenses"); README "Privacy & data handling" section gains a link to the full policy. No behavioural change — formalises the existing data-handling model (API-key on-device-encrypted, no telemetry, no third-party services in either flavor).
 
 ## [0.1.34] - 2026-05-21
 
@@ -242,7 +242,7 @@ Renamed from `UnraidControl` to **NOVA** for compliance with the Lime Technology
 
 ### Heads-up — existing installs do not auto-update
 
-The Android `applicationId` changed from `net.unraidcontrol.app` to `io.github.nofuturekid.nova`. From Android's view, NOVA is a new app — your old UnraidControl install stays on `0.1.33-beta2` and no longer receives updates. **Install NOVA fresh from the [Releases page](https://github.com/hellwand/nova/releases)**, re-enter your server's API key, and uninstall the old app. Server entries and theme preferences live in per-app DataStore and don't migrate — this is a one-time clean break.
+The Android `applicationId` changed from `net.unraidcontrol.app` to `io.github.nofuturekid.nova`. From Android's view, NOVA is a new app — your old UnraidControl install stays on `0.1.33-beta2` and no longer receives updates. **Install NOVA fresh from the [Releases page](https://github.com/nofuturekid/nova/releases)**, re-enter your server's API key, and uninstall the old app. Server entries and theme preferences live in per-app DataStore and don't migrate — this is a one-time clean break.
 
 ### Added
 - **Settings → About** — app name + version, GPL v3 + source-code link, full Unraid® trademark attribution paragraph (per ADR-0038 / §6), and an open-source license list (powered by AboutLibraries).
