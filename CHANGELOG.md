@@ -15,7 +15,20 @@ release version + date and opens a fresh `[Unreleased]`.
 
 ## [Unreleased]
 
+### Changed
+- **The project moved to github.com/hellwand/nova** — the app now looks
+  for updates there, and the links in Settings (source code, releases,
+  privacy policy) point to the new address (#270).
+
 ### Fixed
+- **The parity card now appears while a parity operation runs or is
+  paused** — on the Array and Overview screens it used to stay hidden on
+  a real server. Because the server reports a parity check, a parity
+  sync and a disk rebuild the same way, the card is now titled "Parity
+  operation", the button that starts a parity check is hidden while one
+  is active, and cancelling asks first and says it stops the running
+  operation. The server does not report an error count or the remaining
+  time, so the card no longer shows them (#244).
 - **Tapping Install twice no longer starts the update twice** — a double
   tap on "Install" in the update dialog now starts exactly one download
   and one install (#241).
