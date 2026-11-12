@@ -4,9 +4,9 @@
 
 **NOVA for Unraid® — your NAS in your pocket. A fast, native Android app for keeping an eye on — and a hand on — your Unraid® server.**
 
-[![Live Interactive Preview — no install](https://img.shields.io/badge/%E2%96%B6%20Live%20Interactive%20Preview-no%20install-22d3a4?style=for-the-badge&logo=googlechrome&logoColor=white)](https://nofuturekid.github.io/nova/)
+[![Project website](https://img.shields.io/badge/Project%20website-screenshots%20%26%20install-22d3a4?style=for-the-badge&logo=googlechrome&logoColor=white)](https://nofuturekid.github.io/nova/)
 
-_See the actual UI in your browser — sample data, no server needed (snapshot of the 0.1.31 cycle)._
+_Screenshots, install options and the privacy summary on the project website._
 
 [![Stable](https://img.shields.io/github/v/release/nofuturekid/nova?sort=semver&label=stable&color=blue&style=flat-square&logo=github)](https://github.com/nofuturekid/nova/releases/latest)
 [![Beta](https://img.shields.io/github/v/release/nofuturekid/nova?include_prereleases&label=beta&color=orange&style=flat-square&logo=github)](https://github.com/nofuturekid/nova/releases)
@@ -34,7 +34,7 @@ It talks to your server through the official Unraid API (the Connect plugin's Gr
 
 ## Screenshots
 
-**Live interactive preview (no install):** <https://nofuturekid.github.io/nova/> — a clickable prototype of the UI (snapshot of the 0.1.31 cycle; sample data, not a live server).
+**Project website:** <https://nofuturekid.github.io/nova/> — screenshots, install options and a summary of the privacy policy.
 
 <div align="center">
 

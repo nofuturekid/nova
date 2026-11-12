@@ -1,0 +1,434 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>NOVA: an open-source Android client for Unraid servers</title>
+    <meta
+      name="description"
+      content="NOVA is a community-built, open-source Android client for Unraid servers: array health, containers, VMs and live system metrics in a Material 3 interface made for quick mobile checks."
+    />
+    <meta name="color-scheme" content="light dark" />
+    <link rel="icon" href="favicon.svg" type="image/svg+xml" />
+    <link
+      rel="preload"
+      href="fonts/geist-latin.woff2"
+      as="font"
+      type="font/woff2"
+      crossorigin
+    />
+    <link rel="stylesheet" href="style.css" />
+  </head>
+  <body>
+    <a class="skip" href="#main">Skip to content</a>
+
+    <header class="top">
+      <div class="wrap bar">
+        <a class="brand" href="./">
+          <img src="assets/icon.png" alt="" width="32" height="32" />
+          <span>NOVA</span>
+        </a>
+        <nav aria-label="Main">
+          <a href="#screens">Screens</a>
+          <a href="#features">Features</a>
+          <a href="#install">Install</a>
+          <a href="#privacy">Privacy</a>
+          <a href="#links">Links</a>
+          <a href="https://github.com/nofuturekid/nova">GitHub</a>
+        </nav>
+      </div>
+    </header>
+
+    <main id="main">
+      <section class="hero">
+        <div class="wrap">
+          <img
+            class="app-icon"
+            src="assets/icon.png"
+            alt="The NOVA app icon: a green four-pointed star on a dark background"
+            width="96"
+            height="96"
+          />
+          <p class="eyebrow">Open source, for Android 8.0 and newer</p>
+          <h1>Your Unraid server, in your pocket.</h1>
+          <p class="lead">
+            NOVA is a community-built, open-source Android client for
+            Unraid&reg; servers: array health, container and VM state and live
+            system metrics in a clean Material 3 interface tuned for quick
+            mobile checks.
+          </p>
+          <p class="cta">
+            <a
+              class="btn primary"
+              href="https://f-droid.org/packages/io.github.nofuturekid.nova/"
+              >Get it on F-Droid</a
+            >
+            <a
+              class="btn"
+              href="https://github.com/nofuturekid/nova/releases/latest"
+              >Download APK</a
+            >
+          </p>
+          <p class="note">
+            It talks to your server through the official Unraid API over your
+            own network.
+          </p>
+        </div>
+      </section>
+
+      <section id="screens" aria-labelledby="screens-h">
+        <div class="wrap">
+          <h2 id="screens-h">The app</h2>
+          <p class="sub">
+            Screenshots of NOVA with sample data. Tap one for the full size.
+          </p>
+          <ul class="phones">
+            <li class="shot">
+              <a href="assets/screenshots/1.png"
+                ><img
+                  src="assets/screenshots/1.png"
+                  loading="lazy"
+                  width="1078"
+                  height="2399"
+                  alt="The Overview tab: array capacity, CPU load, memory, network speed and temperature"
+              /></a>
+              <p>Overview</p>
+            </li>
+            <li class="shot">
+              <a href="assets/screenshots/2.png"
+                ><img
+                  src="assets/screenshots/2.png"
+                  loading="lazy"
+                  width="1078"
+                  height="2399"
+                  alt="The Array tab: array status with a stop button and a check parity button, then every disk with temperature and usage"
+              /></a>
+              <p>Array</p>
+            </li>
+            <li class="shot">
+              <a href="assets/screenshots/3.png"
+                ><img
+                  src="assets/screenshots/3.png"
+                  loading="lazy"
+                  width="1078"
+                  height="2399"
+                  alt="The Docker tab: a banner for containers with updates and a list of containers with status and CPU and memory use"
+              /></a>
+              <p>Docker</p>
+            </li>
+            <li class="shot">
+              <a href="assets/screenshots/4.png"
+                ><img
+                  src="assets/screenshots/4.png"
+                  loading="lazy"
+                  width="1078"
+                  height="2399"
+                  alt="The VMs tab: virtual machines with their state and a start, pause or resume button"
+              /></a>
+              <p>VMs</p>
+            </li>
+            <li class="shot">
+              <a href="assets/screenshots/5.png"
+                ><img
+                  src="assets/screenshots/5.png"
+                  loading="lazy"
+                  width="1078"
+                  height="2399"
+                  alt="Container details: update, restart, stop and open Web UI buttons, with tabs for info, logs, ports and volumes"
+              /></a>
+              <p>Container details</p>
+            </li>
+            <li class="shot">
+              <a href="assets/screenshots/6.png"
+                ><img
+                  src="assets/screenshots/6.png"
+                  loading="lazy"
+                  width="1078"
+                  height="2399"
+                  alt="The notifications sheet with Unread and Archived tabs and an Archive all button"
+              /></a>
+              <p>Notifications</p>
+            </li>
+          </ul>
+        </div>
+      </section>
+
+      <section id="features" aria-labelledby="features-h">
+        <div class="wrap">
+          <h2 id="features-h">What it does</h2>
+          <ul class="cards">
+            <li>
+              <h3>Overview</h3>
+              <p>
+                Array capacity, live CPU and memory, container and VM counts and
+                parity-check progress at a glance.
+              </p>
+            </li>
+            <li>
+              <h3>Array</h3>
+              <p>
+                Per-disk status, temperatures and capacity. Start and stop the
+                array.
+              </p>
+            </li>
+            <li>
+              <h3>Docker</h3>
+              <p>
+                Every container with its status. Start, stop, restart or pause
+                one, jump to its Web UI, see live container logs, and find out
+                which containers have an image update and apply it, for one
+                container or all.
+              </p>
+            </li>
+            <li>
+              <h3>VMs</h3>
+              <p>
+                The state of every virtual machine, with start, stop, pause and
+                resume.
+              </p>
+            </li>
+            <li>
+              <h3>Multiple servers</h3>
+              <p>
+                Switch between servers. Each one has its own local and remote
+                address.
+              </p>
+            </li>
+            <li>
+              <h3>Notifications</h3>
+              <p>Unraid notifications with Unread and Archived tabs.</p>
+            </li>
+            <li>
+              <h3>Plugins and network</h3>
+              <p>
+                A read-only inventory of server plugins with their install
+                history, and a read-only list of network interfaces (IPv4, IPv6
+                and hardware).
+              </p>
+            </li>
+            <li>
+              <h3>Your look</h3>
+              <p>
+                In Settings, pick an accent colour (mint, blue, purple, amber or
+                red), dark or light mode, a padding density and a Docker layout
+                (list, grid or grouped by state).
+              </p>
+            </li>
+          </ul>
+          <p class="sub">
+            NOVA shows what the Unraid API offers today. It is an independent
+            client and is not affiliated with Lime Technology.
+          </p>
+        </div>
+      </section>
+
+      <section id="install" aria-labelledby="install-h">
+        <div class="wrap">
+          <h2 id="install-h">Install</h2>
+          <p class="sub">
+            NOVA comes in two builds of the same app, one for F-Droid and one
+            from GitHub. They differ only in how they are updated.
+          </p>
+          <div class="grid2 install">
+            <article class="card">
+              <h3>F-Droid</h3>
+              <p>
+                The F-Droid build follows the stable releases. F-Droid installs
+                and updates it; the app has no updater of its own and makes no
+                GitHub requests for updates.
+              </p>
+              <p>
+                <a
+                  href="https://f-droid.org/packages/io.github.nofuturekid.nova/"
+                  >NOVA on F-Droid</a
+                >
+              </p>
+            </article>
+            <article class="card">
+              <h3>GitHub</h3>
+              <p>
+                Download the APK from the latest release. This build has an
+                in-app updater that checks GitHub, and an optional
+                &ldquo;Include pre-releases&rdquo; setting if you want betas.
+                Android asks you to allow installs from your browser or files
+                app, which is expected for apps from outside a store.
+              </p>
+              <p>
+                <a href="https://github.com/nofuturekid/nova/releases/latest"
+                  >Latest release</a
+                >
+                &middot;
+                <a href="https://github.com/nofuturekid/nova/releases"
+                  >All releases</a
+                >
+              </p>
+            </article>
+          </div>
+          <p class="callout">
+            <strong>The two builds cannot update each other.</strong> They are
+            signed with different keys, so Android refuses to install one over
+            the other. To switch, uninstall one and install the other.
+            Uninstalling removes the app&rsquo;s local data, so you add your
+            servers again.
+          </p>
+
+          <h3 class="h3-gap">Requirements</h3>
+          <ul class="plain">
+            <li>Android 8.0 or newer.</li>
+            <li>An Unraid 7.x server with the API/Connect plugin enabled.</li>
+            <li>
+              All app features need Unraid API <strong>4.30.0 or newer</strong>;
+              the live network speed needs <strong>4.35.0 or newer</strong>
+              (API versions, not Unraid OS versions). On an older API some
+              screens fail to load.
+            </li>
+          </ul>
+
+          <h3 class="h3-gap">Set it up</h3>
+          <ol class="plain">
+            <li>
+              On your Unraid server, create an <strong>API key</strong>: web UI,
+              <em>Settings &rarr; Management Access &rarr; API / Connect</em>.
+            </li>
+            <li>
+              Open the app and choose <strong>Add server</strong>. Fill in a
+              <strong>Server name</strong> (a label), the
+              <strong>Local host</strong> (its address on your home network,
+              for example <code>192.168.1.10</code>; switch on
+              <strong>Use SSL (HTTPS)</strong> if the server uses HTTPS),
+              optionally a <strong>Remote host (Unraid Connect)</strong> for
+              when you are away, and the <strong>API Key</strong> you just
+              created.
+            </li>
+            <li>
+              Tap <strong>Test</strong>, then <strong>Save</strong>. The pill in
+              the top bar switches between <strong>Local</strong> and
+              <strong>Remote</strong>.
+            </li>
+          </ol>
+
+          <h3 class="h3-gap">Verify the GitHub APK</h3>
+          <p class="sub">
+            The APKs on GitHub are signed with one release key. Its certificate
+            SHA-256 is public, so you can compare it with the output of
+            <code>apksigner verify --print-certs</code> on a downloaded APK:
+          </p>
+          <pre
+            class="digest"
+          ><code>9f86baa17c1208004d9284e99597f77276c77301b06340b10075c793152b6824</code></pre>
+        </div>
+      </section>
+
+      <section id="privacy" aria-labelledby="privacy-h">
+        <div class="wrap">
+          <h2 id="privacy-h">Privacy</h2>
+          <p class="sub">
+            The short version of the
+            <a
+              href="https://github.com/nofuturekid/nova/blob/main/docs/privacy/POLICY.md"
+              >privacy policy</a
+            >, which is the authoritative text.
+          </p>
+          <ul class="cards">
+            <li>
+              <h3>Stays on your device</h3>
+              <p>
+                Your API key is stored encrypted with the Android Keystore and
+                is excluded from cloud backup and device transfer. It only
+                leaves the device in requests to your own Unraid server.
+              </p>
+            </li>
+            <li>
+              <h3>Your server</h3>
+              <p>
+                All app functionality runs through your own server, at the
+                addresses you configured.
+              </p>
+            </li>
+            <li>
+              <h3>Container icons</h3>
+              <p>
+                The icon of each container comes from a URL your server
+                provides, usually a host chosen by the template author, such as
+                <code>raw.githubusercontent.com</code>,
+                <code>cdn.jsdelivr.net</code> or <code>github.com</code>. The
+                app fetches it directly, so that host sees your IP address. NOVA
+                adds no credentials to these requests.
+              </p>
+            </li>
+            <li>
+              <h3>Update check (GitHub build)</h3>
+              <p>
+                The GitHub build contacts <code>api.github.com</code> when the
+                app starts, when you open Settings and when you press
+                &ldquo;Check now&rdquo;. An in-app update is downloaded from a
+                GitHub release. The F-Droid build makes no such requests.
+              </p>
+            </li>
+            <li>
+              <h3>Nothing else</h3>
+              <p>
+                No analytics, no telemetry, no crash reporting, no advertising
+                and no third-party sign-in. Uninstalling the app removes
+                everything it stored.
+              </p>
+            </li>
+          </ul>
+        </div>
+      </section>
+
+      <section id="links" aria-labelledby="links-h">
+        <div class="wrap">
+          <h2 id="links-h">Links</h2>
+          <ul class="links">
+            <li>
+              <a href="https://github.com/nofuturekid/nova/releases">Releases</a
+              ><span>release notes and APKs</span>
+            </li>
+            <li>
+              <a
+                href="https://github.com/nofuturekid/nova/blob/main/CHANGELOG.md"
+                >Changelog</a
+              ><span>every user-facing change</span>
+            </li>
+            <li>
+              <a href="https://github.com/nofuturekid/nova/issues">Issues</a
+              ><span>bug reports and ideas</span>
+            </li>
+            <li>
+              <a href="https://github.com/nofuturekid/nova/security/policy"
+                >Security policy</a
+              ><span>how to report a vulnerability privately</span>
+            </li>
+            <li>
+              <a href="https://github.com/nofuturekid/nova/blob/main/LICENSE"
+                >Licence</a
+              ><span>GPL-3.0-only</span>
+            </li>
+            <li>
+              <a href="https://github.com/nofuturekid/nova">Source code</a
+              ><span>on GitHub</span>
+            </li>
+          </ul>
+        </div>
+      </section>
+    </main>
+
+    <footer>
+      <div class="wrap">
+        <p>
+          NOVA is licensed under the
+          <a href="https://github.com/nofuturekid/nova/blob/main/LICENSE"
+            >GNU General Public License v3.0</a
+          >.
+        </p>
+        <p>
+          Unraid&reg; is a registered trademark of Lime Technology, Inc. NOVA is
+          an independent, community-built client and is not affiliated with,
+          endorsed by or supported by Lime Technology.
+        </p>
+        <p>Font: Geist, <a href="fonts/geist-OFL.txt">SIL OFL 1.1</a>.</p>
+      </div>
+    </footer>
+  </body>
+</html>
