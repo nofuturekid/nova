@@ -19,6 +19,12 @@ Thanks for wanting to contribute. The workflow is intentionally lightweight.
 4. CI (`ci.yml`) runs automatically on the PR. It builds debug + signed release APKs in one shot (≈ 8 min for a code PR; docs-only PRs finish in seconds). Wait for green.
 5. Merge when CI is green. Squash-merge is the only allowed method (the repo disables merge commits and rebase merges); `release.yml` relies on the `(#NN)` in the squash subject.
 
+### Claude Code setup (maintainer tooling)
+
+The `.claude/` directory configures how the maintainer works with Claude Code: the "Working rules" (rule IDs such as R-FREEZE) in `.claude/CLAUDE.md`, two role files (`nova-builder`, `nova-reviewer`), three saved workflows in `.claude/workflows/` (`nova-research`, `nova-pr`, `nova-merge-train`), the `release-engineer` agent and two skills. External contributors can ignore all of it.
+
+Files there are instructions that run with the maintainer's credentials, so changes under `.claude/` are reviewed like code, and a saved workflow is never run from a checkout of someone else's PR branch. A commit made with Claude ends with `Co-Authored-By: Claude <Model> <noreply@anthropic.com>`, naming the model that wrote the change; no session link is added (R-TRAILER).
+
 ## Contribution flow (external contributors)
 
 External contributors submit PRs from a fork. CI on a fork PR proves
