@@ -34,6 +34,7 @@ import io.github.nofuturekid.nova.ui.components.UnraidIconButton
 import io.github.nofuturekid.nova.ui.components.onTone
 import io.github.nofuturekid.nova.ui.theme.UnraidAlpha
 import io.github.nofuturekid.nova.ui.theme.UnraidTheme
+import io.github.nofuturekid.nova.ui.util.vmSpecRows
 
 /**
  * VM detail bottom-sheet — opened by tapping a VM tile/card. Mirrors
@@ -95,10 +96,11 @@ fun VmDetailSheet(
             }
 
             Spacer(Modifier.height(18.dp))
-            InfoRow("vCPUs", "${vm.vcpus}")
-            InfoRow("Memory", "${vm.memGb} GB")
-            InfoRow("GPU", vm.gpu ?: "—")
-            Spacer(Modifier.height(18.dp))
+            val specRows = vmSpecRows(vm.vcpus, vm.memGb, vm.gpu)
+            if (specRows.isNotEmpty()) {
+                specRows.forEach { (label, value) -> InfoRow(label, value) }
+                Spacer(Modifier.height(18.dp))
+            }
 
             Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                 when (vm.state) {

@@ -1,4 +1,4 @@
-# Reproducible local-CI toolchain for UnraidControl.
+# Reproducible local-CI toolchain for NOVA.
 #
 # Mirrors the GitHub Actions environment (.github/workflows/ci.yml):
 #   - Temurin JDK 21 as the BUILD JVM (ADR-0023). App bytecode stays

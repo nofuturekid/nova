@@ -164,8 +164,7 @@ class SettingsViewModel @Inject constructor(
 
     fun launchPermissionIntent(state: InstallState.NeedsPermission, launch: (Intent) -> Unit) {
         if (!BuildConfig.HAS_UPDATER) return
-        launch(state.intent)
-        updateController.resetInstall()
+        updateController.launchPermissionIntent(state, launch)
     }
 }
 

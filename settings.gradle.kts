@@ -20,5 +20,5 @@ dependencyResolutionManagement {
     }
 }
 
-rootProject.name = "UnraidControl"
+rootProject.name = "nova"
 include(":app")

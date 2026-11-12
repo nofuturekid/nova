@@ -43,6 +43,7 @@ import io.github.nofuturekid.nova.ui.screens.ErrorState
 import io.github.nofuturekid.nova.ui.screens.LoadingState
 import io.github.nofuturekid.nova.ui.screens.NoServerState
 import io.github.nofuturekid.nova.ui.theme.UnraidTheme
+import io.github.nofuturekid.nova.ui.util.vmSpecSummary
 
 @Composable
 fun VmsTab(
@@ -57,7 +58,7 @@ fun VmsTab(
     when (state) {
         DomainState.Loading    -> LoadingState()
         DomainState.NoServer   -> NoServerState(onAdd = onAddServer)
-        is DomainState.Error   -> ErrorState(state.message)
+        is DomainState.Error   -> ErrorState(state.message, detail = state.detail)
         is DomainState.Content -> {
             val vms = state.value
             if (vms.isEmpty()) {
@@ -233,14 +234,13 @@ private fun VmCard(
                 Spacer(Modifier.height(3.dp))
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                     Pill(stateLabel, tone = tone, dot = true)
-                    Text(
-                        text = buildString {
-                            append("${vm.vcpus} vCPU · ${vm.memGb} GB")
-                            if (vm.gpu != null) append(" · ${vm.gpu}")
-                        },
-                        color = t.muted,
-                        style = MaterialTheme.typography.labelSmall,
-                    )
+                    vmSpecSummary(vm.vcpus, vm.memGb, vm.gpu)?.let { specs ->
+                        Text(
+                            text = specs,
+                            color = t.muted,
+                            style = MaterialTheme.typography.labelSmall,
+                        )
+                    }
                 }
             }
             when (vm.state) {

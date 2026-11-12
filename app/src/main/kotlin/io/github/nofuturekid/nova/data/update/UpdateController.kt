@@ -1,5 +1,7 @@
 package io.github.nofuturekid.nova.data.update
 
+import android.content.ActivityNotFoundException
+import android.content.Intent
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -76,10 +78,16 @@ class UpdateController(
         // second call is a no-op: ignore it rather than launch a coroutine
         // that would clobber the first install's progress back to
         // Downloading(0f) and commit a duplicate session.
-        val state = _installState.value
-        if (state !is InstallState.Idle && state !is InstallState.Failed) return
+        //
+        // The slot is claimed atomically BEFORE launching (#241): a plain
+        // read-then-launch left a window in which two calls made before the
+        // coroutine had run both saw Idle and both started an install.
+        while (true) {
+            val state = _installState.value
+            if (state !is InstallState.Idle && state !is InstallState.Failed) return
+            if (_installState.compareAndSet(state, InstallState.Downloading(0f))) break
+        }
         scope.launch {
-            _installState.value = InstallState.Downloading(0f)
             try {
                 val apk = installer.download(
                     info.downloadUrl,
@@ -107,5 +115,21 @@ class UpdateController(
 
     fun installFailed(message: String) {
         _installState.value = InstallState.Failed(message)
+    }
+
+    /**
+     * Opens the "install unknown apps" screen through [launch] and resets
+     * the install state. A ROM without that settings activity makes the
+     * launcher throw [ActivityNotFoundException]; that is reported through
+     * the install-error path instead of crashing or silently resetting to
+     * Idle. Shared by the Overview and Settings screens (#242).
+     */
+    fun launchPermissionIntent(state: InstallState.NeedsPermission, launch: (Intent) -> Unit) {
+        try {
+            launch(state.intent)
+            resetInstall()
+        } catch (e: ActivityNotFoundException) {
+            installFailed("Can't open the install-permission screen on this device")
+        }
     }
 }

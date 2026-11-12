@@ -24,4 +24,22 @@ class TextFormatTest {
         assertEquals("236MiB", memUsed("236MiB"))
         assertNull(memLimit("236MiB"))
     }
+
+    // #243: the Unraid API exposes no vCPU / memory / GPU, so these are unknown (null)
+    // and must never render as "0 vCPU · 0 GB".
+    @Test fun unknown_vm_specs_render_nothing() {
+        assertNull(vmSpecSummary(null, null, null))
+        assertEquals(emptyList<Pair<String, String>>(), vmSpecRows(null, null, null))
+    }
+
+    @Test fun known_vm_specs_skip_only_the_unknown_parts() {
+        assertEquals("4 vCPU · 8 GB · RTX 3060", vmSpecSummary(4, 8, "RTX 3060"))
+        assertEquals("2 GB", vmSpecSummary(null, 2, null))
+        assertEquals("4 vCPU", vmSpecSummary(4, null, null))
+        assertEquals(
+            listOf("vCPUs" to "4", "Memory" to "8 GB", "GPU" to "RTX 3060"),
+            vmSpecRows(4, 8, "RTX 3060"),
+        )
+        assertEquals(listOf("Memory" to "2 GB"), vmSpecRows(null, 2, null))
+    }
 }

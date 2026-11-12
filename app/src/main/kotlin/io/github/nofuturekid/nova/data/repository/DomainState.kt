@@ -25,6 +25,12 @@ sealed interface DomainState<out T> {
      */
     data class Content<T>(val value: T, val serverBaseUrl: String = "") : DomainState<T>
 
-    /** Last poll failed and the transient-error tolerance has been exhausted. */
-    data class Error(val message: String) : DomainState<Nothing>
+    /**
+     * Last poll failed and the transient-error tolerance has been exhausted.
+     * [message] is what the user reads. [detail] is the raw technical text
+     * (exception message plus root cause) kept for diagnosis when [message]
+     * is a plain-language replacement; null when [message] already is the
+     * honest, specific text.
+     */
+    data class Error(val message: String, val detail: String? = null) : DomainState<Nothing>
 }
