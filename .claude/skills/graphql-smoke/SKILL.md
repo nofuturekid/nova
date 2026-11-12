@@ -58,4 +58,5 @@ as skipped, not silently dropped.
   vendored subset marked optional). Fix the op before shipping.
 - A non-200 HTTP status usually means auth (`x-api-key`) or connectivity.
 
-Last verified: all 12 read-only ops green (2026-05-29).
+It reads only `queries.graphql`: mutations are never sent, and the WebSocket
+operations in `subscriptions.graphql` are not covered.
