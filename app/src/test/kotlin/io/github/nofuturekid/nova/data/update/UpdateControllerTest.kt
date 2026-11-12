@@ -1,5 +1,6 @@
 package io.github.nofuturekid.nova.data.update
 
+import android.content.ActivityNotFoundException
 import android.content.Intent
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -382,5 +383,54 @@ class UpdateControllerTest {
         controller.installUpdate(info)
         scope.testScheduler.advanceUntilIdle()
         assertEquals("retry after Failed starts a new run", 2, downloads.get())
+    }
+
+    /**
+     * WHY (#242): on a ROM without the unknown-app-sources settings
+     * activity the launcher throws ActivityNotFoundException. The user must
+     * see the install-error message, not a crash and not a silent reset to
+     * Idle. If the guard is removed the exception escapes (test errors); if
+     * the failure is swallowed into Idle the state assertion fails.
+     */
+    @Test
+    fun missingSettingsActivityIsReportedAsInstallFailure() = runTest {
+        val scope = TestScope(UnconfinedTestDispatcher(testScheduler))
+        val controller = UpdateController(FakeInstaller(), scope)
+        val needsPermission = InstallState.NeedsPermission(Intent("test.settings"))
+
+        controller.launchPermissionIntent(needsPermission) {
+            throw ActivityNotFoundException("no settings activity")
+        }
+
+        val s = controller.installState.value
+        assertTrue(s is InstallState.Failed)
+        assertEquals(
+            "Can't open the install-permission screen on this device",
+            (s as InstallState.Failed).message,
+        )
+    }
+
+    /**
+     * WHY (#242): the normal path must hand the intent to the launcher and
+     * clear the NeedsPermission state, otherwise the dialog stays up after
+     * the user came back from the settings screen.
+     */
+    @Test
+    fun launchedPermissionIntentResetsInstallState() = runTest {
+        val scope = TestScope(UnconfinedTestDispatcher(testScheduler))
+        val intent = Intent("test.settings")
+        val controller = UpdateController(
+            FakeInstaller(onInstall = { throw ApkInstaller.NeedsPermissionException(intent) }),
+            scope,
+        )
+        controller.installUpdate(info)
+        scope.testScheduler.advanceUntilIdle()
+        val needsPermission = controller.installState.value as InstallState.NeedsPermission
+
+        var launched: Intent? = null
+        controller.launchPermissionIntent(needsPermission) { launched = it }
+
+        assertEquals(intent, launched)
+        assertEquals(InstallState.Idle, controller.installState.value)
     }
 }

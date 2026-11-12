@@ -1,5 +1,7 @@
 package io.github.nofuturekid.nova.data.update
 
+import android.content.ActivityNotFoundException
+import android.content.Intent
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -115,4 +117,19 @@ class UpdateController(
         _installState.value = InstallState.Failed(message)
     }
 
+    /**
+     * Opens the "install unknown apps" screen through [launch] and resets
+     * the install state. A ROM without that settings activity makes the
+     * launcher throw [ActivityNotFoundException]; that is reported through
+     * the install-error path instead of crashing or silently resetting to
+     * Idle. Shared by the Overview and Settings screens (#242).
+     */
+    fun launchPermissionIntent(state: InstallState.NeedsPermission, launch: (Intent) -> Unit) {
+        try {
+            launch(state.intent)
+            resetInstall()
+        } catch (e: ActivityNotFoundException) {
+            installFailed("Can't open the install-permission screen on this device")
+        }
+    }
 }
