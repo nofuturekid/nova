@@ -30,7 +30,7 @@ _See the actual UI in your browser — sample data, no server needed (snapshot o
 
 NOVA puts the parts of your Unraid® server you actually check on your phone — array health, container and VM state, live system metrics — into a clean, dark, one-thumb interface. Start a container, fix a stuck VM, kick off an update, glance at parity progress: without opening a laptop or fighting the desktop web UI on a phone screen.
 
-It talks to your server through the official Unraid API (the Connect plugin's GraphQL endpoint) over your own network — nothing is routed through any third party.
+It talks to your server through the official Unraid API (the Connect plugin's GraphQL endpoint) over your own network — NOVA itself routes nothing through a third party.
 
 ## Screenshots
 
@@ -51,14 +51,14 @@ It talks to your server through the official Unraid API (the Connect plugin's Gr
 - **Docker** — every container with status; start / stop / restart / pause, jump straight to a container's Web UI, see which have image updates and update one — or all — in a tap
 - **VMs** — VM state with start / stop / pause / resume
 - **Multiple servers** — switch between them; each remembers its own local and remote address
-- **Stay current** — the app checks GitHub for its own updates and installs them in place
+- **Live network speed** — upload/download on the Overview card (needs Unraid API 4.35.0 or newer); the NIC inventory sits under Settings → Network interfaces (vendor, model and link speed only with a third-party API plugin)
+- **Stay current** — the GitHub APK checks GitHub for its own updates and installs them in place (the F-Droid build is updated by F-Droid)
 
 ## What's not in yet
 
 NOVA surfaces what Unraid's GraphQL API exposes today. A few things commonly asked for aren't there yet — most because the upstream API hasn't added them:
 
 - **Plugin updates** — NOVA shows installed plugins and the install-job history, but Unraid's API doesn't expose "update available" status the way it does for Docker containers. Tracking: [unraid/api#2012](https://github.com/unraid/api/issues/2012).
-- **Live NIC traffic** — NOVA shows the static network-interface inventory (IPs, MAC, link speed, vendor) and the primary interface, but RX/TX byte counters / bandwidth aren't exposed by the API yet. Tracking: [unraid/api#1602](https://github.com/unraid/api/issues/1602) (Lime Technology bounty) + the in-flight implementation at [unraid/api#2003](https://github.com/unraid/api/pull/2003).
 - **User shares / SMB / NFS**, **UPS**, **disk SMART**, **parity-check scheduling** — not yet surfaced.
 
 If something on this list (or off it) matters to you, an issue or a 👍 on an existing one is the best signal.
@@ -70,22 +70,24 @@ A deliberately dark, glassy Material 3 design — dense cards, a single accent c
 A few things bend to taste in **Settings**:
 
 - **Accent** — mint, blue, purple, amber or red
-- **Mode** — dark or light
+- **Mode** — dark, light or follow the system
 - **Density** — compact, balanced or spacious padding
 - **Docker layout** — list, grid or grouped-by-state
 
 ## Getting started
 
-1. **Install** the latest APK from the [Releases page](https://github.com/nofuturekid/nova/releases). (Android will ask you to allow installing from your browser/files app — that's expected for apps outside the Play Store.)
+1. **Install** NOVA — either from [F-Droid](https://f-droid.org/packages/io.github.nofuturekid.nova/) (stable releases only) or as the latest APK from the [Releases page](https://github.com/nofuturekid/nova/releases). (For the APK, Android will ask you to allow installing from your browser/files app — that's expected for apps outside the Play Store.)
+   - Betas are GitHub pre-releases, so they come as an APK from the Releases page. The in-app updater keeps it current when **Include pre-releases** is switched on in Settings; Obtainium works too.
+   - The F-Droid build and the GitHub APK are signed with different keys, so switching between them needs an uninstall first (your saved servers and API keys go with the app). See [ADR-0040](./docs/adr/0040-fdroid-play-distribution-flavors.md).
 2. On your Unraid server, generate an **API key**: web UI → _Settings → Management Access → API / Connect_.
 3. Open the app → **Add server** and fill in:
-   - **Name** — a label, e.g. `Tower`
-   - **Local URL** — its address on your home network, e.g. `http://192.168.1.10`
-   - **Remote URL** — optional, e.g. a Connect/remote address for when you're away
-   - **API key** — the one you just generated
-4. Tap **Test**, then **Save**. The pill in the top bar flips between **Local** and **Remote**.
+   - **Server name** — a label, e.g. `Tower`
+   - **Local host** — its address on your home network, e.g. `192.168.1.10`. Flip **Use SSL (HTTPS)** if the server uses HTTPS; for a self-signed certificate also enable **Trust self-signed certificate** and confirm it once
+   - **Remote host (Unraid Connect)** — optional, e.g. `your-server.unraid.net`, for when you're away (with its own **Use SSL (HTTPS)** switch)
+   - **API Key** — the one you just generated
+4. Tap **Test** (next to the local and/or remote connection), then **Save**. The pill in the top bar flips between **Local** and **Remote**.
 
-Requires an Unraid 7.x server with the API/Connect plugin enabled.
+Requires an Unraid 7.x server with the API/Connect plugin enabled. All app features need Unraid API **4.30.0 or newer**; the live network speed needs **4.35.0 or newer** (API versions, not Unraid OS versions). On an older API some screens fail to load.
 
 ## Trademark attribution
 
@@ -95,13 +97,13 @@ Unraid® is a registered trademark of Lime Technology, Inc. NOVA is an independe
 
 - **Full policy:** <https://github.com/nofuturekid/nova/blob/main/docs/privacy/POLICY.md>
 - **Your API key stays on your device.** It's encrypted at rest using Android Keystore via Google's Tink library, and explicitly excluded from cloud backup / device-transfer.
-- **No analytics, no telemetry, no third-party services.** The app talks only to your Unraid server's API and — when you press "Check now" in Settings — to GitHub's API to look for app updates.
-- **Update downloads** go directly from GitHub Releases to your device over HTTPS. The downloaded APK is verified by byte-size match and constant-time SHA-256 against the published release asset before any install attempt; mismatch fails closed. See [ADR-0034](./docs/adr/0034-update-integrity-and-data-at-rest.md) for the rationale.
+- **No analytics, no telemetry, no tracking services.** The app talks to your Unraid server's API; in the GitHub (`direct`) build it also asks GitHub's API for app updates (at app start, when you open Settings, or on "Check now"); and it loads container icons from the URLs your own server supplies (often GitHub or a CDN).
+- **Update downloads** go directly from GitHub Releases to your device over HTTPS. The downloaded APK is verified by byte-size match and constant-time SHA-256 against the published release asset before any install attempt; mismatch fails closed. See [ADR-0034](./docs/adr/0034-update-and-data-at-rest-hardening.md) for the rationale.
 - **Source is the spec.** Audit, fork, run yourself — GPL v3.
 
 ## Contributing & internals
 
-Architecture, the release pipeline, the GraphQL mapping, and design decisions live in [`CONTRIBUTING.md`](./CONTRIBUTING.md) and the Architecture Decision Records under [`docs/adr/`](./docs/adr/). Bug reports and PRs welcome.
+The architecture overview is in [`HANDOFF.md`](./HANDOFF.md) (Layout), design decisions are recorded as Architecture Decision Records under [`docs/adr/`](./docs/adr/), and the contribution workflow and release pipeline are in [`CONTRIBUTING.md`](./CONTRIBUTING.md). Bug reports and PRs welcome.
 
 Before pushing, you can run the exact CI checks locally in a pinned container with `./scripts/local-ci.sh` — see [`docs/local-build.md`](./docs/local-build.md).
 

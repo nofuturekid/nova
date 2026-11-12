@@ -103,3 +103,24 @@ unchanged.
   dependency bumps continue to follow).
 - ADR-0020 (KSP2; example of a dependency move that needed real
   verification, not a blind bump).
+
+## Amendment 2026-11-12 — alert triage policy
+
+State on 2026-11-12: 53 open Dependabot alerts, none dismissed, none on the
+APK runtime classpath. That last statement rests on the submitted dependency
+graph (SBOM) and a source search, not on a Gradle runtime-classpath report. All
+53 are build-tooling alerts (Gradle plugin, lint and test classpath), so none
+is urgent for users of the app. This amendment records how such alerts are
+handled; the radar posture above is unchanged.
+
+- **Bump the toolchain first.** Build-tooling alerts are fixed by bumping the
+  toolchain, AGP before anything else because it carries most of them. Each
+  bump still goes through the normal beta cycle (ADR-0006).
+- **Dismiss only survivors, with an honest reason.** An alert that survives the
+  bump is dismissed with a reason that matches the facts: `not_used` only where
+  the code path is provably idle (the UTP/netty stack is never executed),
+  `tolerable_risk` where the code is loaded on CI runners (the lint classpath:
+  Bouncy Castle, Guava, commons-lang3, httpclient).
+- **Never dismiss ahead of a bump.** Nothing is dismissed before a bump that
+  would close it automatically; re-read the alert list after each toolchain
+  bump and decide on what is left.

@@ -1,4 +1,4 @@
-# Contributing to UnraidControl
+# Contributing to NOVA
 
 Thanks for wanting to contribute. The workflow is intentionally lightweight.
 
@@ -174,8 +174,6 @@ Follow **[Conventional Commits 1.0.0](https://www.conventionalcommits.org/en/v1.
 - Blank line before the body.
 - Breaking change: `!` before the colon (`feat(data)!: …`) **and**
   a `BREAKING CHANGE:` footer explaining the migration.
-- The `https://claude.ai/code/session_…` line stays as an
-  informational trailer at the very end.
 
 **Examples**
 
@@ -194,11 +192,11 @@ Bad: `Fixed bug`, `updates`, `WIP`, `misc changes`, `Docker stuff.`
 
 - Kotlin: idiomatic. No formatter enforced yet — basic IntelliJ defaults are fine.
 - Compose: `@Composable` functions are PascalCase. Helpers and small private composables can live in the same file as their sole caller.
-- Models are in `data/model/Models.kt` and are the contract between UI and the GraphQL layer. Renaming GraphQL fields should only touch `schema.graphqls`, `queries.graphql`, `mutations.graphql`, and `data/api/GraphQlMapper.kt`.
+- Models are in `data/model/Models.kt` and are the contract between UI and the GraphQL layer. Renaming GraphQL fields should only touch `schema.graphqls`, `queries.graphql`, `mutations.graphql`, `subscriptions.graphql`, and `data/api/GraphQlMapper.kt`.
 
 ## Project layout
 
-See `README.md` for the full architecture overview. Quick orientation:
+See [`HANDOFF.md`](HANDOFF.md) ("Layout") and [`docs/adr/`](docs/adr/) for the architecture overview. Quick orientation:
 
 - `app/src/main/graphql/` — Apollo schema + operations
 - `app/src/main/kotlin/.../data/` — repositories, Apollo client, domain models

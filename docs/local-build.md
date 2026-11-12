@@ -23,9 +23,9 @@ Run it before every push. It:
    runs:
    - `:app:generateApolloSources` (Apollo codegen — listed first so codegen
      errors surface crisply)
-   - `:app:lintDebug`
-   - `:app:assembleDebug`
-   - `:app:assembleRelease`
+   - `:app:lintDirectDebug`
+   - `:app:assembleDirectDebug`
+   - `:app:assembleRelease` (both `direct` and `store` flavors, ADR-0040)
 3. exits non-zero on any failure (and prints `LOCAL CI FAILED`).
 
 Release signing falls back to debug signing when no keystore is present —

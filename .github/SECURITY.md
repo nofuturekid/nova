@@ -2,12 +2,13 @@
 
 ## Supported versions
 
-UnraidControl is a dev-distributed Android app — there is **no Play Store
-build and no stable release yet**. Betas/prereleases are published as
-GitHub prereleases and reach devices via the in-app updater (ADR-0008).
+NOVA is an Android app distributed as GitHub Releases — stable releases and
+pre-releases (betas), installed from the Releases page or via the in-app
+updater (ADR-0008) — and, for stable releases, through F-Droid (ADR-0040).
 
-Only the **latest beta/prerelease** is supported. Older betas are not
-patched — update to the newest prerelease before reporting.
+Supported are the **latest stable release** and the **current pre-release**
+(when one is newer than the stable). Older versions are not patched — update
+before reporting.
 
 Per-server Unraid API keys are stored encrypted on-device (Preferences
 DataStore + Tink AEAD, Android-Keystore-wrapped; see ADR-0024).

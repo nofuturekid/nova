@@ -44,15 +44,15 @@ ADRs live under `docs/` so the CI docs-only bypass applies — pure-ADR PRs comp
 | [0007](./0007-apollo-json-scalar-anyadapter.md) | Apollo JSON scalar via built-in `AnyAdapter` | Accepted |
 | [0008](./0008-in-app-updater-packageinstaller.md) | In-app updater via `REQUEST_INSTALL_PACKAGES` + `PackageInstaller` | Accepted |
 | [0009](./0009-docs-only-ci-bypass.md) | Docs-only CI bypass via path diff + step gating | Superseded by ADR-0029 |
-| [0010](./0010-release-cleanup-keeps-tags.md) | Release cleanup keeps tags (never `--cleanup-tag`) | Accepted |
-| [0011](./0011-cancel-in-progress-only-on-pr-branches.md) | `cancel-in-progress` only on PR branches, not main | Accepted |
-| [0012](./0012-install-from-settings-duplicate-vs-singleton.md) | Install-from-Settings duplicates install pipeline (vs. singleton refactor) | Accepted |
+| [0010](./0010-release-cleanup-keeps-tags.md) | Release cleanup keeps tags (never `--cleanup-tag`) | Accepted (release-notes content amended by [ADR-0031](./0031-curated-changelog.md); the tag-keeping + compare-link rationale here is unchanged) |
+| [0011](./0011-cancel-in-progress-only-on-pr-branches.md) | `cancel-in-progress` only on PR branches, not main | Mooted 2026-05-17 (superseded by ADR-0014) |
+| [0012](./0012-install-from-settings-duplicate-vs-singleton.md) | Install-from-Settings duplicates install pipeline (vs. singleton refactor) | Superseded by the singleton extraction — see "Revisit (actioned, ADR-0030 D2)" in the ADR |
 | [0013](./0013-versionname-includes-prerelease-suffix.md) | `versionName` includes the pre-release suffix | Accepted |
 | [0014](./0014-single-ci-run-per-pr.md) | Single CI run per PR — release workflow resolves through PR | Accepted |
 | [0015](./0015-promotion-requires-new-commit.md) | Promotion to a different version-string requires a new commit | Accepted |
 | [0016](./0016-long-running-apollo-client.md) | Separate Apollo client for long-running mutations | Accepted |
 | [0017](./0017-domain-split-queries-with-lifecycle-polling.md) | Domain-split queries with lifecycle-aware polling | Accepted |
-| [0018](./0018-gradle-cache-warm-on-main.md) | Populate the Gradle build cache on push to main | Reversed 2026-05-17 |
+| [0018](./0018-gradle-cache-warm-on-main.md) | Populate the Gradle build cache on push to main | Reversed 2026-05-17 (no measurable CI speedup in practice) |
 | [0019](./0019-parallel-debug-release-jobs.md) | Split CI into parallel debug + release jobs | Accepted |
 | [0020](./0020-migrate-to-ksp2.md) | Migrate from KSP1 to KSP2 | Accepted |
 | [0021](./0021-relicense-to-gpl-3.md) | Relicense from CC BY-NC-SA 4.0 to GPL v3 | Accepted |
@@ -60,11 +60,11 @@ ADRs live under `docs/` so the CI docs-only bypass applies — pure-ADR PRs comp
 | [0023](./0023-upgrade-agp9-toolchain.md) | Upgrade to AGP 9 + modern Gradle/Kotlin/Hilt/Compose/Apollo toolchain | Accepted |
 | [0024](./0024-api-key-storage-datastore-tink.md) | API-key storage on DataStore + Tink (drop deprecated EncryptedSharedPreferences) | Accepted |
 | [0025](./0025-dependabot-advisory-radar.md) | Dependabot as a low-noise advisory radar (no auto-merge) | Accepted |
-| [0026](./0026-graphql-subscriptions-hybrid.md) | GraphQL subscriptions for select domains (hybrid with polling) | Deprecated (provisional; revisit per ADR-0027) |
+| [0026](./0026-graphql-subscriptions-hybrid.md) | GraphQL subscriptions for select domains (hybrid with polling) | Superseded by ADR-0042 for network throughput, and by ADR-0043 for CPU/memory/temperature and docker-container stats; array & notifications still pending (server-side blocked, see amendment). |
 | [0027](./0027-agent-autonomy-and-access-model.md) | Agent autonomy & access model (tiered) | Accepted |
 | [0028](./0028-cache-apollo-clients-in-factory.md) | Cache Apollo clients per (server, variant) in the factory | Accepted |
 | [0029](./0029-invert-ci-build-skip-filter.md) | Invert the CI build-skip filter to a build-affecting allowlist | Accepted |
-| [0030](./0030-ui-modernization-and-tech-debt-roadmap.md) | UI modernization & tech-debt roadmap (phased) | Proposed |
+| [0030](./0030-ui-modernization-and-tech-debt-roadmap.md) | UI modernization & tech-debt roadmap (phased) | Accepted — P1 device-accepted (2026-05-17, not promoted to stable); P2 device-accepted (2026-05-17, not promoted to stable); P3 device-accepted (2026-05-17, not promoted to stable); **P4–P7 + D1 + D2 combined-device-accepted (2026-05-17, not promoted to stable)** — implemented 2026-05-17 as ONE combined beta (v0.1.30-beta7), per-phase gate waived (see Amendment 2026-05-17) |
 | [0031](./0031-curated-changelog.md) | Curated CHANGELOG.md drives release notes | Accepted |
 | [0032](./0032-notifications-actions.md) | In-app notification actions (archive / unread / delete) | Accepted |
 | [0033](./0033-github-pages-preview.md) | Publish the interactive UI prototype to GitHub Pages | Accepted |
@@ -74,4 +74,9 @@ ADRs live under `docs/` so the CI docs-only bypass applies — pure-ADR PRs comp
 | [0037](./0037-resilient-action-launchers.md) | Resilient action launchers — failed user actions surface, never crash | Accepted |
 | [0038](./0038-lime-trademark-compliance-rename-pending.md) | Lime Technology trademark compliance — rename required (pending name) | Accepted |
 | [0039](./0039-rename-to-nova.md) | Rename app to NOVA for Lime trademark compliance | Accepted |
-| [0040](./0040-fdroid-play-distribution-flavors.md) | F-Droid + Play distribution via two Gradle product flavors | Proposed |
+| [0040](./0040-fdroid-play-distribution-flavors.md) | F-Droid + Play distribution via two Gradle product flavors | Accepted |
+| [0041](./0041-host-ssl-entry-and-self-signed-local-trust.md) | Host+SSL connection entry and self-signed local-cert trust (TOFU) | Accepted |
+| [0042](./0042-graphql-subscription-network-pilot.md) | GraphQL subscription transport — network throughput pilot | Accepted |
+| [0043](./0043-graphql-subscription-metrics-docker-rollout.md) | Roll the GraphQL subscription transport out to CPU, memory, temperature, and docker stats | Accepted |
+| [0044](./0044-container-detail-live-stats-overlay.md) | Surface live CPU/Mem/Net/Disk in the container detail sheet from the docker stats overlay | Accepted |
+| [0045](./0045-array-disk-display.md) | Array disk display — sleeping disks, per-disk thresholds, errors | Accepted (updated beta10 — 2026-05-30) |

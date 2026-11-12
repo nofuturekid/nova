@@ -73,3 +73,14 @@ The warmer is cheap — typically 30-90 s end-to-end and uses only Gradle's reso
 - ADR-0014 — Single CI run per PR (the reason `ci.yml` no longer fires on `push: main`).
 - `gradle/actions/setup-gradle` cache documentation: <https://github.com/gradle/actions/blob/main/docs/setup-gradle.md#caching>
 - Related: ADR-0019 *proposed* (parallel debug + release jobs) and ADR-0020 *proposed* (KSP1 → KSP2). The three CI accelerations stack: cache reduces setup time, parallelism reduces wall time, KSP2 reduces annotation-processing time.
+
+## Note 2026-11-12 — the cache is warmed by dependency-submission
+
+Since 2026-11-10 the Gradle cache is warmed as a side effect of the
+`dependency-submission.yml` workflow, which runs on every push to `main`: it
+runs Gradle with `cache-provider: basic` (the same provider `ci.yml` uses, set
+in #227) and does not set `cache-read-only`, while the `ci.yml` jobs are
+read-only against the cache on pull requests. Cache entries on `refs/heads/main` exist from that
+date on; it has been observed since then only, so the effect over a longer time
+(for example after cache eviction) is not known yet. A separate warm-up job is
+not planned.

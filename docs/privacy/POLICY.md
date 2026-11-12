@@ -11,6 +11,7 @@ NOVA accesses the following on your device:
 - **Your Unraid server's API key.** You enter this when adding a server. It is stored locally on your device, encrypted at rest using the Android Keystore via Google's Tink library. It never leaves your device except in HTTP requests to your own Unraid server.
 - **Your server's network addresses** (local URL, remote URL, name). Stored locally in per-app DataStore. Used only to reach your server.
 - **Your theme preferences** (accent colour, density, layout choices). Stored locally in per-app DataStore.
+- **Pinned certificate fingerprints** (only if you enable "Trust self-signed certificate" for a server's local connection): the SHA-256 fingerprint of that server's certificate, stored per server in per-app DataStore and excluded from cloud backup and device transfer.
 
 ## Data the app sends
 
@@ -57,7 +58,7 @@ NOVA ships in two flavors that differ only in their distribution channel:
 
 ## Update integrity (`direct` flavor only)
 
-In-app updates verify the downloaded APK against a SHA-256 hash and byte-size match published in the GitHub release asset metadata, over HTTPS. Mismatch fails closed — nothing is installed. See [ADR-0034](https://github.com/nofuturekid/nova/blob/main/docs/adr/0034-update-integrity-and-data-at-rest.md) for the rationale.
+In-app updates verify the downloaded APK against a SHA-256 hash and byte-size match published in the GitHub release asset metadata, over HTTPS. Mismatch fails closed — nothing is installed. See [ADR-0034](https://github.com/nofuturekid/nova/blob/main/docs/adr/0034-update-and-data-at-rest-hardening.md) for the rationale.
 
 ## Your rights
 

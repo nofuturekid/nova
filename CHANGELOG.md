@@ -9,7 +9,11 @@ GitHub's auto "What's Changed" + compare link are appended below it
 (ADR-0010 / ADR-0031).
 
 Contributor rule: every PR that changes user-facing behaviour adds a
-bullet under `## [Unreleased]
+bullet under `## [Unreleased]` in the right group (`Added` / `Changed` /
+`Fixed`). The version-bump PR (ADR-0015) renames `[Unreleased]` to the
+release version + date and opens a fresh `[Unreleased]`.
+
+## [Unreleased]
 
 ## [0.1.42-beta2] - 2026-11-10
 
