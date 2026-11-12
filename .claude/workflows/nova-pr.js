@@ -363,7 +363,7 @@ function notReady(t, rec) {
 phase("Build");
 const records = await pipeline(
   cfg.tasks,
-  (_prev, t) =>
+  (t) =>
     agent(builderPrompt(t), {
       label: `build:${t.slug}`,
       phase: "Build",

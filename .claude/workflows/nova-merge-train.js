@@ -311,10 +311,10 @@ function settlePrompt(pr, pre, kind) {
   const wait = `Bounded waiting only (R-WAIT): each Bash call at most 9 minutes, e.g. timeout 540 sh -c 'until <condition>; do sleep 30; done', and at most ${cfg.max_wait_min} minutes in total for this PR. Never use --watch, tail -f or unbounded loops.`;
   let refresh = "";
   if (kind === "dependabot") {
-    refresh = `This is a Dependabot PR and its branch is BEHIND. Ask Dependabot to rebase by posting exactly this comment, through a quoted heredoc:
-   gh pr comment ${pr.number} -R ${REPO_SLUG} --body-file - <<'EOF'
-   @dependabot rebase
-   EOF
+    refresh = `This is a Dependabot PR and its branch is BEHIND. Ask Dependabot to rebase by posting exactly this comment, through a quoted heredoc (the three lines below start at column zero):
+gh pr comment ${pr.number} -R ${REPO_SLUG} --body-file - <<'EOF'
+@dependabot rebase
+EOF
    Do NOT use gh pr update-branch, the "Update branch" button, the API equivalent or a manual rebase: a run triggered by a human actor takes a different, unverified secrets path in ci.yml. Then wait until the head commit differs from ${pre.head_sha} (gh pr view ${pr.number} -R ${REPO_SLUG} --json headRefOid --jq .headRefOid). If Dependabot answers that it will not or cannot rebase, or the head did not change within the limit, return refreshed false and quote its answer in notes.`;
   } else if (kind === "update-branch") {
     refresh = `The branch is BEHIND main. Bring it up to date with: gh pr update-branch ${pr.number} -R ${REPO_SLUG}. Then wait until the head commit differs from ${pre.head_sha}.`;
@@ -356,7 +356,7 @@ TASK cleanup after the merge train. These PRs were merged by squash:
 ${lines || "   (none with a worktree)"}
 For each entry above (never anything else):
 1. git -C ${cfg.checkout} fetch origin --prune (nothing else is reading this checkout now).
-2. Containment check: the local branch tip must equal the merged head. git -C ${cfg.checkout} rev-parse <branch> must print the merged head SHA, and git -C <worktree> status --short must print nothing. If either differs, keep the worktree and branch and list them under kept with the reason; never force.
+2. Containment check: every local commit of the branch must already be in the merged PR. Run git -C ${cfg.checkout} fetch origin refs/pull/<number>/head and then git -C ${cfg.checkout} merge-base --is-ancestor <branch> FETCH_HEAD (exit status 0 means contained; the PR head may be ahead of the local branch because the train refreshed it). Also git -C <worktree> status --short must print nothing. If either check fails, keep the worktree and branch and list them under kept with the reason; never force.
 3. Otherwise: git -C ${cfg.checkout} worktree remove <worktree> ; git -C ${cfg.checkout} branch -D <branch> (squash merges are never "merged" for plain branch -d).
 Then, once, the only allowed write in the main checkout (R-WORKTREE): git -C ${cfg.checkout} status --short must print nothing; then git -C ${cfg.checkout} pull --ff-only. If the status is not empty, do not pull and report it in problems.
 Report git -C ${cfg.checkout} log --oneline -6 and git -C ${cfg.checkout} worktree list.`;
@@ -598,12 +598,17 @@ if (merged.length) {
     problems.push(
       "cleanup agent returned nothing; worktrees, branches and the main checkout were not updated",
     );
-  else if (cleanup.problems.length) problems.push(...cleanup.problems);
+  else {
+    problems.push(...cleanup.problems);
+    for (const k of cleanup.kept) problems.push(`cleanup kept: ${k}`);
+  }
 }
 
 const status =
   refused.length === 0 &&
-  (cleanup === null ? merged.length === 0 : cleanup.problems.length === 0)
+  (cleanup === null
+    ? merged.length === 0
+    : cleanup.problems.length === 0 && cleanup.kept.length === 0)
     ? "done"
     : merged.length > 0
       ? "partial"

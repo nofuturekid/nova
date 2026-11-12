@@ -193,7 +193,7 @@ const VERDICTS = {
     },
     missed: {
       type: "array",
-      maxItems: 5,
+      description: "at most 5",
       items: {
         type: "object",
         properties: {
