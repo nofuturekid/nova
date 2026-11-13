@@ -135,16 +135,12 @@ class AlertRulesTest {
         assertEquals(setOf("w1", "a1"), result.toPost.map { it.key }.toSet())
     }
 
-    @Test fun alerts_only_posts_a_degraded_array_but_not_a_stopped_one_and_remembers_both() {
-        // WHY: a stopped array is a warning-level condition; "Alerts only" means the critical ones.
-        // Later widening must not post a stopped array that has been stopped all along.
-        val state = baselined()
-        val stopped = evaluateAlerts(tower, state, null, array(ArrayState.Stopped), AlertLevel.AlertsOnly)
-        assertEquals(emptyList<Alert>(), stopped.toPost)
-        assertEquals(setOf("array-stopped"), stopped.nextState.openConditions)
-        assertEquals(emptyList<Alert>(), evaluateAlerts(tower, stopped.nextState, null, array(ArrayState.Stopped), both).toPost)
+    @Test fun alerts_only_still_posts_an_array_that_is_not_started() {
+        // WHY: Unraid never notifies about a stopped array; the level only quiets Unraid's own warnings.
+        val stopped = evaluateAlerts(tower, baselined(), null, array(ArrayState.Stopped), AlertLevel.AlertsOnly)
+        assertEquals(listOf("array-stopped"), stopped.toPost.map { it.key })
 
-        val degraded = evaluateAlerts(tower, state, null, array(ArrayState.Error), AlertLevel.AlertsOnly)
+        val degraded = evaluateAlerts(tower, baselined(), null, array(ArrayState.Error), AlertLevel.AlertsOnly)
         assertEquals(listOf("array-degraded"), degraded.toPost.map { it.key })
     }
 
@@ -320,6 +316,18 @@ class AlertRulesTest {
         val result = evaluateAlerts(tower, baselined(), unread(alert("n1"), alert("n1")), null, both)
         assertEquals(1, result.toPost.size)
         assertEquals(listOf("n1"), result.nextState.seenNotificationIds)
+    }
+
+    @Test fun an_unknown_array_state_keeps_the_condition_half() {
+        // WHY: Offline means "not known" (no array block, unknown enum value), not "condition gone";
+        // clearing the open condition would post the same stopped array twice in one episode.
+        val unknown = evaluateAlerts(tower, baselined(open = setOf("array-stopped")), null, array(ArrayState.Offline), both)
+        assertEquals(emptyList<Alert>(), unknown.toPost)
+        assertEquals(setOf("array-stopped"), unknown.nextState.openConditions)
+        assertEquals(emptyList<Alert>(), evaluateAlerts(tower, unknown.nextState, null, array(ArrayState.Stopped), both).toPost)
+
+        // A first read that is unknown must not count as the silent baseline.
+        assertFalse(evaluateAlerts(tower, ServerAlertState(), null, array(ArrayState.Offline), both).nextState.conditionsBaselined)
     }
 
     // ── Helpers ───────────────────────────────────────────────────────

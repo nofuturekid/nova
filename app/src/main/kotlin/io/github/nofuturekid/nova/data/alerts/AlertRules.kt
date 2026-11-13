@@ -1,6 +1,7 @@
 package io.github.nofuturekid.nova.data.alerts
 
 import io.github.nofuturekid.nova.data.model.ArrayInfo
+import io.github.nofuturekid.nova.data.model.ArrayState
 import io.github.nofuturekid.nova.data.model.AttentionSeverity
 import io.github.nofuturekid.nova.data.model.AttentionSnapshot
 import io.github.nofuturekid.nova.data.model.AttentionTarget
@@ -69,7 +70,7 @@ fun foldedSummaryText(serverName: String, count: Int): String = "and $count more
  * [notifications] and [array] are what the check returned; null means "not loaded this
  * time" (server unreachable, query failed). A null half changes nothing and posts nothing,
  * so alerts created during an outage are posted once the server answers again, and nothing
- * is posted twice.
+ * is posted twice. [array] with state Offline (not known) counts as not loaded.
  *
  * Notifications: every unread notification of importance alert or warning whose id is not
  * remembered is new. The very first successful read only remembers the ids, so switching
@@ -81,8 +82,9 @@ fun foldedSummaryText(serverName: String, count: Int): String = "and $count more
  * were gone at an in-between read. The rules are those of [attentionItems], wrapped and
  * restricted to [STATE_ALERT_KEYS], so the wording is the Overview card's own.
  *
- * [level]: [AlertLevel.AlertsOnly] posts only critical items. Items it filters out are still
- * remembered, so switching to [AlertLevel.AlertsAndWarnings] later does not post old ones.
+ * [level]: [AlertLevel.AlertsOnly] leaves out warning-level notifications; the two array
+ * conditions are always posted. Notifications it filters out are still remembered, so switching
+ * to [AlertLevel.AlertsAndWarnings] later does not post old ones.
  */
 fun evaluateAlerts(
     server: ServerRef,
@@ -91,7 +93,7 @@ fun evaluateAlerts(
     array: ArrayInfo?,
     level: AlertLevel,
 ): AlertEvaluation {
-    val (conditionAlerts, afterConditions) = evaluateConditions(previous, array, level)
+    val (conditionAlerts, afterConditions) = evaluateConditions(previous, array)
     val (notificationAlerts, next) = evaluateNotifications(afterConditions, notifications, level)
     // sortedByDescending is stable: equal severity keeps conditions before notifications.
     val ordered = (conditionAlerts + notificationAlerts).sortedByDescending { it.severity }
@@ -127,16 +129,15 @@ private fun evaluateNotifications(
 private fun evaluateConditions(
     previous: ServerAlertState,
     array: ArrayInfo?,
-    level: AlertLevel,
 ): Pair<List<Alert>, ServerAlertState> {
-    if (array == null) return emptyList<Alert>() to previous
+    if (array == null || array.state == ArrayState.Offline) return emptyList<Alert>() to previous
     val current = attentionItems(AttentionSnapshot(array, notifications = null, thresholds = null))
         .filter { it.key in STATE_ALERT_KEYS }
     val alerts = if (!previous.conditionsBaselined) {
         emptyList()
     } else {
         current
-            .filter { it.key !in previous.openConditions && level.allows(it.severity) }
+            .filter { it.key !in previous.openConditions }
             .map {
                 Alert(it.key, AlertSource.ArrayCondition, it.severity, it.title, it.detail, timestamp = null, target = it.target)
             }
