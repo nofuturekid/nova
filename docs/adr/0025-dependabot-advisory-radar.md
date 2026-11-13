@@ -126,3 +126,30 @@ handled; the radar posture above is unchanged.
   bump and decide on what is left.
 
 2026-11-13: after the Android Gradle Plugin update the open alerts fell from 53 to 8.
+
+## Amendment 2026-11-13 — version updates move to Renovate
+
+Dependabot **version updates** are replaced by Renovate (the Renovate app is
+installed for the whole organization; the sibling repository uses it too). The
+radar posture stays: low-noise, monthly, no auto-merge, verification through the
+beta cycle (ADR-0006) and on-device acceptance.
+
+- **Renovate** (`renovate.json`) opens the version pull requests: monthly,
+  at most three open at once, no auto-merge anywhere, with the dependency
+  dashboard issue as overview. GitHub Actions stay pinned to full commit SHAs
+  with the version as a comment (`helpers:pinGitHubActionDigests`). Commit
+  prefixes match the repository style (`build:` for Gradle, `ci:` for
+  Actions). Coupled updates arrive together: `toolchain` (AGP, Gradle wrapper,
+  Kotlin and its plugins, KSP, Dagger Hilt), `androidx-compose` (AndroidX and
+  the Compose BOM), `network-data` (okhttp, Apollo, coil, kotlinx-serialization)
+  and one group for the remaining Gradle dependencies. The two version
+  exclusions carried over from Dependabot (KSP 2.3.13, kotlinx-serialization-json
+  1.12.0) are `allowedVersions` rules.
+- **Dependabot** remains the advisory radar: alerts and security-update pull
+  requests, both repository settings. `.github/dependabot.yml` is deleted;
+  security updates do not need a version-update entry.
+- Pull requests opened by bots (Renovate and Dependabot) are built without the
+  release signing key since the CI change of 2026-11-12.
+- This supersedes the "Renovate" entry under "Alternatives considered": the
+  grouping rules and the shared tooling with the sibling repository outweigh
+  the extra surface.

@@ -91,7 +91,7 @@ _Toolchain raised in the 0.1.28 cycle — see ADR-0023 (AGP-9) / ADR-0024
   (Android-Keystore-wrapped keyset; `security-crypto` removed, ADR-0024)
 - Coil **3.6.3** for AsyncImage
 - okhttp **5.5.1**, kotlinx.coroutines **1.11.0**, serialization **1.13.0**
-- Dependabot (github-actions + gradle, monthly, no auto-merge — ADR-0025)
+- Renovate (gradle + github-actions, monthly, no auto-merge; `renovate.json`); Dependabot only for security alerts and security updates (ADR-0025)
 - Distribution flavors `direct` (GitHub APK; declares `REQUEST_INSTALL_PACKAGES`, in-app updater enabled) and `store` (the F-Droid build; updater disabled at runtime via `BuildConfig.HAS_UPDATER = false`) — ADR-0040
 - Tests: JUnit 4; Robolectric 4.17 + Roborazzi 1.78 only for the store screenshots (`-PnovaScreenshots`); Gradle wrapper pinned by `distributionSha256Sum`
 

@@ -1,0 +1,66 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "extends": ["config:recommended", "helpers:pinGitHubActionDigests"],
+  "timezone": "Europe/Berlin",
+  "schedule": ["before 6am on the first day of the month"],
+  "dependencyDashboard": true,
+  "automerge": false,
+  "prConcurrentLimit": 3,
+  "prHourlyLimit": 4,
+  "semanticCommits": "enabled",
+  "semanticCommitType": "build",
+  "semanticCommitScope": null,
+  "enabledManagers": ["gradle", "gradle-wrapper", "github-actions"],
+  "packageRules": [
+    {
+      "description": "CI action pins: full commit SHA with the version as comment (helpers:pinGitHubActionDigests). Commit prefix ci:, one grouped PR.",
+      "matchManagers": ["github-actions"],
+      "groupName": "GitHub Actions",
+      "semanticCommitType": "ci"
+    },
+    {
+      "description": "Everything else in Gradle (version catalog and build files) in one PR. The more specific groups below override this one.",
+      "matchManagers": ["gradle"],
+      "groupName": "Gradle dependencies"
+    },
+    {
+      "description": "AndroidX and the Compose BOM move together.",
+      "matchManagers": ["gradle"],
+      "matchPackageNames": ["/^androidx\\./"],
+      "groupName": "androidx-compose"
+    },
+    {
+      "description": "Network and data libraries.",
+      "matchManagers": ["gradle"],
+      "matchPackageNames": [
+        "/^com\\.squareup\\.okhttp3[:.]/",
+        "/^com\\.apollographql\\./",
+        "/^io\\.coil-kt\\./",
+        "/^org\\.jetbrains\\.kotlinx:kotlinx-serialization/"
+      ],
+      "groupName": "network-data"
+    },
+    {
+      "description": "Toolchain: Android Gradle Plugin, Gradle wrapper, Kotlin and its compiler plugins, KSP, Dagger Hilt. The Kotlin, KSP and Hilt versions must fit the AGP and Gradle versions, so they arrive in one PR.",
+      "matchManagers": ["gradle", "gradle-wrapper"],
+      "matchPackageNames": [
+        "/^com\\.android\\./",
+        "gradle",
+        "/^org\\.jetbrains\\.kotlin[:.]/",
+        "/^com\\.google\\.devtools\\.ksp/",
+        "/^com\\.google\\.dagger[:.]/"
+      ],
+      "groupName": "toolchain"
+    },
+    {
+      "description": "KSP 2.3.13 has a known concurrency regression (issue 250).",
+      "matchPackageNames": ["/^com\\.google\\.devtools\\.ksp/"],
+      "allowedVersions": "!/^2\\.3\\.13$/"
+    },
+    {
+      "description": "kotlinx-serialization-json 1.12.0 is superseded by 1.13.0.",
+      "matchPackageNames": ["org.jetbrains.kotlinx:kotlinx-serialization-json"],
+      "allowedVersions": "!/^1\\.12\\.0$/"
+    }
+  ]
+}
