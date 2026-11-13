@@ -15,6 +15,14 @@ release version + date and opens a fresh `[Unreleased]`.
 
 ## [Unreleased]
 
+### Fixed
+- **Live values recover by themselves after a connection drop** — when the
+  connection to your server broke or went quiet (Wi-Fi switched off and on, the
+  Unraid API restarted), the live cards on the Overview and the container
+  numbers could freeze or stay on slow polling until you left the screen. They
+  now show the offline state, reconnect on their own and return to live values
+  without leaving the screen (#245).
+
 ## [0.1.44] - 2026-11-13
 
 Nothing new in the app. The build tools and libraries behind it were brought up to date, and the 0.1.44 beta confirmed that nothing looks or behaves differently.

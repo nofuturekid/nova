@@ -2,9 +2,9 @@ package io.github.nofuturekid.nova.data.api
 
 import com.apollographql.apollo.ApolloClient
 import com.apollographql.apollo.network.okHttpClient
-import com.apollographql.apollo.network.ws.DefaultWebSocketEngine
-import com.apollographql.apollo.network.ws.GraphQLWsProtocol
-import com.apollographql.apollo.network.ws.WebSocketNetworkTransport
+import com.apollographql.apollo.network.websocket.GraphQLWsProtocol
+import com.apollographql.apollo.network.websocket.WebSocketEngine
+import com.apollographql.apollo.network.websocket.WebSocketNetworkTransport
 import okhttp3.OkHttpClient
 import okhttp3.logging.HttpLoggingInterceptor
 import java.util.concurrent.ConcurrentHashMap
@@ -30,11 +30,20 @@ import javax.inject.Singleton
  * - [buildWs] — WebSocket-only client for GraphQL subscriptions. Reuses
  *   the existing self-signed TLS pin (ADR-0041) via [applyTrust]. Uses
  *   `graphql-ws` protocol with `x-api-key` in the connection payload.
+ *   Apollo's own retry is NOT enabled and the socket carries an OkHttp
+ *   ping ([WS_PING_INTERVAL_S]) so a half-open connection fails instead of
+ *   staying silent; resubscribing after any failure is done by the caller
+ *   (`UnraidRepository.resubscribing`, ADR-0042 amendment 2026-11-13).
  *   See ADR-0042. Lifecycle ownership is identical to the HTTP variants:
  *   the factory owns these; callers MUST NOT close them (ADR-0028).
  */
 @Singleton
 class ApolloClientFactory @Inject constructor() {
+
+    private companion object {
+        /** OkHttp WebSocket ping interval (seconds), WebSocket client only. */
+        const val WS_PING_INTERVAL_S = 15L
+    }
 
     private val baseHttpClient: OkHttpClient by lazy {
         val logging = HttpLoggingInterceptor().apply {
@@ -112,16 +121,24 @@ class ApolloClientFactory @Inject constructor() {
             val httpEndpoint = baseUrl.trimEnd('/') + "/graphql"
             val wsEndpoint = httpEndpoint.replaceFirst("https://", "wss://")
                 .replaceFirst("http://", "ws://")
-            val wsOkHttp = baseHttpClient.newBuilder().applyTrust(trust).build()
+            // The ping is set on the WebSocket client only. The 15 s read timeout of
+            // the base client does not end an idle WebSocket (OkHttp clears it while
+            // waiting for a frame), so without a ping a half-open socket (Wi-Fi
+            // switched off, NAT entry gone) never fails. A missing pong fails the
+            // socket within about 15-30 s, which the caller then resubscribes.
+            val wsOkHttp = baseHttpClient.newBuilder()
+                .applyTrust(trust)
+                .pingInterval(WS_PING_INTERVAL_S, TimeUnit.SECONDS)
+                .build()
             ApolloClient.Builder()
                 .serverUrl(httpEndpoint)
                 .subscriptionNetworkTransport(
                     WebSocketNetworkTransport.Builder()
                         .serverUrl(wsEndpoint)
-                        .protocol(GraphQLWsProtocol.Factory(
+                        .wsProtocol(GraphQLWsProtocol(
                             connectionPayload = { mapOf("x-api-key" to apiKey) }
                         ))
-                        .webSocketEngine(DefaultWebSocketEngine(wsOkHttp))
+                        .webSocketEngine(WebSocketEngine(wsOkHttp))
                         .build()
                 )
                 .build()

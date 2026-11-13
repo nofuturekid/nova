@@ -203,4 +203,74 @@ class SubscriptionOrPollTest {
         assertEquals(false, pollCollected)
         job.cancel()
     }
+
+    @Test
+    fun errorToDifferentErrorKeepsPollRunning() = runTest {
+        // WHY (issue 245): during an outage the resubscribing loop sends a NEW
+        // Error (different text: drop, refused, ping timeout) for every failed
+        // retry. Routing on every sub value restarted the poll with each one, so
+        // the card lost its poll output for the grace window again and again.
+        // Error to Error is the same "degraded" route: the poll starts once and
+        // is never interrupted.
+        val scope = TestScope(UnconfinedTestDispatcher(testScheduler))
+        val sub = MutableSharedFlow<DomainState<String>>(replay = 1)
+        var pollStarts = 0
+        val poll = flow<DomainState<String>> {
+            pollStarts++
+            var i = 0
+            while (true) {
+                emit(DomainState.Content("POLL$i", "http://srv"))
+                i++
+                kotlinx.coroutines.delay(UnraidRepository.POLL_METRICS_MS)
+            }
+        }
+        val out = mutableListOf<DomainState<String>>()
+        val job = scope.launch {
+            subscriptionOrPoll(sub, poll, graceMs = UnraidRepository.SUB_FALLBACK_GRACE_MS)
+                .collect { out += it }
+        }
+        sub.emit(DomainState.Content("S1", "http://srv"))
+        scope.testScheduler.runCurrent()
+        sub.emit(DomainState.Error("a"))
+        scope.testScheduler.runCurrent()
+        scope.testScheduler.advanceTimeBy(UnraidRepository.SUB_FALLBACK_GRACE_MS + UnraidRepository.POLL_METRICS_MS)
+        scope.testScheduler.runCurrent()
+        assertEquals(1, pollStarts)
+        val before = out.size
+
+        sub.emit(DomainState.Error("b"))
+        scope.testScheduler.runCurrent()
+        scope.testScheduler.advanceTimeBy(UnraidRepository.POLL_METRICS_MS * 3)
+        scope.testScheduler.runCurrent()
+
+        assertEquals("the poll must not be restarted by a second Error", 1, pollStarts)
+        // Three more poll ticks arrived without a gap and in sequence.
+        val polls = out.drop(before).map { (it as DomainState.Content).value }
+        assertEquals(listOf("POLL2", "POLL3", "POLL4"), polls)
+        job.cancel()
+    }
+
+    @Test
+    fun errorBeforeAnyFrameDoesNotRestartTheGraceWindow() = runTest {
+        // WHY (issue 245): "no frame yet" followed by an Error is still one
+        // degraded stretch. If the Error restarted the grace window, a failing
+        // first attempt would delay the poll to grace + the time of the Error.
+        val scope = TestScope(UnconfinedTestDispatcher(testScheduler))
+        val sub = MutableSharedFlow<DomainState<String>>(replay = 1)
+        val poll = flow<DomainState<String>> { emit(DomainState.Content("POLL", "http://srv")) }
+        val out = mutableListOf<DomainState<String>>()
+        val job = scope.launch {
+            subscriptionOrPoll(sub, poll, graceMs = UnraidRepository.SUB_FALLBACK_GRACE_MS)
+                .collect { out += it }
+        }
+        scope.testScheduler.advanceTimeBy(3_000)
+        scope.testScheduler.runCurrent()
+        sub.emit(DomainState.Error("refused"))
+        scope.testScheduler.runCurrent()
+
+        scope.testScheduler.advanceTimeBy(UnraidRepository.SUB_FALLBACK_GRACE_MS - 3_000 + 1)
+        scope.testScheduler.runCurrent()
+        assertEquals(DomainState.Content("POLL", "http://srv"), out.last())
+        job.cancel()
+    }
 }

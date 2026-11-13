@@ -8,6 +8,8 @@ import com.apollographql.apollo.api.Query
 import com.apollographql.apollo.api.Subscription
 import com.apollographql.apollo.exception.ApolloException
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.cancelAndJoin
+import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -150,6 +152,27 @@ class UnraidRepository @Inject constructor(
          * this 3-cycle ratio.
          */
         const val SUB_FALLBACK_GRACE_MS = 6_000L
+
+        /**
+         * How long [resubscribing] waits for ANY frame (data or error, equal to the
+         * previous one or not) before it treats a subscription as dead and opens a
+         * new one. 3x the slowest live publisher (temperature, about one frame per
+         * 5 s), so a healthy stream never trips it, yet a stream that went quiet
+         * is replaced long before the user wonders why a value stands still.
+         */
+        const val SUB_SILENCE_MS = 15_000L
+
+        /**
+         * First wait before [resubscribing] opens a new subscription; doubles on
+         * every consecutive failure up to [SUB_RETRY_MAX_MS] and starts over at the
+         * first data frame. Kept below [SUB_FALLBACK_GRACE_MS] so a quick reconnect
+         * lands inside the grace window and the card never leaves the live path.
+         */
+        const val SUB_RETRY_BASE_MS = 1_000L
+
+        /** Upper bound of the [resubscribing] wait: bounds the background churn of
+         *  a stream that fails for good (rejected key, no running containers). */
+        const val SUB_RETRY_MAX_MS = 30_000L
 
         /**
          * The transient-error-tolerant poll loop, factored out so it has
@@ -450,7 +473,9 @@ class UnraidRepository @Inject constructor(
          * stream degrades to [poll] when the sub yields a [DomainState.Error] (or
          * [DomainState.Loading], or no first frame) held continuously for [graceMs].
          * It returns to [sub] the instant the sub recovers a [DomainState.Content]
-         * frame — that recovered frame is emitted directly. [poll] is collected ONLY
+         * frame — that recovered frame is emitted directly. Successive Errors, or an
+         * Error after "no frame yet", are ONE degraded stretch: they do not restart
+         * the grace window or a running poll. [poll] is collected ONLY
          * while in the fallback state — never while the sub is healthy (no
          * double-collect: the HTTP poll must not run alongside a working WS).
          *
@@ -474,33 +499,170 @@ class UnraidRepository @Inject constructor(
             val subState = MutableStateFlow<DomainState<T>?>(null)
             launch { sub.collect { subState.value = it } }
 
-            // Route on the latest sub state. transformLatest cancels the prior branch
-            // whenever subState changes: a fresh sub Content cancels any in-flight
-            // poll collection (recovery), and an Error/null branch is replaced the
-            // moment a new state arrives.
-            subState.transformLatest { latest ->
-                when (latest) {
-                    is DomainState.Content<T> -> emit(latest)        // healthy: poll NOT collected
-                    DomainState.NoServer -> emit(DomainState.NoServer) // no server: immediate passthrough
-                    else -> {
-                        // null (no first Content yet), Error, or Loading: wait out the
-                        // grace window for a Content to (re)appear. On recovery, emit
-                        // that Content DIRECTLY (do not rely on a transformLatest
-                        // re-fire — that can drop the frame). On grace expiry, degrade
-                        // to poll; collecting inside this lambda means the poll is
-                        // cancelled the instant subState changes back to Content.
-                        val recovered = withTimeoutOrNull(graceMs) {
-                            subState.first { it is DomainState.Content<T> }
+            // Route on the latest sub state, in three classes: Content, NoServer, and
+            // "degraded" (null = no frame yet, Error, Loading). Error("a") followed by
+            // Error("b") is ONE degraded route, so a second failure neither restarts
+            // the grace window nor cancels a running poll (the resubscribing loop
+            // sends a new Error for every failed retry during an outage).
+            // transformLatest cancels the prior branch whenever the route changes: a
+            // fresh sub Content cancels any in-flight poll collection (recovery).
+            subState
+                .map { s -> if (s is DomainState.Content<T> || s == DomainState.NoServer) s else null }
+                .distinctUntilChanged()
+                .transformLatest { latest ->
+                    when (latest) {
+                        is DomainState.Content<T> -> emit(latest)        // healthy: poll NOT collected
+                        DomainState.NoServer -> emit(DomainState.NoServer) // no server: immediate passthrough
+                        else -> {
+                            // Degraded (no first Content yet, Error, or Loading): wait out the
+                            // grace window for a Content to (re)appear. On recovery, emit
+                            // that Content DIRECTLY (do not rely on a transformLatest
+                            // re-fire — that can drop the frame). On grace expiry, degrade
+                            // to poll; collecting inside this lambda means the poll is
+                            // cancelled the instant subState changes back to Content.
+                            val recovered = withTimeoutOrNull(graceMs) {
+                                subState.first { it is DomainState.Content<T> }
+                            }
+                            if (recovered != null) {
+                                emit(recovered)
+                            } else {
+                                poll.collect { emit(it) }
+                            }
                         }
-                        if (recovered != null) {
-                            emit(recovered)
-                        } else {
-                            poll.collect { emit(it) }
+                    }
+                }.collect { send(it) }
+        }
+
+        /**
+         * The resubscribing loop around ONE subscription attempt: the single place
+         * where a live stream is kept alive after it dies. Pure and Apollo-free, so
+         * the unit test drives this exact production body on the virtual scheduler
+         * (Rule 9); timed only with [delay] and [withTimeoutOrNull], never a wall
+         * clock. Infinite until cancelled.
+         *
+         * [attempt] makes ONE attempt (a fresh Apollo operation with a new request
+         * id): a [DomainState.Content] per data frame, a [DomainState.Error] per
+         * frame without data, and it completes when the operation ends. Every way
+         * an attempt can end becomes a visible [DomainState.Error] followed by a
+         * new attempt after a backoff:
+         *  - a socket error or close frame: the attempt forwards its own Error,
+         *    then ends (no second Error is added);
+         *  - normal completion: Error "Live stream ended";
+         *  - silence: no frame of any kind for [silenceMs] (equal frames count,
+         *    this is measured by frame arrival, not by value change): the attempt
+         *    is cancelled, Error "No live data for N s";
+         *  - the attempt throws: Error with the exception message.
+         * A frame without data that does not end the attempt (GraphQL errors
+         * only) is forwarded as Error and the attempt keeps running.
+         *
+         * Backoff: [retryBaseMs] doubling per consecutive failure up to
+         * [retryMaxMs]; the first data frame of an attempt resets it. There is no
+         * attempt cap: retrying lasts as long as the collector (the lifecycle gate).
+         * Downstream, [subscriptionOrPoll] turns the Errors into the poll fallback
+         * and the next Content back into the live path.
+         */
+        internal fun <T> resubscribing(
+            attempt: () -> Flow<DomainState<T>>,
+            silenceMs: Long = SUB_SILENCE_MS,
+            retryBaseMs: Long = SUB_RETRY_BASE_MS,
+            retryMaxMs: Long = SUB_RETRY_MAX_MS,
+        ): Flow<DomainState<T>> = channelFlow {
+            var failures = 0
+            while (true) {
+                val frames = Channel<DomainState<T>>()
+                val producer = launch {
+                    try {
+                        attempt().collect { frames.send(it) }
+                        frames.close()
+                    } catch (e: CancellationException) {
+                        throw e
+                    } catch (e: Throwable) {
+                        frames.close(e)
+                    }
+                }
+                var lastWasError = false
+                var ended = false
+                // What to tell the user when the attempt ended; null = the attempt's
+                // own Error (already forwarded) says it.
+                var reason: String? = null
+                while (!ended) {
+                    // The timeout wraps one receive, so the silence timer restarts
+                    // with every frame, whatever it carries.
+                    val r = withTimeoutOrNull(silenceMs) { frames.receiveCatching() }
+                    when {
+                        r == null -> {
+                            ended = true
+                            reason = "No live data for ${silenceMs / 1_000} s"
+                        }
+                        r.isSuccess -> {
+                            val frame = r.getOrThrow()
+                            send(frame)
+                            lastWasError = frame is DomainState.Error
+                            if (frame is DomainState.Content<T>) failures = 0
+                        }
+                        else -> {
+                            ended = true
+                            val cause = r.exceptionOrNull()
+                            reason = when {
+                                cause != null -> cause.message ?: "Live connection error"
+                                // Completion right after the attempt's own Error
+                                // keeps that Error's (more specific) message.
+                                lastWasError -> null
+                                else -> "Live stream ended"
+                            }
                         }
                     }
                 }
-            }.collect { send(it) }
+                producer.cancelAndJoin()
+                if (reason != null) send(DomainState.Error(reason))
+                delay(minOf(retryBaseMs shl minOf(failures, 20), retryMaxMs))
+                failures++
+            }
         }
+
+        /**
+         * Builds [build]'s stream anew for every distinct active server, cancelling
+         * the previous one. The combinator ([subscriptionOrPoll]) holds the last
+         * sub state; created once outside a server switch it would keep showing
+         * the OLD server's Content until the new subscription's first frame, or
+         * its silence Error. Created per server, a switch starts from "no frame
+         * yet": the grace window, then that server's poll. Same shape as
+         * [networkThroughputStream]. `internal` for the unit test.
+         */
+        internal fun <A, T> perServer(
+            active: Flow<A>,
+            build: (A) -> Flow<DomainState<T>>,
+        ): Flow<DomainState<T>> = active.distinctUntilChanged().flatMapLatest(build)
+
+        /**
+         * The docker-stats overlay fold: each frame carries ONE container, the
+         * overlay is the growing map across frames (update/insert by id). Any
+         * Error (socket drop, completed or silent stream) and NoServer reset the
+         * overlay to that state, so rows show no live numbers during an outage
+         * (honest "no live stats"; there is no poll for these) and the map is
+         * rebuilt from the new frames after a reconnect, without leaving the tab.
+         * Stale ids from before the outage do not come back. Companion function so
+         * production [dockerStatsStream] and the unit test run the SAME body.
+         */
+        internal fun accumulateDockerStats(
+            frames: Flow<DomainState<Pair<String, ContainerLiveStats>>>,
+        ): Flow<DomainState<Map<String, ContainerLiveStats>>> =
+            frames.scan<DomainState<Pair<String, ContainerLiveStats>>, DomainState<Map<String, ContainerLiveStats>>>(
+                DomainState.Loading,
+            ) { acc, frame ->
+                when (frame) {
+                    is DomainState.Content<Pair<String, ContainerLiveStats>> -> {
+                        val prev = (acc as? DomainState.Content<Map<String, ContainerLiveStats>>)?.value
+                            ?: emptyMap()
+                        DomainState.Content(prev + frame.value, frame.serverBaseUrl)
+                    }
+                    // NoServer/Error/Loading reset the accumulation to that state — a
+                    // server switch or WS failure must not keep showing the old
+                    // server's accumulated stats. Safe covariant cast: these are all
+                    // DomainState<Nothing>.
+                    else -> @Suppress("UNCHECKED_CAST") (frame as DomainState<Map<String, ContainerLiveStats>>)
+                }
+            }.filter { it !is DomainState.Loading }
     }
 
     /**
@@ -571,7 +733,9 @@ class UnraidRepository @Inject constructor(
         val poll = domainStream(intervalMs) { client, baseUrl ->
             fetch(client, GetMetricsQuery()) { data -> data.toLiveMetrics() }.withBaseUrl(baseUrl)
         }
-        return subscriptionOrPoll(liveMetricsStream(), poll, SUB_FALLBACK_GRACE_MS)
+        return perServer(servers.activeWithKey) {
+            subscriptionOrPoll(liveMetricsStream(), poll, SUB_FALLBACK_GRACE_MS)
+        }
     }
 
     fun arrayStream(intervalMs: Long = POLL_ARRAY_MS): Flow<DomainState<ArrayInfo>> =
@@ -681,9 +845,13 @@ class UnraidRepository @Inject constructor(
      *
      * Cold: the WS socket opens when the flow is collected and closes when
      * collection is cancelled (gate flip / leaving Overview / app background).
-     * Apollo's WS transport auto-reconnects and re-sends the connection payload
-     * on drops; a sustained failure surfaces `DomainState.Error`. This bare transport has
-     * no poll fallback; consumers that need one wrap it in [subscriptionOrPoll].
+     * Apollo does NOT reconnect by itself here (no retry is configured, and a
+     * failed or completed operation just ends its flow), so every attempt runs
+     * inside [resubscribing]: any failure, completion or silence becomes a
+     * `DomainState.Error`, then a new subscription opens after a backoff.
+     * Dead peers are detected by the OkHttp ping set in
+     * [ApolloClientFactory.buildWs]. This bare transport has no poll fallback;
+     * consumers that need one wrap it in [subscriptionOrPoll].
      */
     private fun <D : Subscription.Data, T> subscriptionStream(
         op: Subscription<D>,
@@ -698,19 +866,22 @@ class UnraidRepository @Inject constructor(
                 }
                 val url = activeUrl(active)
                 val client = apolloFactory.buildWs(url, active.apiKey, trustFor(active, url))
-                try {
-                    client.subscription(op).toFlow().collect { resp ->
+                // The operation is created inside the lambda: every attempt is a
+                // new call with a new request id.
+                emitAll(resubscribing(attempt = {
+                    client.subscription(op).toFlow().map { resp ->
                         val d = resp.data
                         if (d != null) {
-                            emit(DomainState.Content(map(d), url))
-                        } else if (resp.exception != null) {
-                            emit(DomainState.Error(resp.exception!!.message ?: "Live connection error"))
+                            DomainState.Content(map(d), url)
+                        } else {
+                            DomainState.Error(
+                                resp.exception?.message
+                                    ?: resp.errors?.firstOrNull()?.message
+                                    ?: "Live update failed",
+                            )
                         }
                     }
-                } catch (e: Throwable) {
-                    if (e is kotlinx.coroutines.CancellationException) throw e
-                    emit(DomainState.Error(e.message ?: "Live connection error"))
-                }
+                }))
             }
         }
 
@@ -823,11 +994,13 @@ class UnraidRepository @Inject constructor(
      * [toTemperature] on both paths. Gated by the caller via [gatedStream].
      */
     fun temperatureStream(): Flow<DomainState<Temperature>> =
-        subscriptionOrPoll(
-            sub = subscriptionStream(SystemMetricsTemperatureSubscription()) { it.toTemperature() },
-            poll = metricsTemperaturePoll(),
-            graceMs = SUB_FALLBACK_GRACE_MS,
-        )
+        perServer(servers.activeWithKey) {
+            subscriptionOrPoll(
+                sub = subscriptionStream(SystemMetricsTemperatureSubscription()) { it.toTemperature() },
+                poll = metricsTemperaturePoll(),
+                graceMs = SUB_FALLBACK_GRACE_MS,
+            )
+        }
 
     private fun metricsTemperaturePoll(intervalMs: Long = POLL_METRICS_MS): Flow<DomainState<Temperature>> =
         domainStream(intervalMs) { client, baseUrl ->
@@ -841,30 +1014,21 @@ class UnraidRepository @Inject constructor(
      * growing immutable `Map<containerId, ContainerLiveStats>` (update/insert by
      * id) and emit the growing map — the same accumulation pinned by
      * [accumulateStats]/[dockerStatsStreamForTest]. There is NO poll fallback:
-     * the DockerContainer query exposes no stats fields, so on WS failure the
-     * overlay simply stops growing and rows omit live stats (honest 'no live
-     * stats', same stance as the network balloon). Gated to the Docker surfaces
-     * by the caller (MainViewModel.dockerGate via gatedStream).
+     * the DockerContainer query exposes no stats fields. On a WS failure,
+     * completion or silence the overlay is therefore CLEARED ([accumulateDockerStats]):
+     * the rows show no live numbers during the outage (honest 'no live stats',
+     * same stance as the network balloon) and fill again from the resubscribed
+     * stream without leaving the tab. With no running container the stream is
+     * legitimately silent, which costs one cheap resubscribe per silence window.
+     * Gated to the Docker surfaces by the caller (MainViewModel.dockerGate via
+     * gatedStream).
      */
     fun dockerStatsStream(): Flow<DomainState<Map<String, ContainerLiveStats>>> =
-        subscriptionStream(DockerContainerStatsSubscription()) { data ->
-            data.toContainerLiveStat()
-        }.scan<DomainState<Pair<String, ContainerLiveStats>>, DomainState<Map<String, ContainerLiveStats>>>(
-            DomainState.Loading,
-        ) { acc, frame ->
-            when (frame) {
-                is DomainState.Content<Pair<String, ContainerLiveStats>> -> {
-                    val prev = (acc as? DomainState.Content<Map<String, ContainerLiveStats>>)?.value
-                        ?: emptyMap()
-                    DomainState.Content(prev + frame.value, frame.serverBaseUrl)
-                }
-                // NoServer/Error/Loading reset the accumulation to that state — a
-                // server switch or WS failure must not keep showing the old
-                // server's accumulated stats. Safe covariant cast: these are all
-                // DomainState<Nothing>.
-                else -> @Suppress("UNCHECKED_CAST") (frame as DomainState<Map<String, ContainerLiveStats>>)
-            }
-        }.filter { it !is DomainState.Loading }
+        accumulateDockerStats(
+            subscriptionStream(DockerContainerStatsSubscription()) { data ->
+                data.toContainerLiveStat()
+            },
+        )
 
     /** Blank/undecryptable API key error message (ADR-0035). Shared between
      *  [domainStream] and [subscriptionStream] — single definition, no drift. */
