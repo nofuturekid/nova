@@ -24,6 +24,10 @@ release version + date and opens a fresh `[Unreleased]`.
   reports as zero is still shown as zero. For a few seconds after the connection
   drops the last values stay on screen on purpose: the app waits for a few failed
   polls before it calls the server offline (#303).
+- **Uptime on the Overview shows how long the server has been running** — the
+  System card showed a raw timestamp such as "2026-11-12T13:56:22.425Z", which is
+  when the server started. It now shows the time since then, for example
+  "22h 4m" or "3d 4h", and a dash when the server sends nothing readable (#304).
 - **A new self-signed server asks you to trust its certificate only once** —
   when you added a server with "Trust self-signed certificate", confirmed the
   certificate during Test and then saved, the same "Trust this certificate?"

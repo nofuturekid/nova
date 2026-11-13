@@ -50,6 +50,7 @@ import io.github.nofuturekid.nova.ui.screens.ErrorState
 import io.github.nofuturekid.nova.ui.screens.LoadingState
 import io.github.nofuturekid.nova.ui.screens.NoServerState
 import io.github.nofuturekid.nova.ui.util.formatBytesPerSec
+import io.github.nofuturekid.nova.ui.util.uptimeLabel
 import io.github.nofuturekid.nova.ui.theme.JetBrainsMono
 import io.github.nofuturekid.nova.ui.theme.UnraidAlpha
 import io.github.nofuturekid.nova.ui.theme.UnraidTheme
@@ -394,7 +395,7 @@ private fun OverviewContent(
                         modifier = Modifier.padding(bottom = 8.dp),
                     )
                     InfoRow(icon = { UC.Server(15.dp, t.muted) }, label = "Hostname", value = server?.hostname ?: info?.hostname.orEmpty())
-                    InfoRow(icon = { UC.Power(15.dp, t.muted) },  label = "Uptime",   value = info?.uptime.orEmpty())
+                    InfoRow(icon = { UC.Power(15.dp, t.muted) },  label = "Uptime",   value = uptimeLabel(info?.uptime))
                     InfoRow(icon = { UC.Info(15.dp, t.muted) },   label = "Unraid",   value = info?.unraidVersion.orEmpty())
                     InfoRow(icon = { UC.Terminal(15.dp, t.muted) }, label = "Kernel", value = info?.kernel.orEmpty(), last = true)
                 }
