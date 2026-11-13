@@ -104,11 +104,18 @@ data class DemoState(
     private fun withContainer(id: String, f: (Container) -> Container) =
         copy(containers = containers.map { if (it.id == id) f(it) else it })
 
-    fun startContainer(id: String) = withContainer(id) { it.copy(status = ContainerStatus.Running) }
+    /** Docker refuses `start` for a paused container; it needs [unpauseContainer] (#345). */
+    fun startContainer(id: String) = withContainer(id) {
+        if (it.status == ContainerStatus.Paused) it else it.copy(status = ContainerStatus.Running)
+    }
+
+    fun unpauseContainer(id: String) = withContainer(id) {
+        if (it.status == ContainerStatus.Paused) it.copy(status = ContainerStatus.Running) else it
+    }
     fun stopContainer(id: String) = withContainer(id) { it.copy(status = ContainerStatus.Exited) }
 
     /** Restart ends running, also for a container that was stopped. */
-    fun restartContainer(id: String) = startContainer(id)
+    fun restartContainer(id: String) = withContainer(id) { it.copy(status = ContainerStatus.Running) }
 
     fun pauseContainer(id: String) = withContainer(id) {
         if (it.status == ContainerStatus.Running) it.copy(status = ContainerStatus.Paused) else it

@@ -41,6 +41,25 @@ class DemoStateTest {
         assertEquals(ContainerStatus.Running, start.stopContainer("plex").restartContainer("plex").container("plex").status)
     }
 
+    // WHY (#345): Docker answers `start` on a paused container with "try unpause instead". The demo must
+    // not hide the bug the real server shows: only unpause resumes a paused container.
+    @Test fun aPausedContainerResumesWithUnpauseNotStart() {
+        val paused = start.pauseContainer("plex")
+        assertEquals(ContainerStatus.Paused, paused.startContainer("plex").container("plex").status)
+        assertEquals(ContainerStatus.Running, paused.unpauseContainer("plex").container("plex").status)
+    }
+
+    // WHY: unpause answers only a paused container; it must not start a stopped one by the back door.
+    @Test fun unpauseLeavesAStoppedOrRunningContainerAlone() {
+        assertEquals(ContainerStatus.Exited, start.unpauseContainer("jellyfin").container("jellyfin").status)
+        assertEquals(ContainerStatus.Running, start.unpauseContainer("plex").container("plex").status)
+    }
+
+    // WHY: restart is stop + start (or one step) on the server and works on a paused container too.
+    @Test fun restartEndsRunningAlsoForAPausedContainer() {
+        assertEquals(ContainerStatus.Running, start.pauseContainer("plex").restartContainer("plex").container("plex").status)
+    }
+
     @Test fun pauseOnlyPausesARunningContainer() {
         assertEquals(ContainerStatus.Paused, start.pauseContainer("plex").container("plex").status)
         assertEquals(ContainerStatus.Exited, start.pauseContainer("jellyfin").container("jellyfin").status)

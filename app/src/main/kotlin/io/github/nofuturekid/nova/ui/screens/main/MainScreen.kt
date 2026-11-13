@@ -307,7 +307,7 @@ fun MainScreen(
                         onAddServer = onAddServer,
                         stats = dockerLiveStats,
                         onOpenContainer = { setOpenContainer(it) },
-                        onStart = { c -> vm.startContainer(c.id) },
+                        onStart = { c -> vm.startContainer(c) },
                         onRestart = { c ->
                             confirm = ConfirmRequest(
                                 title = "Restart ${c.name}?",
@@ -382,7 +382,7 @@ fun MainScreen(
             onFetchLogs = { id -> vm.containerLogs(id) },
             onRefresh = { vm.refresh() },
             onDismiss = { setOpenContainer(null) },
-            onStart   = { vm.startContainer(it.id); setOpenContainer(null) },
+            onStart   = { vm.startContainer(it); setOpenContainer(null) },
             onRestart = { c ->
                 confirm = ConfirmRequest(
                     title = "Restart ${c.name}?",

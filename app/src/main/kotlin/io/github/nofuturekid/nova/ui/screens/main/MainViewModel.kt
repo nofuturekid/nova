@@ -40,6 +40,7 @@ import io.github.nofuturekid.nova.data.model.DisplayThresholds
 import io.github.nofuturekid.nova.data.model.NotifType
 import io.github.nofuturekid.nova.data.model.Container
 import io.github.nofuturekid.nova.data.model.ContainerLiveStats
+import io.github.nofuturekid.nova.data.model.ContainerStatus
 import io.github.nofuturekid.nova.data.model.LiveMetrics
 import io.github.nofuturekid.nova.data.model.NetworkThroughput
 import io.github.nofuturekid.nova.data.model.Notifications
@@ -399,7 +400,10 @@ class MainViewModel @Inject constructor(
     fun startArray() = launchAction { unraid.startArray() }
     fun stopArray()  = launchAction { unraid.stopArray() }
 
-    fun startContainer(id: String)   = launchAction { unraid.startContainer(id) }
+    /** Start for a stopped container, resume (`unpause`) for a paused one (#345). */
+    fun startContainer(c: Container) = launchAction {
+        unraid.startContainer(c.id, paused = c.status == ContainerStatus.Paused)
+    }
     fun stopContainer(id: String)    = launchAction { unraid.stopContainer(id) }
     fun restartContainer(id: String) = launchAction {
         // Unknown API version stays on stop + start: only a known 4.36.0+ server gets `docker.restart`.

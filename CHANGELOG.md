@@ -56,6 +56,11 @@ release version + date and opens a fresh `[Unreleased]`.
 
 ### Fixed
 
+- **Resume on a paused container now works** — the Resume button in the Docker tab asked the
+  server to start the container, which Docker refuses for a paused one, so the container stayed
+  paused and the app showed an error. Resume now sends the "unpause" action; Start on a stopped
+  container is unchanged (#345).
+
 - **A turned-off service no longer makes the whole server look offline** — with
   VMs or Docker switched off, the pill at the top used to read "Offline" even
   though the server answered. Now only a server that really cannot be reached

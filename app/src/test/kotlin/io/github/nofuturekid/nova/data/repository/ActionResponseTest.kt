@@ -121,6 +121,30 @@ class ActionResponseTest {
         assertTrue(uses.single().contains("mutation(m).execute().orThrow()"))
     }
 
+    private val unpaused = json("""{"data":{"docker":{"unpause":{"id":"c1","state":"RUNNING"}}}}""")
+
+    // WHY (#345): Docker refuses `start` for a paused container ("try unpause instead"), so Resume
+    // must send unpause and never start.
+    @Test fun resumingAPausedContainer_sendsUnpause_neverStart() = runTest {
+        val engine = ScriptedEngine(listOf(unpaused, started))
+        UnraidRepository.startContainer(client(engine), "c1", paused = true)
+        assertEquals(listOf("UnpauseContainer"), engine.operationNames())
+    }
+
+    // WHY: the fix must not turn every Start into unpause: a stopped container still gets start.
+    @Test fun startingAStoppedContainer_sendsStart_neverUnpause() = runTest {
+        val engine = ScriptedEngine(listOf(started, unpaused))
+        UnraidRepository.startContainer(client(engine), "c1", paused = false)
+        assertEquals(listOf("StartContainer"), engine.operationNames())
+    }
+
+    // WHY: a refused resume (no permission) must reach the user with the server's text, like any action.
+    @Test fun refusedResume_failsTheActionWithServerText() = runTest {
+        val e = failureOf { UnraidRepository.startContainer(client(ScriptedEngine(listOf(forbidden))), "c1", paused = true) }
+        assertNotNull("a refused unpause must fail the action", e)
+        assertTrue(e!!.message, e.message!!.contains("API key lacks DOCKER:UPDATE_ANY"))
+    }
+
     @Test fun restart_onSuccess_sendsStopThenStart() = runTest {
         val engine = ScriptedEngine(listOf(stopped, started))
         UnraidRepository.restartContainer(client(engine), "c1", atomic = false)

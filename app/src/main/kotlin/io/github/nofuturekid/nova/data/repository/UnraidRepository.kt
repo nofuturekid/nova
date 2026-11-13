@@ -109,6 +109,7 @@ import io.github.nofuturekid.nova.graphql.StartParityCheckMutation
 import io.github.nofuturekid.nova.graphql.StartVmMutation
 import io.github.nofuturekid.nova.graphql.StopArrayMutation
 import io.github.nofuturekid.nova.graphql.StopContainerMutation
+import io.github.nofuturekid.nova.graphql.UnpauseContainerMutation
 import io.github.nofuturekid.nova.graphql.UpdateAllContainersMutation
 import io.github.nofuturekid.nova.graphql.UpdateContainerMutation
 import io.github.nofuturekid.nova.graphql.StopVmMutation
@@ -285,6 +286,16 @@ class UnraidRepository @Inject constructor(
             } catch (e: ActionFailedException) {
                 throw ActionFailedException("the container was stopped but could not be started (${e.message})", e)
             }
+        }
+
+        /**
+         * Starts a container, or resumes it when it is [paused]. Docker refuses `start` for a paused
+         * container ("cannot start a paused container, try unpause instead"), so a paused one gets
+         * `unpause` and never `start` (#345).
+         */
+        internal suspend fun startContainer(client: ApolloClient, id: String, paused: Boolean) {
+            if (paused) client.runAction(UnpauseContainerMutation(id))
+            else client.runAction(StartContainerMutation(id))
         }
 
         /** The logs query behind [containerLogs]; `null` = the request failed. */
@@ -1158,7 +1169,10 @@ class UnraidRepository @Inject constructor(
     suspend fun startArray() { activeClient()?.runAction(StartArrayMutation()) }
     suspend fun stopArray()  { activeClient()?.runAction(StopArrayMutation()) }
 
-    suspend fun startContainer(id: String)   { activeClient()?.runAction(StartContainerMutation(id)) }
+    /** [paused]: resume the container with `unpause`; `start` is only for a stopped one (#345). */
+    suspend fun startContainer(id: String, paused: Boolean) {
+        activeClient()?.let { startContainer(it, id, paused) }
+    }
     suspend fun stopContainer(id: String)    { activeClient()?.runAction(StopContainerMutation(id)) }
     /** [atomic]: use the server's own `docker.restart` (API 4.36.0+), else stop + start. */
     suspend fun restartContainer(id: String, atomic: Boolean) {

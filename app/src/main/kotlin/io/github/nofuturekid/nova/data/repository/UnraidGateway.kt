@@ -104,7 +104,9 @@ class UnraidGateway @Inject constructor(
     suspend fun startArray() = action({ real.startArray() }, { demo.startArray() })
     suspend fun stopArray() = action({ real.stopArray() }, { demo.stopArray() })
 
-    suspend fun startContainer(id: String) = action({ real.startContainer(id) }, { demo.startContainer(id) })
+    /** [paused] picks `unpause` over `start` (#345); the demo resumes or starts the container in its model. */
+    suspend fun startContainer(id: String, paused: Boolean) =
+        action({ real.startContainer(id, paused) }, { demo.startContainer(id, paused) })
     suspend fun stopContainer(id: String) = action({ real.stopContainer(id) }, { demo.stopContainer(id) })
     /** [atomic] is the real server's choice (#346); the demo restarts the container in its model either way. */
     suspend fun restartContainer(id: String, atomic: Boolean) =

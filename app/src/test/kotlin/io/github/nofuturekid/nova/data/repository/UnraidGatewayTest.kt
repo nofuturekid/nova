@@ -122,14 +122,17 @@ class UnraidGatewayTest {
         fun vm(id: String) = demo.current.vms.first { it.id == id }
 
         gateway.stopContainer("plex"); assertEquals(ContainerStatus.Exited, container("plex").status)
-        gateway.startContainer("plex"); assertEquals(ContainerStatus.Running, container("plex").status)
+        gateway.startContainer("plex", paused = false); assertEquals(ContainerStatus.Running, container("plex").status)
         // The demo restarts the container in its model whichever way the real server would be asked.
         gateway.stopContainer("plex"); gateway.restartContainer("plex", atomic = true)
         assertEquals(ContainerStatus.Running, container("plex").status)
         gateway.stopContainer("plex"); gateway.restartContainer("plex", atomic = false)
         assertEquals(ContainerStatus.Running, container("plex").status)
         gateway.pauseContainer("plex"); assertEquals(ContainerStatus.Paused, container("plex").status)
-        gateway.startContainer("jellyfin"); assertEquals(ContainerStatus.Running, container("jellyfin").status)
+        // Resume is `unpause`, and Docker refuses `start` for a paused container: the demo's model does the same (#345).
+        gateway.startContainer("plex", paused = false); assertEquals(ContainerStatus.Paused, container("plex").status)
+        gateway.startContainer("plex", paused = true); assertEquals(ContainerStatus.Running, container("plex").status)
+        gateway.startContainer("jellyfin", paused = false); assertEquals(ContainerStatus.Running, container("jellyfin").status)
         gateway.updateContainer("grafana")
         assertEquals(ContainerUpdateStatus.UpToDate, container("grafana").updateStatus)
         assertEquals(ContainerUpdateStatus.UpdateAvailable, container("nextcloud").updateStatus)

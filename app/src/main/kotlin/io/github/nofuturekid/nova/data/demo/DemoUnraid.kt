@@ -156,7 +156,8 @@ class DemoUnraid internal constructor(
     fun startArray() = act { it.startArray() }
     fun stopArray() = act { it.stopArray() }
 
-    fun startContainer(id: String) = act { it.startContainer(id) }
+    fun startContainer(id: String, paused: Boolean) =
+        act { if (paused) it.unpauseContainer(id) else it.startContainer(id) }
     fun stopContainer(id: String) = act { it.stopContainer(id) }
     fun restartContainer(id: String) = act { it.restartContainer(id) }
     fun pauseContainer(id: String) = act { it.pauseContainer(id) }
