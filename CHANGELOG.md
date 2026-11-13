@@ -73,6 +73,14 @@ release version + date and opens a fresh `[Unreleased]`.
   every time you open it or come back to it, so the notice is on the first
   screen.
 
+- **NOVA no longer sends your API key along when a server redirects it** — it
+  used to follow a redirect and take the key with it, to another address or from
+  https down to plain http. Now a redirect is not followed: the tab, **Test**
+  and the action message say "The server redirects to …" and name the address,
+  and you enter that address in the server's settings. This is what Unraid does
+  when you type an `http` address while its SSL setting is Yes or Strict: it
+  points to the `https` address, which is the one to enter (#354).
+
 ## [0.1.48] - 2026-11-13
 
 The Overview now tells you when something on your server needs you, and the Docker tab can search and group containers by Compose project. A new "Needs attention" card at the top of the Overview lists what needs you, most urgent first; on a healthy server it is not there, so a quiet Overview is normal. The Docker tab has a search field with a clear button, and a new "Compose" option for the Docker view (Settings, Layout) groups containers by their Compose project. The 0.1.48 beta confirmed the search, the Compose option and the quiet Overview on a real phone. Some groundwork in this release has no visible change yet (detecting the server's API version and what the API key may do, and the rules for later opt-in alerts). As in 0.1.47, NOVA does not install updates itself: "Download" opens the release file in your browser.

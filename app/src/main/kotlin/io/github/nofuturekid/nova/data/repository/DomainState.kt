@@ -64,6 +64,13 @@ enum class ErrorReason {
     /** The server is fine but the service behind this domain (Docker, VM manager) is turned off. */
     ServiceOff,
 
+    /**
+     * The server answered with a redirect (3xx). The app does not follow it, because the API key
+     * would go with it (ADR-0051); the message names where it points so the user can enter that
+     * address. The server is reachable, so this is not a [isConnectionProblem].
+     */
+    Redirected,
+
     /** Any other error the server reported; its own text is shown. */
     ServerError,
     ;

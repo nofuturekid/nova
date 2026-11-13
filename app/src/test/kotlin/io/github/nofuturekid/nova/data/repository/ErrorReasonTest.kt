@@ -56,6 +56,9 @@ class ErrorReasonTest {
         """{"errors":[{"message":"boom","extensions":{"code":"INTERNAL_SERVER_ERROR"}}],"data":{"docker":null}}""",
     )
     private val unreachable: () -> HttpResponse = { throw IOException("connection refused") }
+    private fun redirect(status: Int, location: String?): () -> HttpResponse = {
+        HttpResponse.Builder(status).apply { if (location != null) addHeader("Location", location) }.build()
+    }
 
     /** Runs the VMs query like the poll does and classifies what comes back. */
     private suspend fun reasonOf(server: () -> HttpResponse): ErrorReason {
@@ -97,6 +100,23 @@ class ErrorReasonTest {
     // WHY: a transport failure is the only case where the pill may say Offline (rule 1 beats every body).
     @Test fun transportFailure_isUnreachable() = runTest {
         assertEquals(ErrorReason.Unreachable, reasonOf(unreachable))
+    }
+
+    // WHY: the clients no longer follow a redirect (ADR-0051), so a 3xx is the answer the tab gets. It must
+    // not read as an outage ("Can't reach the server" and an Offline pill): the server answered, and the fix
+    // is the address in the server's settings. Unraid answers http requests with 302 when SSL is Yes or Strict.
+    @Test fun redirect_isRedirected_notUnreachable() = runTest {
+        listOf(301, 302, 303, 307, 308).forEach { status ->
+            assertEquals("$status", ErrorReason.Redirected, reasonOf(redirect(status, "https://tower.example.net/graphql")))
+        }
+        assertEquals("no Location header", ErrorReason.Redirected, reasonOf(redirect(302, null)))
+    }
+
+    // WHY: 304 and 4xx/5xx are no redirects; only a status the client would have followed gets the reason.
+    @Test fun otherHttpStatuses_areNotRedirected() = runTest {
+        listOf(304, 404, 500).forEach { status ->
+            assertEquals("$status", ErrorReason.Unreachable, reasonOf(redirect(status, "https://tower.example.net/")))
+        }
     }
 
     // WHY: rule order. A response that carries both a key refusal and a service message is about the key.

@@ -1,5 +1,6 @@
 package io.github.nofuturekid.nova.data.repository
 
+import com.apollographql.apollo.api.http.HttpHeader
 import com.apollographql.apollo.exception.ApolloHttpException
 import com.apollographql.apollo.exception.ApolloNetworkException
 import io.github.nofuturekid.nova.data.api.CertIssue
@@ -7,6 +8,9 @@ import io.github.nofuturekid.nova.data.api.CertificateChangedException
 import io.github.nofuturekid.nova.data.api.CertificateUntrustedException
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
+import org.junit.Assert.assertFalse
+import org.junit.Assert.assertThrows
+import org.junit.Assert.assertTrue
 import org.junit.Test
 import java.io.IOException
 
@@ -157,5 +161,79 @@ class ResponseClassifierTest {
         val err = ex.toQueryError("Network error")
         assertEquals("Error while reading JSON response (EOFException: End of input at path $.data)", err.message)
         assertNull(err.detail)
+    }
+
+    private fun redirect(status: Int, location: String?, name: String = "Location") = ApolloHttpException(
+        status, listOfNotNull(location?.let { HttpHeader(name, it) }), null, "HTTP error $status", null,
+    )
+
+    // WHY: a redirect is what Unraid sends to an http request when SSL is Yes or Strict (nginx `return 302`).
+    // The user must be told where it points, as the address to enter; the message names the target and
+    // the advice, and stays out of the "Offline" class of failures.
+    @Test fun redirect_namesTheTargetAndTheAdvice() {
+        val err = redirect(302, "https://192-168-1-100.abc123.myunraid.net:8443/graphql?x=1").toQueryError("Network error")
+        assertEquals(ErrorReason.Redirected, err.reason)
+        assertEquals(
+            "The server redirects to https://192-168-1-100.abc123.myunraid.net:8443. Edit the server and enter that address.",
+            err.message,
+        )
+        assertEquals("the raw text stays behind Show details", "HTTP error 302", err.detail)
+        assertFalse("a redirect must not turn the pill to Offline", err.reason.isConnectionProblem)
+    }
+
+    // WHY: only the origin is shown. A path says nothing the user can act on, a query can carry tokens, and a
+    // Location with user:password@ must never be echoed onto the screen.
+    @Test fun redirect_showsOnlySchemeHostAndNonDefaultPort() {
+        assertEquals(
+            "The server redirects to https://tower.example.net. Edit the server and enter that address.",
+            redirect(302, "https://tower.example.net:443/graphql").redirectMessage(),
+        )
+        assertEquals(
+            "The server redirects to http://[::1]:8080. Edit the server and enter that address.",
+            redirect(307, "http://[::1]:8080/a?token=secret#frag").redirectMessage(),
+        )
+        val withCredentials = redirect(308, "https://admin:hunter2@tower.example.net/graphql").redirectMessage()!!
+        assertTrue(withCredentials, !withCredentials.contains("hunter2") && !withCredentials.contains("admin"))
+        assertTrue(withCredentials, withCredentials.contains("https://tower.example.net."))
+    }
+
+    // WHY: a redirect without a usable target still must be a redirect (not "HTTP error 302"), and the text
+    // must not invent a host. The header name is case-insensitive in HTTP.
+    @Test fun redirect_withoutUsableTarget_saysSoWithoutInventingOne() {
+        val unknown = "The server redirects to another address, but doesn't say which. Check the address in this server's settings."
+        assertEquals(unknown, redirect(302, null).redirectMessage())
+        assertEquals("relative", unknown, redirect(302, "/login").redirectMessage())
+        assertEquals("not http", unknown, redirect(302, "javascript:alert(1)").redirectMessage())
+        assertEquals(
+            "The server redirects to https://tower.example.net. Edit the server and enter that address.",
+            redirect(302, "https://tower.example.net/", name = "location").redirectMessage(),
+        )
+    }
+
+    // WHY: only the statuses OkHttp used to follow are redirects; a 304 or an error is not.
+    @Test fun otherStatuses_areNotRedirects() {
+        listOf(200, 304, 400, 401, 404, 500).forEach {
+            assertNull("$it", redirect(it, "https://tower.example.net/").redirectMessage())
+        }
+        assertNull(ApolloNetworkException("down").redirectMessage())
+        assertEquals(ErrorReason.Unreachable, redirect(404, null).toQueryError("Network error").reason)
+    }
+
+    // WHY: the Add server sheet's Test shows the classifier's message, so Test and the tabs say the same.
+    @Test fun redirect_isTheTestConnectionMessage() {
+        val c = classifyResponse(redirect(302, "https://tower.example.net/"), hasErrors = false, errorMessage = null, dataIsNull = true)
+        assertEquals(
+            RespClass.Failed("The server redirects to https://tower.example.net. Edit the server and enter that address."),
+            c,
+        )
+    }
+
+    // WHY: an action (start a container) that meets a redirect did not run; the snackbar says why instead of
+    // "the server answered HTTP 302".
+    @Test fun redirect_failsAnAction_withTheTarget() {
+        val e = assertThrows(ActionFailedException::class.java) {
+            checkActionResponse(redirect(307, "https://tower.example.net/graphql"), hasErrors = false, errorMessage = null)
+        }
+        assertEquals("the server redirects to https://tower.example.net. Edit the server and enter that address.", e.message)
     }
 }

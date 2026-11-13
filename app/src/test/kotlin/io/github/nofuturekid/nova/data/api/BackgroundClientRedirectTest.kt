@@ -19,8 +19,9 @@ import java.util.concurrent.CopyOnWriteArrayList
  * WHY: OkHttp follows redirects by default and strips only `Authorization` on the way, so a 3xx
  * answer would send the `x-api-key` header, and on 307/308 the POST body too, to whatever
  * `Location` says: another host, or http. In the background nobody is looking, so a verified
- * https peer, or a proxy in front of it, must not be able to move the key anywhere. The
- * foreground client is deliberately left as it is; a guard test pins that down.
+ * https peer, or a proxy in front of it, must not be able to move the key anywhere. The foreground
+ * clients follow no redirect either since ADR-0051 ([KeyedClientRedirectTest]); the background
+ * client states it itself, so these tests pin it independently of the base client.
  */
 class BackgroundClientRedirectTest {
     private val servers = mutableListOf<HttpServer>()
@@ -93,15 +94,15 @@ class BackgroundClientRedirectTest {
         assertEquals("nothing reached the http server", emptyList<String?>(), plain.seenKeys.toList())
     }
 
-    @Test fun the_foreground_client_still_follows_redirects() {
-        // WHY: the foreground behaviour of the app is deliberately unchanged; this guard fails if
-        // the redirect and cleartext settings ever leak from the background variant into build().
+    @Test fun the_foreground_client_does_not_follow_redirects_either_but_keeps_cleartext() {
+        // WHY: ADR-0051 stopped the foreground redirects; what must stay is the background-only cleartext
+        // block: a user with an http-only server (SSL off) still connects in the foreground.
         val elsewhere = peer(200)
         val redirecting = peer(307, location = "${elsewhere.url}/graphql")
 
         exception(ApolloClientFactory().build(redirecting.url, "secret"))
 
-        assertEquals(listOf("secret"), redirecting.seenKeys.toList())
-        assertEquals("the foreground follows the redirect, as before", listOf("secret"), elsewhere.seenKeys.toList())
+        assertEquals("http is still allowed in the foreground", listOf("secret"), redirecting.seenKeys.toList())
+        assertEquals("no redirect is followed", emptyList<String?>(), elsewhere.seenKeys.toList())
     }
 }

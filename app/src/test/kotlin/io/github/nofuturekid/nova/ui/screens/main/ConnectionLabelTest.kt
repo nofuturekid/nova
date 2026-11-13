@@ -41,8 +41,11 @@ class ConnectionLabelTest {
     }
 
     // WHY: the same holds when nothing else has loaded yet, and for every reason that is not about the connection.
+    // A redirect is one of them: the server answered, so "Offline" would send the user to the network.
     @Test fun failuresThatAreNotTheConnection_leaveThePillAlone() {
-        listOf(ErrorReason.Forbidden, ErrorReason.ApiTooOld, ErrorReason.ServiceOff, ErrorReason.ServerError).forEach {
+        listOf(
+            ErrorReason.Forbidden, ErrorReason.ApiTooOld, ErrorReason.ServiceOff, ErrorReason.Redirected, ErrorReason.ServerError,
+        ).forEach {
             assertEquals("$it", "Local", connectionLabel(DomainState.Error("x", reason = it), ConnectionMode.Local))
         }
     }

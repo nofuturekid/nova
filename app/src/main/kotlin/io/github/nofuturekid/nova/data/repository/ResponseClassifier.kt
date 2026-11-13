@@ -8,6 +8,7 @@ import com.apollographql.apollo.exception.ApolloHttpException
 import com.apollographql.apollo.exception.ApolloNetworkException
 import io.github.nofuturekid.nova.data.api.CertIssue
 import io.github.nofuturekid.nova.data.api.certIssue
+import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
 import java.io.InterruptedIOException
 import java.net.SocketException
 import java.net.UnknownHostException
@@ -42,7 +43,8 @@ fun classifyResponse(
 ): RespClass = when {
     exception != null -> {
         val issue = exception.certIssue()
-        if (issue != null) RespClass.Cert(issue) else RespClass.Failed(exception.failureMessage("Network error"))
+        if (issue != null) RespClass.Cert(issue)
+        else RespClass.Failed(exception.redirectMessage() ?: exception.failureMessage("Network error"))
     }
     hasErrors -> RespClass.Failed(errorMessage ?: "Unknown GraphQL error")
     dataIsNull -> RespClass.Empty
@@ -52,7 +54,8 @@ fun classifyResponse(
 /**
  * Why a domain query failed, by the response it got. The first matching rule wins
  * (the bodies behind them were recorded from Unraid 7.4.0, API 4.37.11):
- *  1. a transport exception: [ErrorReason.Unreachable];
+ *  1. a transport exception: [ErrorReason.Unreachable], or [ErrorReason.Redirected] when the
+ *     server answered with a redirect, which the clients do not follow (ADR-0051);
  *  2. `UNAUTHENTICATED`: [ErrorReason.KeyRejected];
  *  3. `GRAPHQL_VALIDATION_FAILED` or "Cannot query field": [ErrorReason.ApiTooOld];
  *  4. `FORBIDDEN`: [ErrorReason.Forbidden];
@@ -62,7 +65,9 @@ fun classifyResponse(
  * cannot disagree about what an `errors` array means.
  */
 fun classifyErrorReason(exception: ApolloException?, errors: List<Error>?): ErrorReason {
-    if (exception != null) return ErrorReason.Unreachable
+    if (exception != null) {
+        return if (exception.redirectMessage() != null) ErrorReason.Redirected else ErrorReason.Unreachable
+    }
     val list = errors.orEmpty()
     return when (classifyErrors(list)) {
         ErrorClass.KeyRejected -> ErrorReason.KeyRejected
@@ -91,6 +96,30 @@ fun graphQlError(message: String, errors: List<Error>?): DomainState.Error {
 
 /** What Unraid's resolvers throw when the service behind a domain is off (Docker: missing socket; VMs: no hypervisor). */
 private val SERVICE_OFF_MARKERS = listOf("Docker socket unavailable", "VMs are not available")
+
+/** The statuses OkHttp follows by default; the clients here follow none of them (ADR-0051). */
+private val REDIRECT_STATUSES = setOf(300, 301, 302, 303, 307, 308)
+
+/**
+ * The sentence for a server that answered with a redirect, or null when this failure is not one.
+ * The clients do not follow redirects (the API key would go with them, ADR-0051), so a 3xx
+ * arrives here as an [ApolloHttpException] with its `Location` header. The target is shown as
+ * `scheme://host[:port]` only: the path says nothing the user can act on, a query may carry
+ * tokens, and `user:password@` must never be echoed. A missing, relative or unparsable
+ * `Location` gets the same advice without a target.
+ */
+fun ApolloException.redirectMessage(): String? {
+    if (this !is ApolloHttpException || statusCode !in REDIRECT_STATUSES) return null
+    val location = headers.firstOrNull { it.name.equals("Location", ignoreCase = true) }?.value
+    val target = location?.trim()?.toHttpUrlOrNull()?.newBuilder()
+        ?.username("")?.password("")?.encodedPath("/")?.query(null)?.fragment(null)
+        ?.build()?.toString()?.removeSuffix("/")
+    return if (target != null) {
+        "The server redirects to $target. Edit the server and enter that address."
+    } else {
+        "The server redirects to another address, but doesn't say which. Check the address in this server's settings."
+    }
+}
 
 /**
  * The text to show for a failed request: the exception's own message plus its
@@ -145,6 +174,9 @@ private const val MAX_CAUSE_DEPTH = 10
  */
 fun Throwable.toQueryError(fallback: String): DomainState.Error {
     val text = failureMessage(fallback)
+    (this as? ApolloException)?.redirectMessage()?.let {
+        return DomainState.Error(it, detail = text, reason = ErrorReason.Redirected)
+    }
     return if (isServerUnreachable()) DomainState.Error(UNREACHABLE_MESSAGE, detail = text) else DomainState.Error(text)
 }
 
@@ -167,7 +199,8 @@ fun checkActionResponse(exception: ApolloException?, hasErrors: Boolean, errorMe
         is RespClass.Failed -> throw ActionFailedException(
             when (exception) {
                 // Plain wording for the snackbar; the technical cause stays on the exception.
-                is ApolloHttpException -> "the server answered HTTP ${exception.statusCode}"
+                is ApolloHttpException -> exception.redirectMessage()?.replaceFirstChar { it.lowercase() }
+                    ?: "the server answered HTTP ${exception.statusCode}"
                 is ApolloNetworkException -> "can't reach the server"
                 else -> c.message
             },

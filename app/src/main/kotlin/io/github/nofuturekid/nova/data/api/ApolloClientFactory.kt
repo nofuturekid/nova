@@ -14,7 +14,11 @@ import javax.inject.Inject
 import javax.inject.Singleton
 
 /**
- * Builds per-server [ApolloClient] instances. Four variants:
+ * Builds per-server [ApolloClient] instances. Four variants. None of them follows a redirect
+ * (ADR-0051): every client here sends the API key, and OkHttp would send it on to whatever a 3xx
+ * answer's `Location` names, another host or plain http. A redirect comes back as the response
+ * (an `ApolloHttpException` with the status and the `Location` header) and is reported as
+ * [io.github.nofuturekid.nova.data.repository.ErrorReason.Redirected].
  *
  * - [build] — short timeouts (8 s connect, 15 s read/write). Used for
  *   polling queries and short-lived mutations (start/stop/pause/etc.).
@@ -28,9 +32,9 @@ import javax.inject.Singleton
  *   Per ADR-0016 these get their own client so the polling timeout
  *   doesn't have to be relaxed globally.
  *
- * - [buildBackground] — the polling client for the background alert check: no redirect is
- *   followed and no cleartext connection is made, so the API key stays on the https address it
- *   was sent to. Only the background check uses it; the foreground is unchanged.
+ * - [buildBackground] — the polling client for the background alert check: like the others it
+ *   follows no redirect, and on top of that no cleartext connection is made, so the API key stays
+ *   on the https address it was sent to. Only the background check uses it.
  *
  * - [buildWs] — WebSocket-only client for GraphQL subscriptions. Reuses
  *   the existing self-signed TLS pin (ADR-0041) via [applyTrust]. Uses
@@ -50,7 +54,7 @@ open class ApolloClientFactory @Inject constructor() {
         const val WS_PING_INTERVAL_S = 15L
     }
 
-    private val baseHttpClient: OkHttpClient by lazy {
+    internal val baseHttpClient: OkHttpClient by lazy {
         val logging = HttpLoggingInterceptor().apply {
             level = if (io.github.nofuturekid.nova.BuildConfig.DEBUG)
                 HttpLoggingInterceptor.Level.BASIC
@@ -62,10 +66,12 @@ open class ApolloClientFactory @Inject constructor() {
             .readTimeout(15, TimeUnit.SECONDS)
             .writeTimeout(15, TimeUnit.SECONDS)
             .addInterceptor(logging)
+            .followRedirects(false)
+            .followSslRedirects(false)
             .build()
     }
 
-    private val longRunningHttpClient: OkHttpClient by lazy {
+    internal val longRunningHttpClient: OkHttpClient by lazy {
         val logging = HttpLoggingInterceptor().apply {
             level = if (io.github.nofuturekid.nova.BuildConfig.DEBUG)
                 HttpLoggingInterceptor.Level.BASIC
@@ -77,6 +83,8 @@ open class ApolloClientFactory @Inject constructor() {
             .readTimeout(10, TimeUnit.MINUTES)
             .writeTimeout(10, TimeUnit.MINUTES)
             .addInterceptor(logging)
+            .followRedirects(false)
+            .followSslRedirects(false)
             .build()
     }
 
@@ -115,8 +123,9 @@ open class ApolloClientFactory @Inject constructor() {
     open fun build(baseUrl: String, apiKey: String, trust: TlsTrust = TlsTrust.Default): ApolloClient =
         cached("short", baseHttpClient, baseUrl, apiKey, trust)
 
-    /** Same as [build] but for the background alert check ([backgroundHttpClient]): https only,
-     *  no redirect is followed. The foreground variants are not affected. */
+    /** Same as [build] but for the background alert check ([backgroundHttpClient]): https only.
+     *  Like every client here it follows no redirect; the background client states that itself
+     *  so it does not depend on the base client. */
     fun buildBackground(baseUrl: String, apiKey: String, trust: TlsTrust = TlsTrust.Default): ApolloClient =
         cached("bg", backgroundHttpClient, baseUrl, apiKey, trust)
 

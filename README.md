@@ -82,7 +82,7 @@ A few things bend to taste in **Settings**:
 2. On your Unraid server, generate an **API key**: web UI → _Settings → Management Access → API / Connect_ (which rights it needs: [API key permissions](#api-key-permissions)).
 3. Open the app → **Add server** and fill in:
    - **Server name** — a label, e.g. `Tower`
-   - **Local host** — its address on your home network, e.g. `192.168.1.10`. Flip **Use SSL (HTTPS)** if the server uses HTTPS; for a self-signed certificate also enable **Trust self-signed certificate** and confirm it once
+   - **Local host** — its address on your home network, e.g. `192.168.1.10`. Flip **Use SSL (HTTPS)** if the server uses HTTPS; for a self-signed certificate also enable **Trust self-signed certificate** and confirm it once. If your server's _Use SSL/TLS_ setting is _Yes_ or _Strict_, it answers a plain `http` request with a redirect to `https`; NOVA does not follow redirects (the API key would travel with it), so enter the address it names, with **Use SSL (HTTPS)** on. A tab or **Test** shows it as "The server redirects to …"
    - **Remote host (Unraid Connect)** — optional, e.g. `your-server.unraid.net`, for when you're away (with its own **Use SSL (HTTPS)** switch)
    - **API Key** — the one you just generated
 4. Tap **Test** (next to the local and/or remote connection), then **Save**. The pill in the top bar flips between **Local** and **Remote**.

@@ -82,6 +82,7 @@ class TabFailureRenderingTest {
             ErrorReason.Forbidden to "This API key can't read containers",
             ErrorReason.ApiTooOld to "This server's Unraid API is too old",
             ErrorReason.ServiceOff to "Docker is turned off",
+            ErrorReason.Redirected to "The address needs to change",
             ErrorReason.ServerError to "The server couldn't load containers",
         )
         assertTrue("one case per reason", titles.keys == ErrorReason.entries.toSet())

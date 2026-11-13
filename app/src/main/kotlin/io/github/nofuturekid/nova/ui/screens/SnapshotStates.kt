@@ -60,7 +60,8 @@ data class ErrorTexts(val title: String, val body: String)
 /**
  * The texts for [reason]. Pure, so a test can pin every wording. [message] is the
  * server's own text and the body only for [ErrorReason.Unreachable] and
- * [ErrorReason.ServerError]; the other reasons explain what to do instead.
+ * [ErrorReason.ServerError] (for [ErrorReason.Redirected] it is the app's own sentence naming the
+ * target); the other reasons explain what to do instead.
  * [subject] is null where a screen has none (generic wording).
  */
 fun errorTexts(reason: ErrorReason, subject: ErrorSubject?, message: String): ErrorTexts = when (reason) {
@@ -90,6 +91,8 @@ fun errorTexts(reason: ErrorReason, subject: ErrorSubject?, message: String): Er
         // Only Docker and VMs can be switched off; anything else is the server's own error.
         else -> ErrorTexts("The server couldn't load ${subject?.noun ?: "this"}", message)
     }
+    // [message] names the target ("The server redirects to https://...") and is already the advice.
+    ErrorReason.Redirected -> ErrorTexts("The address needs to change", message)
     ErrorReason.ServerError -> ErrorTexts("The server couldn't load ${subject?.noun ?: "this"}", message)
 }
 
