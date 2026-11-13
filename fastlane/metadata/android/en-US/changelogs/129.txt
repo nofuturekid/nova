@@ -1,0 +1,2 @@
+Adding a server with a self-signed certificate now asks you to trust the certificate only once.
+The Overview shows dashes instead of zeros when it has no data, for example while the connection is down. Uptime on the System card shows how long the server has been running, and disk rows on the Array tab no longer end in a lonely dot.
