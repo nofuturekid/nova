@@ -80,3 +80,5 @@ ADRs live under `docs/` so the CI docs-only bypass applies — pure-ADR PRs comp
 | [0043](./0043-graphql-subscription-metrics-docker-rollout.md) | Roll the GraphQL subscription transport out to CPU, memory, temperature, and docker stats | Accepted |
 | [0044](./0044-container-detail-live-stats-overlay.md) | Surface live CPU/Mem/Net/Disk in the container detail sheet from the docker stats overlay | Accepted |
 | [0045](./0045-array-disk-display.md) | Array disk display — sleeping disks, per-disk thresholds, errors | Accepted (updated beta10 — 2026-05-30) |
+
+Probe line for the CI gate negative test (issue 295).
