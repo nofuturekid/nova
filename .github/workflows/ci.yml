@@ -423,6 +423,23 @@ jobs:
           echo "Merge base: $BASE"
           echo "sha=$BASE" >> "$GITHUB_OUTPUT"
 
+      # A pinned shellcheck, not the runner image's: the image's version
+      # drifts (the one on ubuntu-latest still reports SC2015 as an info
+      # note, 0.11.0 does not) and would turn a runner update into a red
+      # gate. Put on PATH first, so actionlint (which runs shellcheck on the
+      # `run:` blocks) and the shellcheck step below use the same binary.
+      - name: Install shellcheck (pinned)
+        run: |
+          set -euo pipefail
+          VER=0.11.0
+          SHA256=8c3be12b05d5c177a04c29e3c78ce89ac86f1595681cab149b65b97c4e227198
+          curl -fsSL -o "$RUNNER_TEMP/shellcheck.tar.xz" "https://github.com/koalaman/shellcheck/releases/download/v${VER}/shellcheck-v${VER}.linux.x86_64.tar.xz"
+          echo "${SHA256}  $RUNNER_TEMP/shellcheck.tar.xz" | sha256sum -c -
+          mkdir -p "$RUNNER_TEMP/shellcheck-bin"
+          tar -xJf "$RUNNER_TEMP/shellcheck.tar.xz" -C "$RUNNER_TEMP/shellcheck-bin" --strip-components=1 "shellcheck-v${VER}/shellcheck"
+          echo "$RUNNER_TEMP/shellcheck-bin" >> "$GITHUB_PATH"
+          "$RUNNER_TEMP/shellcheck-bin/shellcheck" --version
+
       - name: actionlint (all workflows)
         run: |
           set -euo pipefail
