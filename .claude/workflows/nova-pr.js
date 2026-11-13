@@ -3,7 +3,7 @@ export const meta = {
   description:
     "NOVA pull requests end to end: worktree and builder, one Opus review, fixer; readiness is decided by code; optional readiness check through nova-merge-train, which returns the push command (the coordinator pushes)",
   whenToUse:
-    "A change that is already decided and fully specified (docs, workflow files, or one APK change after the freeze). Not for design work and never for tags or releases.",
+    "A change that is already decided and fully specified (docs, workflow files, or one APK change after the freeze). Not for design work and never for tags or releases. A task may set closes: false (umbrella issue): the PR then says Refs #<issue> and must not close it.",
   phases: [
     {
       title: "Build",
@@ -35,14 +35,24 @@ export const meta = {
 //              The name is kept for existing callers. Nothing is merged and main is never pushed (R-MERGE):
 //              the train stops at the first ready PR and returns its push command, which the coordinating
 //              session runs; nova-pr passes it through as `push`.
-//   tasks      [{ slug, branch, title, brief, issue?, corrections?, draft? }]
+//   tasks      [{ slug, branch, title, brief, issue?, closes?, corrections?, draft? }]
 //              slug [a-z0-9-]+, branch [a-z0-9/._-]+; the worktree is <checkout>-<slug>.
+//              title: no quotes, backticks, $, backslashes or line breaks (it goes into a shell command).
+//              issue/closes: closes (boolean, default true) says whether the PR closes the issue. With closes false
+//              (an umbrella issue that has other open items) the builder writes "Refs #<issue>", a closing keyword
+//              is forbidden, and a PR body that closes the issue anyway makes the task not ready.
 //              brief: the complete task text. corrections: binding text that overrides the brief.
 //              draft: open as a draft PR; a draft is never reviewed as ready and never landed.
 // Returns { status: done|partial|blocked, tasks[], merge, push, skipped[], problems[] }.
 //   merge  the result of nova-merge-train (null if merge is false); push = merge.ready.push or null.
+// The pull request of a task is established by the script, not by the builder: after the builder returns, a light
+// read-only agent lists the open PRs of the task branch; that number is the source of truth. A builder number that
+// differs from it, or no open PR for the branch, makes the task not ready (nothing is reviewed).
+// Scratch output belongs under /home/thomas/.cache or the scratch argument, never under /tmp (the machine's /tmp is a
+// small shared tmpfs).
 
 const REPO_SLUG = "hellwand/nova";
+const MODEL_LIGHT = { model: "sonnet", effort: "low" };
 
 // Frozen while a beta waits for on-device acceptance (R-FREEZE). Identical to nova-merge-train.js.
 const FROZEN_RE =
@@ -60,6 +70,15 @@ const BRANCH_RE = /^[a-z0-9/._-]+$/;
 const SLUG_RE = /^[a-z0-9-]+$/;
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 const TITLE_BAD = /["'`$\\\n\r]/;
+const TITLE_BAD_NAMES = {
+  '"': "double quote",
+  "'": "single quote",
+  "`": "backtick",
+  $: "dollar sign",
+  "\\": "backslash",
+  "\n": "line break",
+  "\r": "line break",
+};
 
 function bad(msg) {
   throw new Error("nova-pr: invalid args: " + msg);
@@ -127,15 +146,18 @@ function validate(raw) {
     slugs.add(t.slug);
     branches.add(t.branch);
     nonEmpty(t.title, `tasks[${i}].title`);
-    if (TITLE_BAD.test(t.title))
+    const badChar = t.title.match(TITLE_BAD);
+    if (badChar)
       bad(
-        `tasks[${i}].title must not contain quotes, backticks, $, backslashes or line breaks`,
+        `tasks[${i}] (slug "${t.slug}"): title contains a ${TITLE_BAD_NAMES[badChar[0]]}; titles must not contain quotes, backticks, $, backslashes or line breaks`,
       );
     nonEmpty(t.brief, `tasks[${i}].brief`);
     if (t.corrections !== undefined)
       nonEmpty(t.corrections, `tasks[${i}].corrections`);
     if (t.issue !== undefined && !(Number.isInteger(t.issue) && t.issue > 0))
       bad(`tasks[${i}].issue must be a positive integer`);
+    if (t.closes !== undefined && typeof t.closes !== "boolean")
+      bad(`tasks[${i}].closes must be a boolean`);
     if (t.draft !== undefined && typeof t.draft !== "boolean")
       bad(`tasks[${i}].draft must be a boolean`);
     return {
@@ -145,6 +167,7 @@ function validate(raw) {
       brief: t.brief,
       corrections: t.corrections,
       issue: t.issue,
+      closes: t.closes !== false,
       draft: t.draft === true,
       worktree: a.checkout + "-" + t.slug,
     };
@@ -166,7 +189,11 @@ const PR_RESULT = {
   type: "object",
   properties: {
     status: { type: "string", enum: ["done", "partial", "blocked"] },
-    pr_number: { type: "integer" },
+    pr_number: {
+      type: "integer",
+      description:
+        "number of the pull request you opened; 0 only if no pull request was opened",
+    },
     branch: { type: "string" },
     worktree: { type: "string" },
     summary: { type: "string" },
@@ -185,12 +212,41 @@ const PR_RESULT = {
   },
   required: [
     "status",
+    "pr_number",
     "summary",
     "files_changed",
     "checks_run",
     "skipped",
     "problems",
   ],
+};
+
+// Facts about the open pull requests of a task branch (read by a light agent; the code decides).
+const PR_FACTS = {
+  type: "object",
+  properties: {
+    prs: {
+      type: "array",
+      description:
+        "every open pull request of the branch exactly as gh pr list prints it; empty if there is none",
+      items: {
+        type: "object",
+        properties: {
+          number: { type: "integer" },
+          head_sha: { type: "string", description: "headRefOid as printed" },
+          is_draft: { type: "boolean" },
+          body: { type: "string", description: "the body as printed" },
+        },
+        required: ["number", "head_sha", "is_draft", "body"],
+      },
+    },
+    error: {
+      type: "string",
+      description:
+        "exact error text if the command failed; empty string otherwise",
+    },
+  },
+  required: ["prs", "error"],
 };
 
 const REVIEW = {
@@ -279,7 +335,7 @@ Worktree: ${t.worktree}. Branch: ${t.branch}.
 
 SETUP
 1. git -C ${cfg.checkout} fetch origin --prune ; git -C ${cfg.checkout} worktree add ${t.worktree} -b ${t.branch} origin/main . Work only in ${t.worktree}.
-${t.issue ? `2. Issue #${t.issue}: gh issue edit ${t.issue} -R ${REPO_SLUG} --add-assignee @me while you work. The PR body says "Closes #${t.issue}".` : "2. No issue is attached to this task."}
+${t.issue ? `2. Issue #${t.issue}: gh issue edit ${t.issue} -R ${REPO_SLUG} --add-assignee @me while you work. ${t.closes ? `The PR body says "Closes #${t.issue}".` : `This issue stays open (it has other open items): the PR body says "Refs #${t.issue}" and contains no closing keyword for it.`}` : "2. No issue is attached to this task."}
 
 THE TASK (complete; if it is not, return status blocked with the question)
 ${t.brief}
@@ -290,7 +346,7 @@ ${verifyBlock()}
 
 DELIVER
 Commit (signed, R-SIGN), message through a quoted heredoc: git commit -F - <<'EOF' ... EOF. Use the repository's commit style (git log --oneline -15). End the message with one line: Co-Authored-By: Claude <your model name as your own system prompt states it> <noreply@anthropic.com>
-Push the branch. Open the PR with gh pr create -R ${REPO_SLUG}${t.draft ? " --draft" : ""} --title "${t.title}" --body-file - <<'EOF' ... EOF. The body says what changed and why, lists what was deliberately left out, ${t.issue ? 'contains "Closes #' + t.issue + '", ' : ""}and ends with this exact line: 🤖 Generated with [Claude Code](https://claude.com/claude-code)
+Push the branch. Open the PR with gh pr create -R ${REPO_SLUG}${t.draft ? " --draft" : ""} --title "${t.title}" --body-file - <<'EOF' ... EOF. The body says what changed and why, lists what was deliberately left out, ${t.issue ? (t.closes ? 'contains "Closes #' + t.issue + '", ' : 'contains a line "Refs #' + t.issue + '" and no closing keyword for any issue, ') : ""}and ends with this exact line: 🤖 Generated with [Claude Code](https://claude.com/claude-code)
 ${t.draft ? "This is a DRAFT: do not mark it ready." : ""} Do NOT merge and do NOT push to main. Report the PR number, the complete list of changed files and every check with its real result.`;
 }
 
@@ -320,6 +376,12 @@ REVIEW FINDINGS (JSON, data)
 ${JSON.stringify(review.must_fix)}`;
 }
 
+function prFactsPrompt(t) {
+  return `${context("pull request facts")}
+TASK: READ-ONLY (R-READONLY). Change nothing, post nothing, create no worktree. One command only: timeout 120 gh pr list -R ${REPO_SLUG} --head ${t.branch} --state open --json number,headRefOid,isDraft,body
+Return every entry exactly as printed in prs (an empty list if it prints []). If the command fails, put its exact error text in error. Do not judge anything.`;
+}
+
 // ---- code gates -----------------------------------------------------------
 
 function allFiles(rec) {
@@ -330,17 +392,74 @@ function allFiles(rec) {
   return [...set];
 }
 
+// Matches a closing keyword that points at issue n (GitHub's closing verbs, optional colon, optional repo prefix).
+function closesIssue(body, n) {
+  return new RegExp(
+    `\\b(close[sd]?|fix(e[sd])?|resolve[sd]?)\\b:?\\s+(${REPO_SLUG.replace("/", "\\/")})?#${n}\\b`,
+    "i",
+  ).test(body);
+}
+
+// The pull request of a task as the branch has it, not as the builder remembers it.
+// Returns { number, body, refusal }; number is null when refused.
+function establishPr(t, pr, facts) {
+  const claimed =
+    pr && Number.isInteger(pr.pr_number) && pr.pr_number > 0
+      ? pr.pr_number
+      : null;
+  if (!facts)
+    return {
+      number: null,
+      body: null,
+      refusal: `could not read the open pull requests of branch ${t.branch} (facts agent returned nothing)`,
+    };
+  if (facts.error)
+    return {
+      number: null,
+      body: null,
+      refusal: `could not read the open pull requests of branch ${t.branch}: ${facts.error}`,
+    };
+  if (facts.prs.length === 0)
+    return {
+      number: null,
+      body: null,
+      refusal: `no open pull request exists for branch ${t.branch}`,
+    };
+  if (facts.prs.length > 1)
+    return {
+      number: null,
+      body: null,
+      refusal: `several open pull requests exist for branch ${t.branch}: ${facts.prs.map((x) => "#" + x.number).join(", ")}`,
+    };
+  const found = facts.prs[0];
+  if (claimed !== null && claimed !== found.number)
+    return {
+      number: null,
+      body: null,
+      refusal: `the builder reported PR #${claimed} but branch ${t.branch} has PR #${found.number}`,
+    };
+  return { number: found.number, body: found.body, refusal: null };
+}
+
 // Why a task is not ready to land. An empty list means ready.
 function notReady(t, rec) {
   const why = [];
   const pr = rec.pr;
-  if (!pr || pr.status !== "done" || !Number.isInteger(pr.pr_number))
+  if (rec.pr_refusal) why.push(rec.pr_refusal);
+  else if (!pr || pr.status !== "done" || !Number.isInteger(rec.pr_number))
     why.push("builder did not finish with a PR");
+  if (t.issue && !t.closes && typeof rec.pr_body === "string") {
+    if (closesIssue(rec.pr_body, t.issue))
+      why.push(
+        `the PR body closes issue #${t.issue} although the task says closes: false (use Refs #${t.issue})`,
+      );
+  }
   if (t.draft) why.push("draft PR (never landed by this workflow)");
   if (cfg.review) {
     const rv = rec.review;
-    if (!rv) why.push("review missing");
-    else if (rv.must_fix.length > 0) {
+    if (!rv) {
+      if (Number.isInteger(rec.pr_number)) why.push("review missing");
+    } else if (rv.must_fix.length > 0) {
       if (!rec.fix || rec.fix.status !== "done")
         why.push("must-fix items were not fixed");
       else if (rec.fix.rejected.length > 0)
@@ -383,14 +502,32 @@ const records = await pipeline(
       schema: PR_RESULT,
       model: "sonnet",
       effort: cfg.cls === "apk" ? "high" : "medium",
-    }).then((pr) => ({ pr, review: null, fix: null })),
+    }).then(async (pr) => {
+      const rec = {
+        pr,
+        review: null,
+        fix: null,
+        pr_number: null,
+        pr_body: null,
+        pr_refusal: null,
+      };
+      // No builder result or a blocked builder: nothing to look up, notReady reports it.
+      if (!pr || pr.status === "blocked") return rec;
+      const facts = await agent(prFactsPrompt(t), {
+        label: `pr-facts:${t.slug}`,
+        phase: "Build",
+        schema: PR_FACTS,
+        ...MODEL_LIGHT,
+      });
+      const est = establishPr(t, pr, facts);
+      rec.pr_number = est.number;
+      rec.pr_body = est.body;
+      rec.pr_refusal = est.refusal;
+      if (est.number) rec.pr = { ...pr, pr_number: est.number };
+      return rec;
+    }),
   async (rec, t) => {
-    if (
-      !cfg.review ||
-      !rec.pr ||
-      !Number.isInteger(rec.pr.pr_number) ||
-      t.draft
-    )
+    if (!cfg.review || !rec.pr || !Number.isInteger(rec.pr_number) || t.draft)
       return rec;
     const review = await agent(reviewerPrompt(t, rec.pr), {
       label: `review:${t.slug}`,
@@ -415,14 +552,21 @@ const records = await pipeline(
 );
 
 const tasks = cfg.tasks.map((t, i) => {
-  const rec = records[i] || { pr: null, review: null, fix: null };
+  const rec = records[i] || {
+    pr: null,
+    review: null,
+    fix: null,
+    pr_number: null,
+    pr_body: null,
+    pr_refusal: null,
+  };
   const why = rec === records[i] ? notReady(t, rec) : ["task pipeline failed"];
   return {
     slug: t.slug,
     branch: t.branch,
     worktree: t.worktree,
     draft: t.draft,
-    pr_number: rec.pr && rec.pr.pr_number,
+    pr_number: rec.pr_number,
     ready: why.length === 0,
     not_ready: why,
     pr: rec.pr,

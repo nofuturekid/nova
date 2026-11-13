@@ -34,6 +34,11 @@ export const meta = {
 //                     branch must never be main or start with refs/.
 //                     branch/worktree enable the rebase refresh and the cleanup; worktree must be <checkout>-<slug>.
 //                     dependabot/renovate are only consistency assertions: the PR author decides the path.
+// Scratch output belongs under /home/thomas/.cache or the scratch argument, never under /tmp (the machine's /tmp is a
+// small shared tmpfs).
+// Cleanup: a remote branch that GitHub already deleted after the push (delete-branch-on-merge) is the expected
+// outcome and is no problem; a remote branch that still exists is deleted only if its tip is the pushed head or already
+// on origin/main.
 // This workflow never merges and never pushes main (R-MERGE); the coordinating session runs the returned push command.
 // Returns, prepare: { status: ready|blocked|done, mode, ready, refused[], skipped[], problems[] }
 //          ready = { number, head_sha, branch, worktree, push, signals[] } for the first ready PR, else null.
@@ -535,7 +540,7 @@ READ-ONLY apart from step 1. Delete nothing, remove nothing, pull nothing; the c
 1. git -C ${cfg.checkout} fetch origin --prune
 2. Per PR, report in facts: gh pr view <number> -R ${REPO_SLUG} --json state,mergeCommit,headRefName,isCrossRepository gives state, merge_commit (the mergeCommit.oid, empty string if none), head_ref_name and is_cross_repository; on_main is true only if git -C ${cfg.checkout} merge-base --is-ancestor <pushed head> origin/main exits 0.
 3. Per PR with a branch: remote_tip is the SHA printed by git -C ${cfg.checkout} ls-remote origin refs/heads/<branch> (empty string if nothing is printed); remote_tip_on_main is true only if remote_tip is not empty and git -C ${cfg.checkout} merge-base --is-ancestor <remote_tip> origin/main exits 0 (false if the object is unknown locally). For a PR without a branch both are empty/false.
-Do not judge any of these values. If a command fails, put its exact error text in problems.`;
+Do not judge any of these values. An empty remote_tip (the remote branch is already deleted) is an expected value, not a problem. If a command fails, put its exact error text in problems.`;
 }
 
 // Runs only for what the code allowed (see cleanupPlan). Nothing in this prompt is a decision.
@@ -543,7 +548,7 @@ function cleanupActionPrompt(plan) {
   const lines = plan
     .map(
       (i) =>
-        `   - PR #${i.number}: pushed head ${i.head_sha}, branch ${i.branch || "(none given)"}, worktree ${i.worktree || "(none given)"}; delete remote branch: ${i.deleteRemote ? "YES, remote tip " + i.remote_tip : "no"}; remove worktree and local branch: ${i.removeLocal ? "YES" : "no"}`,
+        `   - PR #${i.number}: pushed head ${i.head_sha}, branch ${i.branch || "(none given)"}, worktree ${i.worktree || "(none given)"}; delete remote branch: ${i.deleteRemote ? "YES, remote tip " + i.remote_tip : i.remoteGone ? "no (the remote branch is already gone, deleted by GitHub after the push: this is the expected outcome, report it neither in problems nor in kept)" : "no"}; remove worktree and local branch: ${i.removeLocal ? "YES" : "no"}`,
     )
     .join("\n");
   return `${context("cleanup actions")}
@@ -554,7 +559,7 @@ Run these steps in order.
 2. For each PR marked "delete remote branch: YES": git -C ${cfg.checkout} push --force-with-lease=refs/heads/<branch>:<remote tip> origin --delete <branch>   (the lease pins the tip the code checked; if it is refused the branch moved, so leave it and say so in kept). Never delete any other branch, never main.
 3. For each PR marked "remove worktree and local branch: YES" with both branch and worktree: git -C <worktree> branch --show-current must print <branch> and git -C <worktree> status --short must print nothing, and git -C ${cfg.checkout} merge-base --is-ancestor refs/heads/<branch> origin/main must exit 0 (the whole local branch is on main). If any check fails, keep the worktree and branch and list them under kept with the reason; never force. Otherwise: git -C ${cfg.checkout} worktree remove <worktree> ; git -C ${cfg.checkout} branch -d <branch>. Plain -d must work now because the pushed commits are on main; if it refuses, list the branch under kept with git's message and do not use -D or --force.
 4. For each PR that has a branch, report in remote_after the SHA of git -C ${cfg.checkout} ls-remote origin refs/heads/<branch> (empty string if nothing is printed).
-Report git -C ${cfg.checkout} log --oneline -6 and git -C ${cfg.checkout} worktree list.`;
+A remote branch that is already gone is expected (GitHub deletes the branch after the push): never list it in problems or kept. Report git -C ${cfg.checkout} log --oneline -6 and git -C ${cfg.checkout} worktree list.`;
 }
 
 // ---- code gates -----------------------------------------------------------
@@ -915,6 +920,7 @@ function cleanupPlan(pr, f) {
     deleteRemote: ok && tipOk && f.remote_tip !== "",
     removeLocal: ok && pr.worktree !== undefined,
     remote_tip: f.remote_tip,
+    remoteGone: pr.branch !== undefined && f.remote_tip === "",
     skippedWhy: why,
   };
 }
@@ -967,6 +973,7 @@ if (cfg.mode === "cleanup") {
           deleteRemote: p.deleteRemote,
           removeLocal: p.removeLocal,
           remote_tip: p.remote_tip,
+          remoteGone: p.remoteGone,
         }),
       );
     }
@@ -981,8 +988,23 @@ if (cfg.mode === "cleanup") {
         "cleanup action agent returned nothing; worktrees, branches and the main checkout may not have been updated",
       );
     else {
-      problems.push(...cleanup.problems);
-      for (const k of cleanup.kept) problems.push(`cleanup kept: ${k}`);
+      // Backstop for the model: a remote branch GitHub already deleted is expected; drop a report that only says so.
+      const goneOnly = (text) =>
+        plan.some(
+          (i) =>
+            i.remoteGone &&
+            (text.includes("#" + i.number) || text.includes(i.branch)) &&
+            /remote/i.test(text) &&
+            /(already|gone|deleted|does not exist|not exist|no such|not found)/i.test(
+              text,
+            ),
+        );
+      for (const x of cleanup.problems)
+        if (goneOnly(x)) log(`expected, not a problem: ${x}`);
+        else problems.push(x);
+      for (const k of cleanup.kept)
+        if (goneOnly(k)) log(`expected, not a problem: kept ${k}`);
+        else problems.push(`cleanup kept: ${k}`);
       for (const pr of cfg.prs) {
         if (pr.branch === undefined) continue;
         const r = cleanup.remote_after.find((x) => x.number === pr.number);
