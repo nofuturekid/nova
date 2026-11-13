@@ -128,3 +128,18 @@ risks the working pipeline for zero finding. Left as-is.
 - ADR-0009 (docs-only CI bypass) — the fast path this decision protects.
 - ADR-0019 (parallel jobs; the `build` aggregator that remains the sole
   required check).
+
+## Amendment 2026-11-13 — actionlint is required; dependency-submission permissions
+
+CodeQL stays advisory as decided above. The separate advisory
+`actionlint.yml` workflow, which mirrored that posture, is deleted:
+actionlint now runs as part of the always-run `ci-lint` job in `ci.yml`
+(same pinned release tarball and SHA-256) and `build` fails when it
+reports anything. A workflow-file error therefore blocks the merge. The
+reason is issue #295: the repository rules are enforced by CI, and a
+linter nobody has to read enforces nothing. The same job runs shellcheck
+over `.github/scripts/*.sh`. See the ADR-0029 amendment of this date.
+
+`dependency-submission.yml` now follows the convention above more
+closely: workflow-level `contents: read`, with `contents: write` granted
+only on its one job (the dependency snapshot API needs it).

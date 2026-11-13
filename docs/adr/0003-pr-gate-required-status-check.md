@@ -62,3 +62,23 @@ Only the pull-request rule is bypassable. The `build` check, linear history, sig
 The merge buttons are off (squash and merge commit disabled, update-branch disabled) and branches are deleted when their PR is closed by the push. Break-glass, for an emergency fix that cannot wait for CI, is to set the ruleset "main (no bypass)" to `disabled` deliberately and back to `active` afterwards.
 
 This supersedes the 2026-11-10 sentences about `enforce_admins` and squash-only merges: classic protection is gone, and the `(#NN)` subject is no longer produced (see the ADR-0014 amendment of this date). The "GitHub Rulesets instead of classic branch protection" alternative above said to switch when ruleset features are actually needed; the feature that is now needed is the per-rule bypass, which classic protection cannot express. The history above stays as written.
+
+## Amendment 2026-11-13 — the dispatch check is named `build (dispatch)`
+
+A manual run of `ci.yml` used to put a check named `build` on any commit,
+which is the context the ruleset requires. That left a hole in "nothing
+lands before the check is green on that exact commit": a dispatch run on a
+branch could make `build` green without a pull request run. The job id
+stays `build`, but its displayed name is now
+`${{ github.event_name == 'pull_request' && 'build' || 'build (dispatch)' }}`.
+The context `build` is therefore produced by `pull_request` runs only; a
+manual run reports `build (dispatch)`, which no ruleset or merge-train gate
+matches. Nothing in the release path reads the name: `release.yml` looks
+for a successful run with an `app-release` artifact, so the documented
+recovery (`gh workflow run ci.yml --ref <tag>`) keeps working.
+
+Renaming the aggregate job itself (for example to `required`) was rejected:
+it would touch the ruleset, the merge-train ready gate, R-MERGE and this
+ADR and add no protection. The ruleset keeps requiring `build`. The
+aggregate also now requires the always-run `ci-lint` and `release-check`
+jobs (ADR-0029 amendment of this date).

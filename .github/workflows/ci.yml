@@ -1,13 +1,18 @@
 name: CI
 
-# ci.yml runs only on PRs (the gating signal for branch protection) and on
+# ci.yml runs only on PRs (the gating signal for the `main` rulesets) and on
 # manual dispatch (for backfill / rebuild of a specific commit). It does
-# NOT run on push:main — the squash-merge would otherwise rebuild the
-# exact same source the PR-CI just built minutes earlier under a different
-# SHA, wasting ~5 minutes per code PR.
+# NOT run on push:main — a PR lands by a fast-forward push of its own head
+# commit, so a push run would rebuild the exact commit the PR-CI just built
+# minutes earlier, wasting ~5 minutes per code PR.
 #
-# release.yml resolves the artifact via the PR# embedded in the merge
-# commit's message; see ADR-0014.
+# release.yml finds the successful run by the tagged commit's SHA (the PR
+# head that was fast-forwarded onto main); see ADR-0014.
+#
+# The aggregate job `build` reports as the check `build` on pull_request
+# and as `build (dispatch)` on workflow_dispatch (ADR-0003 amendment
+# 2026-11-13). The rulesets require the context `build`, so a manual run
+# can never satisfy them.
 #
 # Job structure (ADR-0019): `setup` runs first and gates everything else.
 # It builds only when a *build-affecting* path changed — an inverted
@@ -19,8 +24,12 @@ name: CI
 # writer left is dependency-submission.yml on push to main (observed since
 # 2026-11-10), whose cache key is a hash of the Gradle files. A PR that
 # changes those files (every Dependabot and release PR does) misses that
-# entry and builds cold. `build` is a tiny aggregator that branch
-# protection requires as the single status check.
+# entry and builds cold. `build` is a tiny aggregator that the `main`
+# ruleset requires as the single status check. Two jobs run on every run,
+# whatever changed (ADR-0029 amendment 2026-11-13): `ci-lint` (workflow,
+# shell, Renovate-config and commit-message checks) and `release-check`
+# (version-bump preflight, no Gradle). `build` accepts only `success` from
+# both.
 #
 # Release signing (ADR-0004, amendment 2026-11-12): signing runs in its own
 # job, `build-release`, whose job-level `if` admits only manual dispatch and
@@ -63,14 +72,20 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          fetch-depth: 0   # need history so docs-only diff works on PRs and pushes
+          fetch-depth: 0 # need history so docs-only diff works on PRs and pushes
 
       # Build only when a build-affecting path changed (ADR-0029, an
       # inverted allowlist that supersedes ADR-0009's docs deny-list).
       # The aggregator `build` job reads `setup.outputs.code`, so branch
       # protection's single required check stays SUCCESS without spinning
-      # up the parallel compile jobs. Falls back to a full build whenever
-      # we can't reliably diff (force-push, new branch, manual dispatch).
+      # up the parallel compile jobs. A manual dispatch always does a full
+      # build. On a pull request the diff is taken against the
+      # merge base with origin/main, not against the PR's base commit, so a PR
+      # stacked on an unbuilt branch, or one whose base is behind main, still
+      # builds everything that main does not already contain. It fails
+      # closed: if the merge base cannot be computed, or the diff is empty,
+      # the step fails and `build` cannot pass (ADR-0029 amendment
+      # 2026-11-13).
       - name: Detect build-affecting change
         id: filter
         run: |
@@ -81,8 +96,11 @@ jobs:
             exit 0
           fi
           if [ "${{ github.event_name }}" = "pull_request" ]; then
-            BASE="${{ github.event.pull_request.base.sha }}"
             HEAD="${{ github.event.pull_request.head.sha }}"
+            if ! BASE=$(git merge-base origin/main "$HEAD") || [ -z "$BASE" ]; then
+              echo "::error::Cannot compute the merge base of origin/main and $HEAD — failing closed instead of guessing a diff (ADR-0029)."
+              exit 1
+            fi
           else
             # Unreachable: ci.yml triggers are pull_request + workflow_dispatch
             # only (no push:main — ADR-0014). workflow_dispatch is fully
@@ -92,15 +110,15 @@ jobs:
             echo "::error::Unexpected event '${{ github.event_name }}' in setup diff — ci.yml triggers changed without updating this step (ADR-0014)."
             exit 1
           fi
-          if [ -z "$BASE" ] || [ "$BASE" = "0000000000000000000000000000000000000000" ]; then
-            echo "No diff base (force-push / new branch) → full build."
-            echo "code=true" >> "$GITHUB_OUTPUT"
-            exit 0
-          fi
           # --no-renames: a rename out of a build-affecting path (app/ -> docs/)
           # must list the OLD path too, or the allowlist below would only see
           # the docs path and skip the build.
           CHANGED=$(git diff --name-only --no-renames "$BASE" "$HEAD")
+          if [ -z "$CHANGED" ]; then
+            echo "::error::Empty diff between merge base $BASE and $HEAD — nothing to gate; failing closed (ADR-0029)."
+            exit 1
+          fi
+          echo "Merge base: $BASE"
           echo "Changed files:"
           echo "  ${CHANGED//$'\n'/$'\n'  }"
           # INVERTED allowlist (ADR-0029): enumerate ONLY the small, stable
@@ -148,7 +166,7 @@ jobs:
         uses: actions/setup-java@77dd5b2ce225ea11469928ac317850245a74ae78 # v6.2.0
         with:
           distribution: temurin
-          java-version: '21'
+          java-version: "21"
 
       - name: Set up Gradle (build cache)
         uses: gradle/actions/setup-gradle@8da46b539cd8fe6ab27ca75128919a18d757604c # v6.4.1
@@ -207,7 +225,7 @@ jobs:
         uses: actions/setup-java@77dd5b2ce225ea11469928ac317850245a74ae78 # v6.2.0
         with:
           distribution: temurin
-          java-version: '21'
+          java-version: "21"
 
       - name: Set up Gradle (build cache)
         uses: gradle/actions/setup-gradle@8da46b539cd8fe6ab27ca75128919a18d757604c # v6.4.1
@@ -266,7 +284,7 @@ jobs:
           name: mapping
           path: app/build/outputs/mapping/directRelease/mapping.txt
           retention-days: 90
-          if-no-files-found: warn
+          if-no-files-found: error
 
   # Compile-only release build for bot-authored and fork pull requests: the
   # exact negation of build-release's condition. No `secrets.` reference
@@ -290,7 +308,7 @@ jobs:
         uses: actions/setup-java@77dd5b2ce225ea11469928ac317850245a74ae78 # v6.2.0
         with:
           distribution: temurin
-          java-version: '21'
+          java-version: "21"
 
       - name: Set up Gradle (build cache)
         uses: gradle/actions/setup-gradle@8da46b539cd8fe6ab27ca75128919a18d757604c # v6.4.1
@@ -341,7 +359,7 @@ jobs:
         uses: actions/setup-java@77dd5b2ce225ea11469928ac317850245a74ae78 # v6.2.0
         with:
           distribution: temurin
-          java-version: '21'
+          java-version: "21"
 
       - name: Set up Gradle (build cache)
         uses: gradle/actions/setup-gradle@8da46b539cd8fe6ab27ca75128919a18d757604c # v6.4.1
@@ -370,12 +388,159 @@ jobs:
           retention-days: 14
           if-no-files-found: warn
 
-  # Aggregator job — branch protection's single required status check.
+  # Repository checks that run on EVERY run, whatever changed (ADR-0029
+  # amendment 2026-11-13). No `needs: setup`: a docs-only or bot pull request
+  # skips the Gradle jobs but never these, and a failed `setup` does not skip
+  # them. `build` accepts only `success` from this job.
+  #   - actionlint over all workflows (moved here from actionlint.yml, which
+  #     was advisory; ADR-0022 amendment 2026-11-13)
+  #   - shellcheck over .github/scripts/*.sh
+  #   - renovate-config-validator, only when renovate.json changed
+  #   - no session link or session trailer in any commit message of the
+  #     range merge-base..head (the two patterns of nova-pr.js, composed from
+  #     two quoted halves so that this file never contains them literally)
+  ci-lint:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+    env:
+      HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0 # merge base with origin/main and the commit range need history
+          persist-credentials: false
+
+      - name: Compute merge base
+        id: base
+        run: |
+          set -euo pipefail
+          if ! BASE=$(git merge-base origin/main "$HEAD_SHA") || [ -z "$BASE" ]; then
+            echo "::error::Cannot compute the merge base of origin/main and $HEAD_SHA — failing closed."
+            exit 1
+          fi
+          echo "Merge base: $BASE"
+          echo "sha=$BASE" >> "$GITHUB_OUTPUT"
+
+      - name: actionlint (all workflows)
+        run: |
+          set -euo pipefail
+          # Pinned release tarball with a verified SHA-256 (rhysd/actionlint
+          # ships no composite action; Renovate does not track this, so
+          # bump version + checksum together by hand).
+          VER=1.7.7
+          SHA256=023070a287cd8cccd71515fedc843f1985bf96c436b7effaecce67290e7e0757
+          curl -fsSL -o "$RUNNER_TEMP/actionlint.tgz" "https://github.com/rhysd/actionlint/releases/download/v${VER}/actionlint_${VER}_linux_amd64.tar.gz"
+          echo "${SHA256}  $RUNNER_TEMP/actionlint.tgz" | sha256sum -c -
+          tar -xzf "$RUNNER_TEMP/actionlint.tgz" -C "$RUNNER_TEMP" actionlint
+          "$RUNNER_TEMP/actionlint" -color
+
+      - name: shellcheck (.github/scripts)
+        run: shellcheck .github/scripts/*.sh
+
+      - name: Did renovate.json change?
+        id: renovate
+        env:
+          BASE_SHA: ${{ steps.base.outputs.sha }}
+        run: |
+          set -euo pipefail
+          if git diff --quiet "$BASE_SHA" "$HEAD_SHA" -- renovate.json; then
+            echo "renovate.json unchanged — skipping the validator."
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "renovate.json changed."
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      # renovate needs Node 24 or newer.
+      - name: Set up Node.js
+        if: steps.renovate.outputs.changed == 'true'
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: "24"
+
+      # Exact version, bumped by hand together with the actionlint pin above.
+      - name: Validate renovate.json
+        if: steps.renovate.outputs.changed == 'true'
+        run: npx --yes --package renovate@44.195.1 -- renovate-config-validator --strict
+
+      - name: No session links or trailers in commit messages
+        env:
+          BASE_SHA: ${{ steps.base.outputs.sha }}
+        run: |
+          set -euo pipefail
+          # Same two patterns as LINK_PATTERN and TRAILER_PATTERN in
+          # .claude/workflows/nova-pr.js (R-TRAILER, rule R14 of issue 295),
+          # joined from two quoted halves.
+          LINK_PATTERN='claude''\.ai/code'
+          TRAILER_PATTERN='Claude''-Session'
+          BAD=$(git log -E --grep="$LINK_PATTERN|$TRAILER_PATTERN" --format='%h' "$BASE_SHA..$HEAD_SHA")
+          if [ -n "$BAD" ]; then
+            echo "::error::These commits carry a session link or a session trailer in their message (R-TRAILER): ${BAD//$'\n'/ }. Reword them and force-push the branch."
+            exit 1
+          fi
+          echo "ok: no commit in $BASE_SHA..$HEAD_SHA carries a session link or trailer."
+
+  # Version-bump preflight on the pull request, no Gradle (issue 295,
+  # decision f). Exits 0 when versionName is unchanged against the merge
+  # base; otherwise release-preflight.sh checks the new version (shape,
+  # versionCode, free tag name, CHANGELOG section), the same script the
+  # release run will use. `build` accepts only `success` from this job.
+  release-check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+    env:
+      HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0 # merge base, tags and the previous release tag need history
+          persist-credentials: false
+
+      - name: Check a version bump
+        run: |
+          set -euo pipefail
+          if ! BASE=$(git merge-base origin/main "$HEAD_SHA") || [ -z "$BASE" ]; then
+            echo "::error::Cannot compute the merge base of origin/main and $HEAD_SHA — failing closed."
+            exit 1
+          fi
+          version_name() { # $1 = commit; fails if app/build.gradle.kts is missing there
+            git show "$1:app/build.gradle.kts" \
+              | sed -nE 's/^[[:space:]]*versionName[[:space:]]*=[[:space:]]*"?([^"[:space:]]+)"?.*/\1/p' | sort -u
+          }
+          OLD=$(version_name "$BASE")
+          NEW=$(version_name "$HEAD_SHA")
+          if [ "$OLD" = "$NEW" ]; then
+            echo "versionName unchanged against the merge base ($NEW) — no release preflight needed."
+            exit 0
+          fi
+          echo "versionName changes from '$OLD' to '$NEW' — running the release preflight."
+          bash .github/scripts/release-preflight.sh "$HEAD_SHA"
+
+  # Aggregator job — the `main` ruleset's single required status check.
   # Passes if setup said docs-only (no compile needed) OR both build jobs
-  # AND the unit-test job succeeded. Lets us add/remove parallel jobs in
-  # the future without having to update branch-protection config.
+  # AND the unit-test job succeeded; ci-lint and release-check must always
+  # have succeeded. Lets us add/remove parallel jobs in the future without
+  # having to update the ruleset.
+  #
+  # The job id stays `build`; the displayed name, which is the check context
+  # the ruleset matches, is `build` only on pull_request. A manual run
+  # reports `build (dispatch)` and so can never satisfy the ruleset.
   build:
-    needs: [setup, build-debug, build-release, build-release-unsigned, test]
+    name: ${{ github.event_name == 'pull_request' && 'build' || 'build (dispatch)' }}
+    needs:
+      [
+        setup,
+        ci-lint,
+        release-check,
+        build-debug,
+        build-release,
+        build-release-unsigned,
+        test,
+      ]
     if: always()
     runs-on: ubuntu-latest
     timeout-minutes: 10
@@ -384,6 +549,8 @@ jobs:
         env:
           DOCS_ONLY: ${{ needs.setup.outputs.code != 'true' }}
           SETUP_RESULT: ${{ needs.setup.result }}
+          LINT_RESULT: ${{ needs.ci-lint.result }}
+          RELEASE_CHECK_RESULT: ${{ needs.release-check.result }}
           DEBUG_RESULT: ${{ needs.build-debug.result }}
           RELEASE_RESULT: ${{ needs.build-release.result }}
           UNSIGNED_RESULT: ${{ needs.build-release-unsigned.result }}
@@ -393,6 +560,17 @@ jobs:
           # this whole job reads. A failed/cancelled setup is never a pass.
           if [ "$SETUP_RESULT" != "success" ]; then
             echo "::error::setup did not succeed (result=$SETUP_RESULT)."
+            exit 1
+          fi
+
+          # ci-lint and release-check run on every run, docs-only included,
+          # and accept nothing but success (a skip is not a pass either).
+          if [ "$LINT_RESULT" != "success" ]; then
+            echo "::error::ci-lint did not succeed (result=$LINT_RESULT)."
+            exit 1
+          fi
+          if [ "$RELEASE_CHECK_RESULT" != "success" ]; then
+            echo "::error::release-check did not succeed (result=$RELEASE_CHECK_RESULT)."
             exit 1
           fi
 

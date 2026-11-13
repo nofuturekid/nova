@@ -23,10 +23,11 @@ on:
   workflow_dispatch:
 
 # Least-privilege GITHUB_TOKEN (CodeQL actions/missing-workflow-permissions).
-# The submission API requires `contents: write` to write the dependency
-# snapshot for the commit; nothing else is needed.
+# Read-only by default. The submission API requires `contents: write` to
+# write the dependency snapshot for the commit; that is granted on the one
+# job that submits it, nothing else is needed.
 permissions:
-  contents: write
+  contents: read
 
 concurrency:
   # Only one submission at a time; if a second push lands while one is
@@ -38,6 +39,8 @@ jobs:
   submit:
     runs-on: ubuntu-latest
     timeout-minutes: 30
+    permissions:
+      contents: write
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -49,7 +52,7 @@ jobs:
         uses: actions/setup-java@77dd5b2ce225ea11469928ac317850245a74ae78 # v6.2.0
         with:
           distribution: temurin
-          java-version: '21'
+          java-version: "21"
 
       - name: Submit Gradle dependency graph
         # Resolves every project/configuration and submits the full

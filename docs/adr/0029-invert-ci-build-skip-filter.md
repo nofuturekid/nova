@@ -30,6 +30,39 @@ exactly like a docs change. All other allowlist alternatives (`^app/`,
 `^build\.gradle\.kts$`, `^gradle\.properties$`) are unchanged. The
 `release.yml` backstop (ADR-0004) and same-PR convention still apply.
 
+## Amendment 2026-11-13 — merge-base diff, fail closed, always-run jobs
+
+Issue #295 found four gaps in what the `build` gate could see. Three of
+them live in this ADR's detect step and are closed in `ci.yml`:
+
+- **The diff is taken against the merge base, not the PR's base commit.**
+  `setup` now diffs `git merge-base origin/main <head>` against the PR
+  head. Before, a docs-only PR stacked on an unbuilt branch got a green
+  `build` on a head that contained untested `app/` changes, because the
+  stacked changes were part of its base. With the merge base they are part
+  of the diff and the build runs. A base that is behind `main` is covered
+  the same way. A wrong merge base can only make builds run more often,
+  never less.
+- **It fails closed.** If the merge base cannot be computed, or the diff is
+  empty, `setup` fails and `build` cannot pass. The former "no diff base,
+  full build" fallback is gone: on a pull request there is always a merge
+  base, so a missing one means the checkout is broken. Manual dispatch is
+  unchanged and always builds in full.
+- **Two jobs run on every run, whatever changed.** `ci-lint` (actionlint
+  over all workflows, shellcheck over `.github/scripts/*.sh`,
+  `renovate-config-validator` when `renovate.json` changed, and a check
+  that no commit message of the range carries a session link or trailer)
+  and `release-check` (no Gradle; when `versionName` differs from the merge
+  base it runs `.github/scripts/release-preflight.sh`). They do not depend
+  on `setup`. `build` requires `success` from both, so docs-only, bot and
+  fork pull requests still pass but a lint error or a bad version bump in
+  a docs-only change now fails the gate.
+
+The allowlist itself is unchanged: changes to `release.yml`, the scripts or
+`renovate.json` still do not trigger the APK build; they are covered by
+`ci-lint` and `release-check`, which cannot be skipped. The `release.yml`
+backstop (ADR-0004) stays.
+
 ## Context
 
 ADR-0009 added a fast path: `ci.yml`'s `setup` job diffs the change and,

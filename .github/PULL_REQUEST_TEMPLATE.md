@@ -13,4 +13,4 @@
 - [ ] `./scripts/local-ci.sh` green locally
 - [ ] Appearance change? → maintainer-only on-device acceptance pending (ADR-0027 Tier 3); external contributors cannot do this step
 - [ ] User-facing? → `CHANGELOG.md` updated (ADR-0031)
-- [ ] Squash-merge title will carry the PR number `(#NN)`
+- [ ] Commits are signed and the branch is rebased on `main` (PRs land by fast-forward push)
