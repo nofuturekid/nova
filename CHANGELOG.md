@@ -15,6 +15,10 @@ release version + date and opens a fresh `[Unreleased]`.
 
 ## [Unreleased]
 
+## [0.1.47-beta2] - 2026-11-13
+
+Beta: the second beta of the 0.1.47 cycle. The "Update available" notice on the Overview and the update line in Settings now always show the same latest version, and Settings shows the progress of a check again. Please press "Check now" in Settings and look at whether the notice and Settings agree, then open the update sheet from the notice and check that the "Release page" row, "Later" and "Download" work. As in 0.1.47-beta1, NOVA no longer installs updates itself and "Download" opens the release file in your browser; if you run 0.1.47-beta1, this beta reaches you as a browser download.
+
 ### Fixed
 
 - **The "Update available" notice and Settings now always show the same

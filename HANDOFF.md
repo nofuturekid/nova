@@ -81,6 +81,7 @@ Native Android client for Unraid NAS servers (Kotlin + Jetpack Compose, Apollo G
 | v0.1.46-beta1        | pre-release | Beta: the certificate trust question is asked only once when a self-signed server is added; the Overview shows dashes instead of zeros when offline, Uptime as a duration, no dangling separator in disk rows; #292, #303, #304, #305                                                                         |
 | **v0.1.46**          | **release** | Stable promotion of the 0.1.46 cycle (beta1): the certificate trust question is asked only once when a self-signed server is added; the Overview shows dashes instead of zeros when offline, Uptime as a duration, no dangling separator in disk rows; #292, #303, #304, #305 **(Latest)**                    |
 | v0.1.47-beta1        | pre-release | Beta: NOVA no longer installs updates itself; the update check stays and "Download" opens the release file in the browser (ADR-0046); the Google Play Protect notice is documented; #306, #307, #312                                                                                                          |
+| v0.1.47-beta2        | pre-release | Beta: the update notice on the Overview and the Settings line show the same latest version, Settings shows the progress of a check again; #331, #332                                                                                                                                                          |
 
 ## Stack
 
