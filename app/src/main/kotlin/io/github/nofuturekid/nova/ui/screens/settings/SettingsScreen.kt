@@ -2,8 +2,6 @@ package io.github.nofuturekid.nova.ui.screens.settings
 
 import android.content.Intent
 import android.net.Uri
-import androidx.activity.compose.rememberLauncherForActivityResult
-import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -55,11 +53,8 @@ import kotlinx.coroutines.launch
 import io.github.nofuturekid.nova.BuildConfig
 import io.github.nofuturekid.nova.data.local.LayoutMode
 import io.github.nofuturekid.nova.data.model.AppSettings
-import io.github.nofuturekid.nova.data.model.InstallState
-import io.github.nofuturekid.nova.data.model.UpdateInfo
 import io.github.nofuturekid.nova.data.model.UpdateState
 import io.github.nofuturekid.nova.data.repository.SettingsRepository
-import io.github.nofuturekid.nova.data.update.UpdateController
 import io.github.nofuturekid.nova.data.update.UpdateRepository
 import io.github.nofuturekid.nova.ui.components.BtnVariant
 import io.github.nofuturekid.nova.ui.components.Pill
@@ -93,7 +88,6 @@ data class SettingsUi(
 class SettingsViewModel @Inject constructor(
     private val repo: SettingsRepository,
     private val updates: UpdateRepository,
-    private val updateController: UpdateController,
 ) : ViewModel() {
     private val layouts = combine(
         repo.dockerView, repo.vmsView, repo.arrayView,
@@ -116,14 +110,6 @@ class SettingsViewModel @Inject constructor(
 
     private val _checkState = MutableStateFlow<UpdateState>(UpdateState.Checking)
     val checkState: StateFlow<UpdateState> = _checkState.asStateFlow()
-
-    // Install pipeline is owned by the @Singleton UpdateController
-    // (ADR-0012 revisit / ADR-0030 D2). This ViewModel forwards the one
-    // shared install state; the public API to the composables is
-    // unchanged. The old per-ViewModel `ownsInstall` guard is gone: with
-    // a single shared state both screens reflect the one in-flight
-    // install regardless of which screen started it (intended change).
-    val installState: StateFlow<InstallState> = updateController.installState
 
     init {
         // Refresh the snapshot when the user opens Settings so they see the
@@ -151,21 +137,6 @@ class SettingsViewModel @Inject constructor(
         _checkState.value = updates.check(state.value.includePrereleases)
         repo.setLastUpdateCheck(System.currentTimeMillis())
     }
-
-    fun installUpdate(info: UpdateInfo) {
-        if (!BuildConfig.HAS_UPDATER) return
-        updateController.installUpdate(info)
-    }
-
-    fun resetInstall() {
-        if (!BuildConfig.HAS_UPDATER) return
-        updateController.resetInstall()
-    }
-
-    fun launchPermissionIntent(state: InstallState.NeedsPermission, launch: (Intent) -> Unit) {
-        if (!BuildConfig.HAS_UPDATER) return
-        updateController.launchPermissionIntent(state, launch)
-    }
 }
 
 @Composable
@@ -179,11 +150,7 @@ fun SettingsScreen(
     val t = UnraidTheme.colors
     val ui by vm.state.collectAsState()
     val checkState by vm.checkState.collectAsState()
-    val installState by vm.installState.collectAsState()
     var showUpdateDialog by remember { mutableStateOf(false) }
-    val permissionLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.StartActivityForResult(),
-    ) { /* user returns from system settings; they'll re-tap Install */ }
 
     Column(
         modifier = Modifier
@@ -344,7 +311,7 @@ fun SettingsScreen(
                             if (cs is UpdateState.Available) {
                                 UnraidButton(
                                     onClick = { showUpdateDialog = true },
-                                    label = "Install v${cs.info.version}",
+                                    label = "Update to v${cs.info.version}",
                                     variant = BtnVariant.Filled,
                                 )
                             }
@@ -491,15 +458,7 @@ fun SettingsScreen(
     if (showUpdateDialog && cs2 is UpdateState.Available) {
         UpdateDialog(
             info = cs2.info,
-            install = installState,
-            onInstall = { vm.installUpdate(cs2.info) },
-            onDismiss = {
-                showUpdateDialog = false
-                if (installState is InstallState.Failed) vm.resetInstall()
-            },
-            onGrantPermission = { state ->
-                vm.launchPermissionIntent(state) { permissionLauncher.launch(it) }
-            },
+            onDismiss = { showUpdateDialog = false },
         )
     }
 }

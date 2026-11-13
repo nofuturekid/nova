@@ -18,11 +18,11 @@ NOVA accesses the following on your device:
 NOVA initiates network requests to:
 
 - **Your own Unraid server**, at the addresses you configured, using the Unraid API/Connect plugin's GraphQL endpoint. All app functionality runs through this.
-- **GitHub** (`api.github.com`, `objects.githubusercontent.com`), only when:
-  - The app starts (a check for app updates runs once at launch), you open Settings, or you press "Check now"
-  - You install an in-app update (the APK is downloaded from a GitHub Release asset)
+- **GitHub** (`api.github.com`), only when the app starts (a check for app updates runs once at launch), you open Settings, or you press "Check now".
 
   These requests appear in GitHub's standard server logs with no NOVA-specific identifier beyond the default `User-Agent` header. *(`direct` flavor only — see "Per-flavor differences" below.)*
+
+  When you tap "Download" on an available update, the app makes no request itself: it asks your browser to open the release's APK (or its release page) on GitHub. That download is made by your browser, under the browser's own headers and privacy terms.
 
 - **Container icon hosts** (both flavors). The Docker tab and container details show each container's icon. The icon URL is supplied by your own Unraid server (from the container's template), and is usually hosted by a third party chosen by the template author — for example `raw.githubusercontent.com`, `cdn.jsdelivr.net` or `github.com`. The app fetches these URLs directly, so those hosts see your IP address and the standard request headers. NOVA never adds credentials or identifiers to these requests, and decides neither which hosts are contacted nor which icons exist: that comes from the templates on your server.
 
@@ -47,18 +47,19 @@ NOVA declares these Android permissions (visible in the app's permission list un
 
 - **`INTERNET`** — required to reach your Unraid server, container icon hosts and (`direct` flavor) GitHub
 - **`ACCESS_NETWORK_STATE`** — lets the app check whether a network is available
-- **`REQUEST_INSTALL_PACKAGES`** *(`direct` flavor only — GitHub-distributed APK)* — required for the in-app updater to install a newer APK. The F-Droid and Play Store flavors of NOVA do not declare this permission.
+
+NOVA does not declare `REQUEST_INSTALL_PACKAGES` in any flavor: it never installs apps itself. Updates of the GitHub APK are downloaded and opened by your browser and Android's installer. (Versions up to 0.1.46 did declare it, in the GitHub APK only.)
 
 ## Per-flavor differences
 
 NOVA ships in two flavors that differ only in their distribution channel:
 
-- **`direct`** — installed from the [GitHub Releases page](https://github.com/hellwand/nova/releases). Includes the in-app updater (talks to `api.github.com` and downloads APKs from GitHub Releases over HTTPS).
-- **`store`** — installed from F-Droid (and, in the future, the Google Play Store). The in-app updater is absent. App updates are managed by your store of choice. No GitHub traffic for app updates or update checks. Container icons are still fetched from the URLs your server provides (see "Data the app sends").
+- **`direct`** — installed from the [GitHub Releases page](https://github.com/hellwand/nova/releases). Checks for updates (talks to `api.github.com`) and offers the new APK as a browser download from GitHub Releases; it does not install updates itself.
+- **`store`** — installed from F-Droid (and, in the future, the Google Play Store). The update check is absent. App updates are managed by your store of choice. No GitHub traffic for app updates or update checks. Container icons are still fetched from the URLs your server provides (see "Data the app sends").
 
 ## Update integrity (`direct` flavor only)
 
-In-app updates verify the downloaded APK against a SHA-256 hash and byte-size match published in the GitHub release asset metadata, over HTTPS. Mismatch fails closed — nothing is installed. See [ADR-0034](https://github.com/hellwand/nova/blob/main/docs/adr/0034-update-and-data-at-rest-hardening.md) for the rationale.
+The app does not download or install updates, so it cannot verify the file. The update sheet shows the SHA-256 that GitHub lists for the APK (when GitHub provides one) so you can compare it with the downloaded file. The update check runs over HTTPS and refuses any link that is not an HTTPS release link of the NOVA repository on GitHub. See [ADR-0034](https://github.com/hellwand/nova/blob/main/docs/adr/0034-update-and-data-at-rest-hardening.md) and [ADR-0046](https://github.com/hellwand/nova/blob/main/docs/adr/0046-update-via-browser-download.md).
 
 ## Your rights
 

@@ -1,6 +1,6 @@
 # ADR-0008: In-app updater via `REQUEST_INSTALL_PACKAGES` + `PackageInstaller`
 
-- **Status**: Accepted
+- **Status**: Superseded in part by [ADR-0046](./0046-update-via-browser-download.md) (the install part, 2026-11-13)
 - **Date**: 2026-05-14
 - **Tags**: ui, security, release
 
@@ -55,3 +55,7 @@ Auto-check fires once on app launch. Manual "Check now" available in Settings. N
 - `app/src/main/kotlin/.../ui/screens/update/UpdateBanner.kt`, `UpdateDialog.kt`
 - ADR-0005 — pre-release tag convention used by the updater's filter.
 - ADR-0012 — Settings entry-point (added later).
+
+## Amendment 2026-11-13 — the install part is superseded by ADR-0046
+
+[ADR-0046](./0046-update-via-browser-download.md) supersedes the permission (`REQUEST_INSTALL_PACKAGES`), `UpdateInstaller`, `InstallStatusReceiver`, the permission flow and the in-app APK download described above: Google Play Protect blocked every build that could install packages, and the build without that ability was rated safe. What stays from this ADR is the update _check_ (`UpdateRepository`, the "Include pre-releases" filter, banner and sheet); "Install" became "Download", which sends the browser to the release APK. The text above stays as written.

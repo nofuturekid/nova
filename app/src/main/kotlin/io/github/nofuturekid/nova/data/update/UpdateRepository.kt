@@ -5,6 +5,7 @@ import kotlinx.coroutines.withContext
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
 import io.github.nofuturekid.nova.BuildConfig
+import io.github.nofuturekid.nova.data.model.ApkAsset
 import io.github.nofuturekid.nova.data.model.UpdateInfo
 import io.github.nofuturekid.nova.data.model.UpdateState
 import okhttp3.OkHttpClient
@@ -18,7 +19,8 @@ import javax.inject.Singleton
 /**
  * Pulls release metadata from GitHub and decides whether a newer build is
  * available. Independent of Apollo / Unraid auth — uses a dedicated OkHttp
- * client without any Unraid headers.
+ * client without any Unraid headers. It only reports; the user downloads
+ * and installs the file through the browser (ADR-0046).
  */
 @Singleton
 class UpdateRepository @Inject constructor() {
@@ -27,8 +29,6 @@ class UpdateRepository @Inject constructor() {
         .connectTimeout(8, TimeUnit.SECONDS)
         .readTimeout(15, TimeUnit.SECONDS)
         .build()
-
-    private val json = Json { ignoreUnknownKeys = true }
 
     suspend fun check(includePrereleases: Boolean): UpdateState = withContext(Dispatchers.IO) {
         val req = Request.Builder()
@@ -40,43 +40,7 @@ class UpdateRepository @Inject constructor() {
                 if (!resp.isSuccessful) {
                     return@withContext UpdateState.Error("GitHub HTTP ${resp.code}")
                 }
-                val body = resp.body.string()
-                val releases = json.decodeFromString<List<GhRelease>>(body)
-                val current = parseVersion(BuildConfig.VERSION_NAME)
-                    ?: return@withContext UpdateState.Error("Can't parse own version ${BuildConfig.VERSION_NAME}")
-                val match = releases.asSequence()
-                    .filter { !it.draft }
-                    .filter { includePrereleases || !it.prerelease }
-                    .mapNotNull { rel ->
-                        val v = parseVersion(rel.tagName) ?: return@mapNotNull null
-                        val apk = rel.assets.firstOrNull { it.name.endsWith(".apk") }
-                            ?: return@mapNotNull null
-                        Triple(v, rel, apk)
-                    }
-                    .firstOrNull { (v, _, _) -> v > current }
-                    ?: return@withContext UpdateState.UpToDate
-                val (_, rel, apk) = match
-                // Defence in depth against a MITM that rewrites the asset
-                // URL to plain HTTP: refuse a non-https download URL up
-                // front (fail closed). See ADR-0034 #1.
-                if (!apk.browserDownloadUrl.startsWith("https://", ignoreCase = true)) {
-                    return@withContext UpdateState.Error(
-                        "Refusing update: download URL is not HTTPS",
-                    )
-                }
-                UpdateState.Available(
-                    UpdateInfo(
-                        version = rel.tagName.removePrefix("v"),
-                        tag = rel.tagName,
-                        releaseUrl = rel.htmlUrl,
-                        downloadUrl = apk.browserDownloadUrl,
-                        sizeBytes = apk.size,
-                        digest = apk.digest,
-                        isPrerelease = rel.prerelease,
-                        releaseNotes = rel.body.orEmpty(),
-                        publishedAtEpochMs = parseIso8601(rel.publishedAt),
-                    ),
-                )
+                evaluate(resp.body.string(), includePrereleases, BuildConfig.VERSION_NAME)
             }
         } catch (e: Exception) {
             UpdateState.Error(e.message ?: "Network error")
@@ -115,6 +79,53 @@ class UpdateRepository @Inject constructor() {
 
     companion object {
         private const val REPO = "hellwand/nova"
+        private const val RELEASES_PREFIX = "https://github.com/$REPO/releases/"
+
+        private val json = Json { ignoreUnknownKeys = true }
+
+        /**
+         * Decides from the Releases API response [body] which release, if
+         * any, is newer than [currentVersion]. Drafts are never offered;
+         * pre-releases only when [includePrereleases]. A release without
+         * an APK asset is still offered (its link is the release page).
+         */
+        internal fun evaluate(
+            body: String,
+            includePrereleases: Boolean,
+            currentVersion: String,
+        ): UpdateState {
+            val releases = json.decodeFromString<List<GhRelease>>(body)
+            val current = parseVersion(currentVersion)
+                ?: return UpdateState.Error("Can't parse own version $currentVersion")
+            val (_, rel) = releases.asSequence()
+                .filter { !it.draft }
+                .filter { includePrereleases || !it.prerelease }
+                .mapNotNull { rel -> parseVersion(rel.tagName)?.let { it to rel } }
+                .firstOrNull { (v, _) -> v > current }
+                ?: return UpdateState.UpToDate
+            val apk = rel.assets.firstOrNull { it.name.endsWith(".apk") }
+            // Defence in depth: the browser is only sent to this repository's
+            // own release pages and files, over HTTPS. A tampered or
+            // redirected API response that points elsewhere (another host,
+            // another repository, a non-https scheme) fails closed.
+            // See ADR-0034 #1 and ADR-0046.
+            if (!rel.htmlUrl.startsWith(RELEASES_PREFIX, ignoreCase = true) ||
+                (apk != null && !apk.browserDownloadUrl.startsWith(RELEASES_PREFIX, ignoreCase = true))
+            ) {
+                return UpdateState.Error("Refusing update: link is not a release link of $REPO")
+            }
+            return UpdateState.Available(
+                UpdateInfo(
+                    version = rel.tagName.removePrefix("v"),
+                    tag = rel.tagName,
+                    releaseUrl = rel.htmlUrl,
+                    apk = apk?.let { ApkAsset(it.browserDownloadUrl, it.size, it.digest) },
+                    isPrerelease = rel.prerelease,
+                    releaseNotes = rel.body.orEmpty(),
+                    publishedAtEpochMs = parseIso8601(rel.publishedAt),
+                ),
+            )
+        }
 
         private fun parseIso8601(raw: String?): Long? {
             if (raw.isNullOrBlank()) return null

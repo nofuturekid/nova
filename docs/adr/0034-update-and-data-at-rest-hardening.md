@@ -1,6 +1,6 @@
 # ADR-0034: Verify the update APK and harden data-at-rest / transport
 
-- **Status**: Accepted
+- **Status**: Accepted; #1 (verification of the downloaded APK) replaced by [ADR-0046](./0046-update-via-browser-download.md) (2026-11-13)
 - **Date**: 2026-05-19
 - **Tags**: security, ci/release, data
 
@@ -133,3 +133,7 @@ URLs is verified by static review of the backup/transfer rules, not
 on-device. Tier-3 (ADR-0027) is satisfied for the testable surface; the
 latent paths stay CI/review-covered until a post-beta6 self-update
 exercises them.
+
+## Amendment 2026-11-13 — #1 replaced by ADR-0046
+
+The app no longer downloads or installs the update, so the size and SHA-256 verification of #1 is gone. [ADR-0046](./0046-update-via-browser-download.md) replaces it: the update sheet shows the checksum for the user to compare, and the HTTPS rule is kept and tightened to links under this repository's GitHub releases. The other items of this ADR are unchanged. The text above stays as written.

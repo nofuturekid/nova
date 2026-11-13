@@ -1,6 +1,6 @@
 # ADR-0040: F-Droid + Play distribution via two Gradle product flavors
 
-- **Status**: Accepted
+- **Status**: Accepted; superseded in part by [ADR-0046](./0046-update-via-browser-download.md) (`REQUEST_INSTALL_PACKAGES` in `direct`, 2026-11-13)
 - **Date**: 2026-05-21
 - **Tags**: release, build, distribution, legal
 
@@ -99,3 +99,7 @@ The original sourceSet-split sketch is preserved above for posterity. If reprodu
 ## Amendment 2026-11-10 — both flavors are signed in CI
 
 The Signing paragraph says the `store` flavor is "unsigned in CI output". `app/build.gradle.kts` signs both release flavors with the release keystore when it is present, so CI's `assembleRelease` output for `store` is signed too. This is harmless: the `store` APK is not uploaded (only `direct` is), and F-Droid / Play re-sign it with their own keys regardless.
+
+## Amendment 2026-11-13 — no install permission in `direct` any more
+
+[ADR-0046](./0046-update-via-browser-download.md) supersedes the parts that say the `direct` flavor declares `REQUEST_INSTALL_PACKAGES` and carries the in-app installer: `app/src/direct/AndroidManifest.xml` is gone and no flavor declares the permission. The `direct`/`store` split, `BuildConfig.HAS_UPDATER` (the update _check_ stays `direct`-only) and the signing-key consequences are unchanged. The text above stays as written.

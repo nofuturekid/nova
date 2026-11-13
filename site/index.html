@@ -248,7 +248,8 @@
               <h3>GitHub</h3>
               <p>
                 Download the APK from the latest release. This build has an
-                in-app updater that checks GitHub, and an optional
+                update check that tells you about new releases and sends your
+                browser to the file, and an optional
                 &ldquo;Include pre-releases&rdquo; setting if you want betas.
                 Android asks you to allow installs from your browser or files
                 app, which is expected for apps from outside a store.
@@ -270,6 +271,73 @@
             the other. To switch, uninstall one and install the other.
             Uninstalling removes the app&rsquo;s local data, so you add your
             servers again.
+          </p>
+
+          <h3 class="h3-gap" id="play-protect">Google Play Protect</h3>
+          <p class="sub">
+            <strong>Versions up to 0.1.46 (GitHub build).</strong> On
+            2026-11-13 we observed that Google Play Protect stopped every
+            GitHub build we tried (0.1.45-beta1, 0.1.45 and 0.1.46-beta1) when
+            it was installed or updated, on a phone with Android 9 and on one
+            with Android 17. Two dialogs appear one after the other:
+          </p>
+          <ul class="plain">
+            <li>
+              <strong>&ldquo;App scan recommended&rdquo;</strong> (German:
+              &ldquo;App-Scan empfohlen&rdquo;). Play Protect does not know the
+              file yet. Android shows this for every new file that is not from
+              Google Play. Tap <em>Scan app</em> (&ldquo;App scannen&rdquo;).
+            </li>
+            <li>
+              <strong>&ldquo;Harmful app blocked&rdquo;</strong> (German:
+              &ldquo;Sch&auml;dliche App blockiert&rdquo;), with &ldquo;This
+              app may be harmful&rdquo; (&ldquo;Diese App k&ouml;nnte
+              sch&auml;dlich sein.&rdquo;). You can continue through
+              <em>More details &gt; Install anyway</em> (&ldquo;Weitere Details
+              &gt; Trotzdem installieren&rdquo;).
+            </li>
+          </ul>
+          <p class="sub">
+            This is Google&rsquo;s rating of the file, not a finding about what
+            NOVA does, and Google does not say why it gives it. What we
+            observed, and Google has not confirmed: these builds could install
+            other apps (that is how the old in-app updater worked), and a build
+            of the same version without that ability was rated &ldquo;This app
+            seems safe&rdquo; (&ldquo;Diese App ist anscheinend sicher&rdquo;)
+            by the same scan on the same phone. NOVA is open source, and you
+            can check what you downloaded:
+          </p>
+          <ul class="plain">
+            <li>
+              <strong>SHA-256 of the file:</strong> the release page lists it
+              next to the APK. Compare it with the output of
+              <code>sha256sum NOVA-v&hellip;.apk</code>.
+            </li>
+            <li>
+              <strong>Signing certificate:</strong>
+              <code>apksigner verify --print-certs NOVA-v&hellip;.apk</code>
+              should show this SHA-256 digest:
+              <code class="digest"
+                >9f86baa17c1208004d9284e99597f77276c77301b06340b10075c793152b6824</code
+              >
+            </li>
+          </ul>
+          <p class="sub">
+            <strong>From the next version on</strong>, NOVA no longer installs
+            updates itself and no longer asks for the permission to install
+            apps. <em>Download</em> in the update sheet lets your browser
+            download the file, and you open it to install. Android will still
+            ask once to scan each new file (&ldquo;App scan recommended&rdquo;)
+            because Play Protect does not know it yet; that is expected. We
+            cannot promise that no warning ever appears, since Google&rsquo;s
+            rating can change.
+          </p>
+          <p class="callout">
+            <strong>F-Droid</strong> is the channel without any such prompt we
+            have seen. It has stable releases only, gets updates later, and is
+            signed with a different key, so switching between it and the GitHub
+            build means uninstalling first. That removes your saved servers
+            and API keys.
           </p>
 
           <h3 class="h3-gap">Requirements</h3>
@@ -361,8 +429,9 @@
               <p>
                 The GitHub build contacts <code>api.github.com</code> when the
                 app starts, when you open Settings and when you press
-                &ldquo;Check now&rdquo;. An in-app update is downloaded from a
-                GitHub release. The F-Droid build makes no such requests.
+                &ldquo;Check now&rdquo;. A new version is downloaded by your
+                browser from the GitHub release page, not by NOVA. The F-Droid
+                build makes no such requests.
               </p>
             </li>
             <li>

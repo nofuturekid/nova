@@ -48,15 +48,12 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
-import androidx.activity.compose.rememberLauncherForActivityResult
-import androidx.activity.result.contract.ActivityResultContracts
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import kotlinx.coroutines.launch
 import io.github.nofuturekid.nova.BuildConfig
 import io.github.nofuturekid.nova.data.model.ArrayState
 import io.github.nofuturekid.nova.data.model.Container
 import io.github.nofuturekid.nova.data.model.ConnectionMode
-import io.github.nofuturekid.nova.data.model.InstallState
 import io.github.nofuturekid.nova.data.model.NotifType
 import io.github.nofuturekid.nova.data.model.Server
 import io.github.nofuturekid.nova.data.model.UpdateState
@@ -146,12 +143,8 @@ fun MainScreen(
     var refreshing by remember { mutableStateOf(false) }
 
     val updateState by vm.updateState.collectAsStateWithLifecycle()
-    val installState by vm.installState.collectAsStateWithLifecycle()
     val dismissedTag by vm.dismissedUpdateTag.collectAsStateWithLifecycle()
     var showUpdateDialog by remember { mutableStateOf(false) }
-    val permissionLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.StartActivityForResult(),
-    ) { /* nothing — user returns; if granted, they tap Install again */ }
 
     // Transient action-failure signal (triage #19, ADR-0037). A failed
     // user action no longer crashes the app — the resilient launcher in
@@ -540,15 +533,7 @@ fun MainScreen(
         if (showUpdateDialog && u is UpdateState.Available) {
             UpdateDialog(
                 info = u.info,
-                install = installState,
-                onInstall = { vm.installUpdate(u.info) },
-                onDismiss = {
-                    showUpdateDialog = false
-                    if (installState is InstallState.Failed) vm.resetInstall()
-                },
-                onGrantPermission = { state ->
-                    vm.launchPermissionIntent(state) { permissionLauncher.launch(it) }
-                },
+                onDismiss = { showUpdateDialog = false },
             )
         }
     }

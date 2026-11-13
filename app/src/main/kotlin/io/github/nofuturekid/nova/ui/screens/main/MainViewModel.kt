@@ -1,6 +1,5 @@
 package io.github.nofuturekid.nova.ui.screens.main
 
-import android.content.Intent
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -33,14 +32,12 @@ import io.github.nofuturekid.nova.data.model.DisplayThresholds
 import io.github.nofuturekid.nova.data.model.NotifType
 import io.github.nofuturekid.nova.data.model.Container
 import io.github.nofuturekid.nova.data.model.ContainerLiveStats
-import io.github.nofuturekid.nova.data.model.InstallState
 import io.github.nofuturekid.nova.data.model.LiveMetrics
 import io.github.nofuturekid.nova.data.model.NetworkThroughput
 import io.github.nofuturekid.nova.data.model.Notifications
 import io.github.nofuturekid.nova.data.model.Server
 import io.github.nofuturekid.nova.data.model.ServerInfo
 import io.github.nofuturekid.nova.data.model.Temperature
-import io.github.nofuturekid.nova.data.model.UpdateInfo
 import io.github.nofuturekid.nova.data.model.UpdateState
 import io.github.nofuturekid.nova.data.model.Vm
 import io.github.nofuturekid.nova.data.repository.ActionFailedException
@@ -48,7 +45,6 @@ import io.github.nofuturekid.nova.data.repository.DomainState
 import io.github.nofuturekid.nova.data.repository.ServerRepository
 import io.github.nofuturekid.nova.data.repository.SettingsRepository
 import io.github.nofuturekid.nova.data.repository.UnraidRepository
-import io.github.nofuturekid.nova.data.update.UpdateController
 import io.github.nofuturekid.nova.data.update.UpdateRepository
 import javax.inject.Inject
 
@@ -68,7 +64,6 @@ class MainViewModel @Inject constructor(
     private val unraid: UnraidRepository,
     private val settings: SettingsRepository,
     private val updates: UpdateRepository,
-    private val updateController: UpdateController,
 ) : ViewModel() {
 
     // ── Resilient action seam (triage #19, ADR-0037) ──────────────────
@@ -274,18 +269,11 @@ class MainViewModel @Inject constructor(
     private val _updatingContainerIds = MutableStateFlow<Set<String>>(emptySet())
     val updatingContainerIds: StateFlow<Set<String>> = _updatingContainerIds.asStateFlow()
 
-    // ── App-updater plumbing (unchanged) ──────────────────────────────
+    // ── Update check (the app only reports; the user downloads and
+    //    installs the file in the browser, ADR-0046) ───────────────────
 
     private val _updateState = MutableStateFlow<UpdateState>(UpdateState.Checking)
     val updateState: StateFlow<UpdateState> = _updateState.asStateFlow()
-
-    // Install pipeline is owned by the @Singleton UpdateController
-    // (ADR-0012 revisit / ADR-0030 D2). This ViewModel forwards the one
-    // shared install state; the public API to the composables is
-    // unchanged. There is intentionally no `ownsInstall` guard any more:
-    // a single shared state means both screens reflect the one in-flight
-    // install regardless of which screen started it.
-    val installState: StateFlow<InstallState> = updateController.installState
 
     val dismissedUpdateTag: StateFlow<String?> = settings.dismissedUpdateTag
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
@@ -341,21 +329,6 @@ class MainViewModel @Inject constructor(
 
     fun dismissUpdate(tag: String) = viewModelScope.launch {
         settings.setDismissedUpdateTag(tag)
-    }
-
-    fun installUpdate(info: UpdateInfo) {
-        if (!BuildConfig.HAS_UPDATER) return
-        updateController.installUpdate(info)
-    }
-
-    fun resetInstall() {
-        if (!BuildConfig.HAS_UPDATER) return
-        updateController.resetInstall()
-    }
-
-    fun launchPermissionIntent(state: InstallState.NeedsPermission, launch: (Intent) -> Unit) {
-        if (!BuildConfig.HAS_UPDATER) return
-        updateController.launchPermissionIntent(state, launch)
     }
 
     fun toggleConnection() = viewModelScope.launch {

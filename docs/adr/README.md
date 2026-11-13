@@ -42,7 +42,7 @@ ADRs live under `docs/` so the CI docs-only bypass applies — pure-ADR PRs comp
 | [0005](./0005-prerelease-tag-convention.md) | Pre-release tag convention `-beta1` / `-rc1` (trailing digit required) | Accepted |
 | [0006](./0006-pragmatic-beta-first-release-policy.md) | Pragmatic risk-categorised beta-first release policy | Accepted |
 | [0007](./0007-apollo-json-scalar-anyadapter.md) | Apollo JSON scalar via built-in `AnyAdapter` | Accepted |
-| [0008](./0008-in-app-updater-packageinstaller.md) | In-app updater via `REQUEST_INSTALL_PACKAGES` + `PackageInstaller` | Accepted |
+| [0008](./0008-in-app-updater-packageinstaller.md) | In-app updater via `REQUEST_INSTALL_PACKAGES` + `PackageInstaller` | Superseded in part by ADR-0046 (install part) |
 | [0009](./0009-docs-only-ci-bypass.md) | Docs-only CI bypass via path diff + step gating | Superseded by ADR-0029 |
 | [0010](./0010-release-cleanup-keeps-tags.md) | Release cleanup keeps tags (never `--cleanup-tag`) | Accepted (release-notes content amended by [ADR-0031](./0031-curated-changelog.md); the tag-keeping + compare-link rationale here is unchanged) |
 | [0011](./0011-cancel-in-progress-only-on-pr-branches.md) | `cancel-in-progress` only on PR branches, not main | Mooted 2026-05-17 (superseded by ADR-0014) |
@@ -68,15 +68,16 @@ ADRs live under `docs/` so the CI docs-only bypass applies — pure-ADR PRs comp
 | [0031](./0031-curated-changelog.md) | Curated CHANGELOG.md drives release notes | Accepted |
 | [0032](./0032-notifications-actions.md) | In-app notification actions (archive / unread / delete) | Accepted |
 | [0033](./0033-github-pages-preview.md) | Publish the interactive UI prototype to GitHub Pages | Accepted |
-| [0034](./0034-update-and-data-at-rest-hardening.md) | Verify the update APK; harden data-at-rest / transport | Accepted |
+| [0034](./0034-update-and-data-at-rest-hardening.md) | Verify the update APK; harden data-at-rest / transport | Accepted (#1 replaced by ADR-0046) |
 | [0035](./0035-apikey-store-decrypt-failure-semantics.md) | Distinguish absent vs. undecryptable stored API keys (amends ADR-0024) | Accepted |
 | [0036](./0036-ci-governance-tests-cache-codeql.md) | Run unit tests in CI (blocking); basic Gradle cache; CodeQL v4 + default-branch push | Accepted |
 | [0037](./0037-resilient-action-launchers.md) | Resilient action launchers — failed user actions surface, never crash | Accepted |
 | [0038](./0038-lime-trademark-compliance-rename-pending.md) | Lime Technology trademark compliance — rename required (pending name) | Accepted |
 | [0039](./0039-rename-to-nova.md) | Rename app to NOVA for Lime trademark compliance | Accepted |
-| [0040](./0040-fdroid-play-distribution-flavors.md) | F-Droid + Play distribution via two Gradle product flavors | Accepted |
+| [0040](./0040-fdroid-play-distribution-flavors.md) | F-Droid + Play distribution via two Gradle product flavors | Accepted (`REQUEST_INSTALL_PACKAGES` in `direct` superseded by ADR-0046) |
 | [0041](./0041-host-ssl-entry-and-self-signed-local-trust.md) | Host+SSL connection entry and self-signed local-cert trust (TOFU) | Accepted |
 | [0042](./0042-graphql-subscription-network-pilot.md) | GraphQL subscription transport — network throughput pilot | Accepted |
 | [0043](./0043-graphql-subscription-metrics-docker-rollout.md) | Roll the GraphQL subscription transport out to CPU, memory, temperature, and docker stats | Accepted |
 | [0044](./0044-container-detail-live-stats-overlay.md) | Surface live CPU/Mem/Net/Disk in the container detail sheet from the docker stats overlay | Accepted |
 | [0045](./0045-array-disk-display.md) | Array disk display — sleeping disks, per-disk thresholds, errors | Accepted (updated beta10 — 2026-05-30) |
+| [0046](./0046-update-via-browser-download.md) | Offer updates of the GitHub build as a browser download, without an in-app installer | Accepted |

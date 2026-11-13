@@ -1,5 +1,8 @@
 package io.github.nofuturekid.nova.ui.screens.update
 
+import android.content.ActivityNotFoundException
+import android.content.Context
+import android.content.Intent
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -13,6 +16,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
@@ -20,17 +24,21 @@ import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Text
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.core.net.toUri
 import com.mikepenz.markdown.m3.Markdown
 import com.mikepenz.markdown.m3.markdownColor
 import com.mikepenz.markdown.m3.markdownTypography
 import io.github.nofuturekid.nova.BuildConfig
-import io.github.nofuturekid.nova.data.model.InstallState
 import io.github.nofuturekid.nova.data.model.UpdateInfo
 import io.github.nofuturekid.nova.ui.components.BtnVariant
 import io.github.nofuturekid.nova.ui.components.Pill
@@ -38,7 +46,6 @@ import io.github.nofuturekid.nova.ui.components.Tone
 import io.github.nofuturekid.nova.ui.components.UC
 import io.github.nofuturekid.nova.ui.components.UnraidButton
 import io.github.nofuturekid.nova.ui.components.UnraidIconButton
-import io.github.nofuturekid.nova.ui.components.UnraidProgress
 import io.github.nofuturekid.nova.ui.theme.JetBrainsMono
 import io.github.nofuturekid.nova.ui.theme.UnraidAlpha
 import io.github.nofuturekid.nova.ui.theme.UnraidTheme
@@ -47,12 +54,14 @@ import io.github.nofuturekid.nova.ui.theme.UnraidTheme
 @Composable
 fun UpdateDialog(
     info: UpdateInfo,
-    install: InstallState,
-    onInstall: () -> Unit,
     onDismiss: () -> Unit,
-    onGrantPermission: (InstallState.NeedsPermission) -> Unit,
 ) {
     val t = UnraidTheme.colors
+    val context = LocalContext.current
+    var linkError by remember { mutableStateOf(false) }
+    fun open(url: String) {
+        linkError = !openInBrowser(context, url)
+    }
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     ModalBottomSheet(
         onDismissRequest = onDismiss,
@@ -89,7 +98,8 @@ fun UpdateDialog(
                     }
                     Spacer(Modifier.height(4.dp))
                     Text(
-                        text = "v${BuildConfig.VERSION_NAME}  →  v${info.version}  ·  ${formatBytes(info.sizeBytes)}",
+                        text = "v${BuildConfig.VERSION_NAME}  →  v${info.version}" +
+                            (info.apk?.let { "  ·  ${formatBytes(it.sizeBytes)}" } ?: ""),
                         color = t.muted,
                         style = MaterialTheme.typography.bodySmall.copy(fontFamily = JetBrainsMono),
                     )
@@ -147,85 +157,88 @@ fun UpdateDialog(
 
             Spacer(Modifier.height(18.dp))
 
-            // Status / progress / actions
-            when (install) {
-                is InstallState.Idle -> {
-                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        Spacer(Modifier.weight(1f))
-                        UnraidButton(
-                            onClick = onDismiss,
-                            label = "Later",
-                            variant = BtnVariant.Text,
-                            tone = Tone.Neutral,
-                        )
-                        UnraidButton(
-                            onClick = onInstall,
-                            label = "Install",
-                            variant = BtnVariant.Filled,
-                        )
-                    }
-                }
-                is InstallState.Downloading -> {
+            // NOVA does not install anything itself (ADR-0046): the file is
+            // downloaded and opened by the browser and Android's installer.
+            val apk = info.apk
+            Text(
+                text = if (apk != null) {
+                    "NOVA does not install updates itself. Download lets your browser download " +
+                        "the file; open the downloaded file to install it. Android may ask you to " +
+                        "allow your browser or file manager to install apps, and Play Protect may " +
+                        "ask to scan the new version first."
+                } else {
+                    "This release has no APK file attached. Open the release page to see " +
+                        "what is available."
+                },
+                color = t.muted,
+                style = MaterialTheme.typography.bodySmall,
+            )
+            apk?.sha256?.let { sha ->
+                Spacer(Modifier.height(10.dp))
+                Text(
+                    text = "SHA-256 of the file",
+                    color = t.muted,
+                    style = MaterialTheme.typography.labelSmall.copy(letterSpacing = 1.3.sp),
+                )
+                Spacer(Modifier.height(4.dp))
+                SelectionContainer {
                     Text(
-                        text = "Downloading… ${(install.progress * 100).toInt()}%",
-                        color = t.muted,
-                        style = MaterialTheme.typography.bodySmall,
-                    )
-                    Spacer(Modifier.height(8.dp))
-                    UnraidProgress(install.progress, color = t.accent, height = 6.dp)
-                }
-                is InstallState.Installing -> {
-                    Text(
-                        text = "Waiting for Android install confirm…",
-                        color = t.muted,
-                        style = MaterialTheme.typography.bodySmall,
+                        text = sha,
+                        color = t.text,
+                        style = MaterialTheme.typography.bodySmall.copy(fontFamily = JetBrainsMono),
                     )
                 }
-                is InstallState.NeedsPermission -> {
-                    Text(
-                        text = "Android needs you to allow this app to install other apps. Tap below to open the system settings.",
-                        color = t.warn,
-                        style = MaterialTheme.typography.bodySmall,
-                    )
-                    Spacer(Modifier.height(10.dp))
-                    Row {
-                        Spacer(Modifier.weight(1f))
-                        UnraidButton(
-                            onClick = { onGrantPermission(install) },
-                            label = "Open settings",
-                            variant = BtnVariant.Filled,
-                            tone = Tone.Warn,
-                        )
-                    }
-                }
-                is InstallState.Failed -> {
-                    Text(
-                        text = "Install failed: ${install.message}",
-                        color = t.danger,
-                        style = MaterialTheme.typography.bodySmall,
-                    )
-                    Spacer(Modifier.height(10.dp))
-                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        Spacer(Modifier.weight(1f))
-                        UnraidButton(
-                            onClick = onDismiss,
-                            label = "Close",
-                            variant = BtnVariant.Text,
-                            tone = Tone.Neutral,
-                        )
-                        UnraidButton(
-                            onClick = onInstall,
-                            label = "Retry",
-                            variant = BtnVariant.Tonal,
-                            tone = Tone.Danger,
-                        )
-                    }
-                }
+            }
+            if (linkError) {
+                Spacer(Modifier.height(10.dp))
+                Text(
+                    text = "No app on this phone can open the link.",
+                    color = t.danger,
+                    style = MaterialTheme.typography.bodySmall,
+                )
+            }
+
+            Spacer(Modifier.height(14.dp))
+            // "Release page" sits on its own row: three buttons side by side
+            // do not fit a 360 dp screen at large font scales.
+            if (apk != null) {
+                UnraidButton(
+                    onClick = { open(info.releaseUrl) },
+                    label = "Release page",
+                    variant = BtnVariant.Text,
+                )
+            }
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                Spacer(Modifier.weight(1f))
+                UnraidButton(
+                    onClick = onDismiss,
+                    label = "Later",
+                    variant = BtnVariant.Text,
+                    tone = Tone.Neutral,
+                )
+                UnraidButton(
+                    onClick = { open(info.downloadUrl) },
+                    label = if (apk != null) "Download" else "Release page",
+                    variant = BtnVariant.Filled,
+                )
             }
 
             Spacer(Modifier.height(20.dp))
         }
     }
+}
+
+/** Sends [url] to the browser; false if no app on the phone can open it. */
+private fun openInBrowser(context: Context, url: String): Boolean = try {
+    context.startActivity(
+        Intent(Intent.ACTION_VIEW, url.toUri()).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK),
+    )
+    true
+} catch (_: ActivityNotFoundException) {
+    false
 }
 
 private fun Modifier.heightConstrainedAtMost(max: androidx.compose.ui.unit.Dp): Modifier =

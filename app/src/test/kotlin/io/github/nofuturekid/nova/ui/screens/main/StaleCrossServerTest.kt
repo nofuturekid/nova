@@ -45,8 +45,7 @@ import org.junit.Test
  * asserted to STILL leak server A's Content under server B — so this suite
  * genuinely fails if the guard is removed or the identity key regresses.
  *
- * Collector style mirrors UpdateControllerTest (launch into a list +
- * advanceUntilIdle); JUnit + kotlinx-coroutines-test only, no new deps.
+ * Collector style: launch into a list + advanceUntilIdle; JUnit + kotlinx-coroutines-test only, no new deps.
  */
 @OptIn(ExperimentalCoroutinesApi::class)
 class StaleCrossServerTest {

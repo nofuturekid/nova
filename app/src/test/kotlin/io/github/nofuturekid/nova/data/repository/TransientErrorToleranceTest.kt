@@ -36,7 +36,7 @@ import org.junit.Test
  * failure #1; widen/narrow `TRANSIENT_ERROR_TOLERANCE` and the failure#2 /
  * failure#3 assertions break.
  *
- * Collector style mirrors UpdateControllerTest / StaleCrossServerTest
+ * Collector style mirrors StaleCrossServerTest
  * (launch into a list, driven on a virtual scheduler). Because the poll loop
  * is infinite, the scheduler is stepped one poll interval at a time via
  * advanceTimeBy + runCurrent (advanceUntilIdle would never return). JUnit +

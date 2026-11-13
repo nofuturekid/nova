@@ -97,7 +97,7 @@ _Toolchain raised in the 0.1.28 cycle — see ADR-0023 (AGP-9) / ADR-0024
 - Coil **3.6.3** for AsyncImage
 - okhttp **5.5.1**, kotlinx.coroutines **1.11.0**, serialization **1.13.0**
 - Renovate (gradle + github-actions, monthly, no auto-merge; `renovate.json`); Dependabot only for security alerts and security updates (ADR-0025)
-- Distribution flavors `direct` (GitHub APK; declares `REQUEST_INSTALL_PACKAGES`, in-app updater enabled) and `store` (the F-Droid build; updater disabled at runtime via `BuildConfig.HAS_UPDATER = false`) — ADR-0040
+- Distribution flavors `direct` (GitHub APK; update check enabled, updates are downloaded in the browser, ADR-0046) and `store` (the F-Droid build; updater disabled at runtime via `BuildConfig.HAS_UPDATER = false`) — ADR-0040
 - Tests: JUnit 4; Robolectric 4.17 + Roborazzi 1.78 only for the store screenshots (`-PnovaScreenshots`); Gradle wrapper pinned by `distributionSha256Sum`
 
 ## Layout
@@ -121,9 +121,8 @@ app/src/main/
     │   ├── repository/            UnraidRepository (domain streams: polling + subscriptionOrPoll, mutations via runAction, logs),
     │   │                          ServerRepository (CRUD + active server), SettingsRepository,
     │   │                          DomainState, Nudge (refresh nudges), ResponseClassifier
-    │   └── update/                UpdateRepository, UpdateInstaller, UpdateController, ApkInstaller, InstallStatusReceiver
-    │                              (compiled into both flavors; disabled at runtime when BuildConfig.HAS_UPDATER is false)
-    ├── di/                        AppModule (empty, constructor injection), UpdateModule
+    │   └── update/                UpdateRepository (compiled into both flavors; disabled at runtime when BuildConfig.HAS_UPDATER is false)
+    ├── di/                        AppModule (empty, constructor injection)
     └── ui/
         ├── UnraidApp.kt
         ├── theme/                 Color, Density, Dimens, Shapes, Alpha, Type, Theme, ThemeMode (CompositionLocals)
@@ -232,7 +231,7 @@ mapScalar("URL",        "kotlin.String")
 mapScalar("Port",       "kotlin.Int")
 ```
 
-JSON-scalar decision rationale (incl. why-not-String): [ADR-0007](docs/adr/0007-apollo-json-scalar-anyadapter.md). In-app updater architecture: [ADR-0008](docs/adr/0008-in-app-updater-packageinstaller.md).
+JSON-scalar decision rationale (incl. why-not-String): [ADR-0007](docs/adr/0007-apollo-json-scalar-anyadapter.md). Update notice and browser download: [ADR-0046](docs/adr/0046-update-via-browser-download.md) (the earlier in-app installer, [ADR-0008](docs/adr/0008-in-app-updater-packageinstaller.md), is superseded in part).
 
 ### Critical gotchas (don't relearn the hard way)
 
@@ -244,7 +243,7 @@ JSON-scalar decision rationale (incl. why-not-String): [ADR-0007](docs/adr/0007-
 - **KSP2 + Hilt 2.59.2** (ADR-0020/0023): the old `ksp.useKSP2=false` / Hilt-2.52 pin is gone. Hilt requires Kotlin ≥ 2.1.10 — it is coupled to the toolchain (ADR-0023 rollback note: Hilt can't be reverted in isolation).
 - **`DockerContainer.mounts` is `JSON` (single scalar) NOT `[JSON!]`** — the JSON content itself is an encoded array of mount objects. Easy to mistype based on intuition; v0.1.11 made the snapshot fail server-wide because of this exact wrong type. Parse via `parseMountsArray` in `GraphQlMapper.kt`.
 - **JSON scalar → kotlin.Any via Apollo's `AnyAdapter`** — the Unraid GraphQL `JSON` scalar serialises as inline JSON values (objects/arrays/primitives), not pre-stringified text. Custom `kotlin.String` adapters crash. We map it to `kotlin.Any` with `com.apollographql.apollo.api.AnyAdapter` (public, built-in). Don't try to write your own with `reader.readAny()` — that's `@ApolloInternal`.
-- **In-app updater** lives under `data/update/`: `UpdateRepository` polls `https://api.github.com/repos/hellwand/nova/releases` (installed versions up to 0.1.42 still carry the old `nofuturekid/nova` name and reach it through GitHub's redirect; no auth, 60 req/h rate limit fine for on-start checks), `UpdateInstaller` downloads APK to `cacheDir/updates/` and uses `PackageInstaller` for the install handshake, `InstallStatusReceiver` catches the session callback via a `BroadcastReceiver` declared in the manifest. The `REQUEST_INSTALL_PACKAGES` permission is declared in the `direct` flavor manifest only (`app/src/direct/AndroidManifest.xml`); the updater code itself is compiled into both flavors and disabled at runtime when `BuildConfig.HAS_UPDATER` is false (`store`). On first install Android prompts the user to whitelist us at `Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES`. The Settings screen exposes the "Include pre-releases" toggle + manual "Check now". Banner on MainScreen dismisses per-tag via `dismissedUpdateTag` in DataStore.
+- **Update check** lives under `data/update/`: `UpdateRepository` polls `https://api.github.com/repos/hellwand/nova/releases` (installed versions up to 0.1.42 still carry the old `nofuturekid/nova` name and reach it through GitHub's redirect; no auth, 60 req/h rate limit fine for on-start checks), `UpdateDialog` only sends the browser to the release's APK (or the release page when it has no APK) with `ACTION_VIEW`; the app downloads and installs nothing itself and declares no `REQUEST_INSTALL_PACKAGES` in any flavor (ADR-0046). The check is compiled into both flavors and disabled at runtime when `BuildConfig.HAS_UPDATER` is false (`store`). The Settings screen exposes the "Include pre-releases" toggle + manual "Check now". Banner on MainScreen dismisses per-tag via `dismissedUpdateTag` in DataStore.
 - Cleartext HTTP requires `android:usesCleartextTraffic="true"` in the manifest. LAN access against `http://192.168.x.x` needs this. The base-config in `network_security_config.xml` permits cleartext; the GitHub hosts (`api.github.com`, `github.com`, `objects.githubusercontent.com`) are pinned to HTTPS.
 - **CI `test` job (ADR-0036) can transiently fail at Gradle _configuration_** with a plugin-not-resolvable error (e.g. `com.google.devtools.ksp` not found) on a plugin-portal/registry blip — it fetches plugins fresh under PR `cache-read-only`. **Re-run the job; it is not a code defect** (see ADR-0036 "Known consequence — transient plugin-fetch in the `test` job" note; PR #163 2026-05-19).
 

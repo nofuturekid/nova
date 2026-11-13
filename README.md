@@ -77,7 +77,7 @@ A few things bend to taste in **Settings**:
 ## Getting started
 
 1. **Install** NOVA — either from [F-Droid](https://f-droid.org/packages/io.github.nofuturekid.nova/) (stable releases only) or as the latest APK from the [Releases page](https://github.com/hellwand/nova/releases). (For the APK, Android will ask you to allow installing from your browser/files app — that's expected for apps outside the Play Store.)
-   - Betas are GitHub pre-releases, so they come as an APK from the Releases page. The in-app updater keeps it current when **Include pre-releases** is switched on in Settings; Obtainium works too.
+   - Betas are GitHub pre-releases, so they come as an APK from the Releases page. NOVA tells you when a new version is out (switch on **Include pre-releases** in Settings for betas) and sends your browser to the APK; Obtainium works too.
    - The F-Droid build and the GitHub APK are signed with different keys, so switching between them needs an uninstall first (your saved servers and API keys go with the app). See [ADR-0040](./docs/adr/0040-fdroid-play-distribution-flavors.md).
 2. On your Unraid server, generate an **API key**: web UI → _Settings → Management Access → API / Connect_.
 3. Open the app → **Add server** and fill in:
@@ -86,6 +86,22 @@ A few things bend to taste in **Settings**:
    - **Remote host (Unraid Connect)** — optional, e.g. `your-server.unraid.net`, for when you're away (with its own **Use SSL (HTTPS)** switch)
    - **API Key** — the one you just generated
 4. Tap **Test** (next to the local and/or remote connection), then **Save**. The pill in the top bar flips between **Local** and **Remote**.
+
+### Google Play Protect
+
+**Versions up to 0.1.46 (GitHub APK).** On 2026-11-13 we observed that Google Play Protect stopped every GitHub build we tried (0.1.45-beta1, 0.1.45 and 0.1.46-beta1) when it was installed or updated, on a phone with Android 9 and on one with Android 17. Two dialogs appear one after the other:
+
+1. **"App scan recommended"** (German: "App-Scan empfohlen") — Play Protect does not know the file yet. Android shows this for every new file that is not from Google Play. Tap **Scan app** ("App scannen").
+2. **"Harmful app blocked"** (German: "Schädliche App blockiert"), "This app may be harmful" ("Diese App könnte schädlich sein."). You can continue through **More details > Install anyway** ("Weitere Details > Trotzdem installieren").
+
+This is Google's rating of the file, not a finding about what NOVA does; Google does not say why it gives it. Our observation, which Google has not confirmed: these builds could install other apps (that is how the old in-app updater worked), and a build of the same version without that ability was rated "This app seems safe" ("Diese App ist anscheinend sicher") by the same scan on the same phone. NOVA is open source (GPL v3), and you can check what you installed:
+
+- **SHA-256 of the file:** the release page lists it next to the APK; compare it with `sha256sum NOVA-v….apk`.
+- **Signing certificate:** `apksigner verify --print-certs NOVA-v….apk` should show the SHA-256 digest `9f86baa17c1208004d9284e99597f77276c77301b06340b10075c793152b6824`.
+
+**From the next version on**, NOVA no longer installs updates itself and no longer asks for the permission to install apps. **Download** in the update sheet lets your browser download the file; you open it to install. Android will still ask once to scan each new file ("App scan recommended"), because Play Protect does not know it yet; that is expected. We cannot promise that no warning appears, since Google's rating can change.
+
+**F-Droid** is the channel without any such prompt we have seen, but it has stable releases only, gets updates later, and is signed with a different key. Switching between the GitHub APK and F-Droid means uninstalling first, which removes your saved servers and API keys.
 
 Requires an Unraid 7.x server with the API/Connect plugin enabled. All app features need Unraid API **4.30.0 or newer**; the live network speed needs **4.35.0 or newer** (API versions, not Unraid OS versions). On an older API some screens fail to load.
 
@@ -98,7 +114,7 @@ Unraid® is a registered trademark of Lime Technology, Inc. NOVA is an independe
 - **Full policy:** <https://github.com/hellwand/nova/blob/main/docs/privacy/POLICY.md>
 - **Your API key stays on your device.** It's encrypted at rest using Android Keystore via Google's Tink library, and explicitly excluded from cloud backup / device-transfer.
 - **No analytics, no telemetry, no tracking services.** The app talks to your Unraid server's API; in the GitHub (`direct`) build it also asks GitHub's API for app updates (at app start, when you open Settings, or on "Check now"); and it loads container icons from the URLs your own server supplies (often GitHub or a CDN).
-- **Update downloads** go directly from GitHub Releases to your device over HTTPS. The downloaded APK is verified by byte-size match and constant-time SHA-256 against the published release asset before any install attempt; mismatch fails closed. See [ADR-0034](./docs/adr/0034-update-and-data-at-rest-hardening.md) for the rationale.
+- **Update downloads** are made by your browser, not by NOVA: the update sheet opens the release's APK on GitHub, shows its SHA-256 so you can compare it with the downloaded file, and the app itself downloads and installs nothing. See [ADR-0046](./docs/adr/0046-update-via-browser-download.md).
 - **Source is the spec.** Audit, fork, run yourself — GPL v3.
 
 ## Contributing & internals

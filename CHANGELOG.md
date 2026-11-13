@@ -15,6 +15,25 @@ release version + date and opens a fresh `[Unreleased]`.
 
 ## [Unreleased]
 
+### Changed
+- **Updates are now downloaded in your browser instead of being installed inside
+  NOVA** — NOVA still tells you when a new version is out and shows its release
+  notes, the file size and its SHA-256. "Download" now lets your browser download
+  the new APK; you install it by opening the downloaded file, and Android may ask
+  you once to allow your browser or file manager to install apps. NOVA no longer
+  asks for, or holds, the permission to install apps itself. Why: on a real phone
+  Google Play Protect stopped every current NOVA build with "Harmful app blocked"
+  (you could only continue through "More details > Install anyway"), while a build
+  of this version without that permission was rated "This app seems safe". Play
+  Protect may still offer to scan each new version before it installs; that is
+  expected. Versions up to 0.1.46 still install updates themselves, so the update
+  to this version can show the warning one last time (#306, #307).
+
+### Added
+- **The Play Protect notice is documented** — the README and the website now
+  explain what Google Play Protect shows when you install or update NOVA, why, and
+  how to check a download (SHA-256 and signing certificate).
+
 ## [0.1.46] - 2026-11-13
 
 Adding a self-signed server now asks about its certificate only once, and the Overview shows dashes instead of zeros when it has no data. The 0.1.46 beta confirmed this on a real phone: the trust question appears once, the Overview shows dashes while offline, Uptime is a duration and disk rows have no dangling separator.

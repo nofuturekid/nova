@@ -59,7 +59,7 @@ fun UpdateBanner(
             }
             Spacer(Modifier.height(2.dp))
             Text(
-                text = "v${info.version} · tap to install",
+                text = "v${info.version} · tap for details",
                 color = t.muted,
                 style = MaterialTheme.typography.labelSmall,
             )

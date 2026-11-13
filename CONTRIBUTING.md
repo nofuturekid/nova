@@ -99,7 +99,7 @@ Trailing digit is required (`v0.2.0-beta` without a number is rejected by the re
 | New end-to-end feature touching install + UI flow | Beta-first required (ADR-0006). |
 | Anything affecting how the app talks to the Unraid server | Beta-first required (ADR-0006). |
 
-When in doubt: beta-first. The in-app updater (ADR-0008) means betas reach the dev's device with no extra friction.
+When in doubt: beta-first. The update notice (ADR-0046) announces each beta to the dev's device and sends the browser to the APK, so betas reach it with little friction.
 
 ### Cleaning up old releases
 
