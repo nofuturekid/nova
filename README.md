@@ -79,7 +79,7 @@ A few things bend to taste in **Settings**:
 1. **Install** NOVA — either from [F-Droid](https://f-droid.org/packages/io.github.nofuturekid.nova/) (stable releases only) or as the latest APK from the [Releases page](https://github.com/hellwand/nova/releases). (For the APK, Android will ask you to allow installing from your browser/files app — that's expected for apps outside the Play Store.)
    - Betas are GitHub pre-releases, so they come as an APK from the Releases page. NOVA tells you when a new version is out (switch on **Include pre-releases** in Settings for betas) and sends your browser to the APK; Obtainium works too.
    - The F-Droid build and the GitHub APK are signed with different keys, so switching between them needs an uninstall first (your saved servers and API keys go with the app). See [ADR-0040](./docs/adr/0040-fdroid-play-distribution-flavors.md).
-2. On your Unraid server, generate an **API key**: web UI → _Settings → Management Access → API / Connect_.
+2. On your Unraid server, generate an **API key**: web UI → _Settings → Management Access → API / Connect_ (which rights it needs: [API key permissions](#api-key-permissions)).
 3. Open the app → **Add server** and fill in:
    - **Server name** — a label, e.g. `Tower`
    - **Local host** — its address on your home network, e.g. `192.168.1.10`. Flip **Use SSL (HTTPS)** if the server uses HTTPS; for a self-signed certificate also enable **Trust self-signed certificate** and confirm it once
@@ -105,6 +105,61 @@ This is Google's rating of the file, not a finding about what NOVA does; Google 
 
 Requires an Unraid 7.x server with the API/Connect plugin enabled. All app features need Unraid API **4.30.0 or newer**; the live network speed needs **4.35.0 or newer** (API versions, not Unraid OS versions). On an older API some screens fail to load.
 
+## API key permissions
+
+NOVA talks to your server with one API key per server. **NOVA never needs the ADMIN role or any permission to manage API keys.** Pick whichever of these suits you:
+
+- **Simplest, read-only: a key with the VIEWER role.** It can see everything NOVA shows and cannot change anything. Buttons that need more rights are refused by the server.
+- **Simplest, full control: a key with the ADMIN role.** It can do everything NOVA offers. It can also do much more, which NOVA never uses.
+- **Least privilege: the VIEWER role plus only the controls you want.** See the table below.
+
+### What each feature needs
+
+A permission is written as `RESOURCE:ACTION`, for example `DOCKER:UPDATE_ANY`. The action must match exactly: `UPDATE_ANY` does not include `READ_ANY`, and the `_OWN` actions never count. The last column says how well a row is established: **Live** means we ran it against a real server, **Source** means it was read from the Unraid API's source code and has not been tried with a key that holds only that permission (see the notes below the table).
+
+| NOVA feature                                                                                         | A key needs                                                                                   | Established |
+| ---------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------- | ----------- |
+| See everything (Overview, metrics, network, array, containers and logs, VMs, notifications, plugins) | Role **VIEWER**                                                                               | Live [^1]   |
+| The same, without a role                                                                             | `READ_ANY` on `INFO`, `DISPLAY`, `ARRAY`, `DOCKER`, `VMS`, `NOTIFICATIONS`, `CONFIG` and `ME` | Source [^2] |
+| Start, stop, restart, pause, resume and update containers; update all                                | `DOCKER:UPDATE_ANY`                                                                           | Source [^3] |
+| Start, stop, pause, resume, reboot, reset and force-stop VMs                                         | `VMS:UPDATE_ANY`                                                                              | Source      |
+| Start or stop the array; start, pause, resume or cancel a parity check                               | `ARRAY:UPDATE_ANY`                                                                            | Source      |
+| Archive, mark as unread, archive all notifications                                                   | `NOTIFICATIONS:UPDATE_ANY`                                                                    | Source [^4] |
+| Delete a notification, delete all archived                                                           | `NOTIFICATIONS:DELETE_ANY`                                                                    | Source [^4] |
+| Never needed                                                                                         | The ADMIN role, any `API_KEY` or `PERMISSION` permission, any `CREATE_ANY` permission         | Source      |
+
+A least-privilege key for full control is therefore the VIEWER role plus `DOCKER:UPDATE_ANY`, `VMS:UPDATE_ANY`, `ARRAY:UPDATE_ANY`, `NOTIFICATIONS:UPDATE_ANY` and `NOTIFICATIONS:DELETE_ANY`. Leave out the ones for things you do not want NOVA to do.
+
+[^1]: Checked on 2026-11-13 against a server running Unraid 7.4.0 with Unraid API 4.37.11: a VIEWER key loaded every query NOVA sends with HTTP 200 and no errors, and the same key was refused when it tried to start a container (sent with an id that does not exist, so nothing could change; see "When a permission is missing" below).
+
+[^2]: From the guards in the Unraid API source at version 4.37.11 and the role table, which is identical from 4.30.0 on. Not tried with a key that has only these explicit permissions, because that needs a key created on a server. A key with permissions but no role does not inherit `ME:READ_ANY`, hence `ME` in the list.
+
+[^3]: The VIEWER refusal of a container start was confirmed live. That `DOCKER:UPDATE_ANY` is enough is from the source at 4.37.11. The one-step container restart needs API 4.36.0 or newer; on older servers it is a stop followed by a start.
+
+[^4]: Servers before API 4.37.4 do not check these two permissions at all (read from the source of 4.37.3 and 4.37.4), so every key can archive and delete notifications there.
+
+### Where to set the key and its permissions
+
+In the Unraid web interface open _Settings → Management Access → API_ (Unraid's documentation lists the keys under _Management Access_, as _API Keys_). When you create a key you choose its role and, if you want, individual permissions. The upstream form offers both ([source](https://github.com/unraid/api/blob/v4.37.11/web/src/components/ApiKey/ApiKeyCreate.vue)); we have not looked at how the dialog is laid out on every Unraid version. The same can be done on the server's command line, following Unraid's [API key documentation](https://docs.unraid.net/API/programmatic-api-key-management/), which also recommends specific permissions over the ADMIN role:
+
+```sh
+unraid-api apikey --create --name "NOVA" --roles VIEWER \
+  --permissions "DOCKER:UPDATE_ANY,VMS:UPDATE_ANY,ARRAY:UPDATE_ANY,NOTIFICATIONS:UPDATE_ANY,NOTIFICATIONS:DELETE_ANY"
+```
+
+That command is quoted from the documentation's syntax and has not been run by us. If you change a key's permissions later, the key itself stays the same, so you do not need to enter it again in NOVA.
+
+### When a permission is missing
+
+The server decides, not NOVA. An action the key may not do is refused with the message **"Forbidden resource"** and nothing changes on the server (confirmed live for starting a container with a VIEWER key). A read the key may not do is refused the same way, so that screen fails to load. A key the server does not accept at all is answered with "API key validation failed". A later version of NOVA will hide the controls a key cannot use instead of showing buttons that are refused.
+
+### Which Unraid API version you need
+
+Every screen needs Unraid API **4.30.0 or newer**; live network speed needs **4.35.0 or newer**. These are versions of the Unraid API, not of Unraid OS. They are different numbers.
+
+To see which API version you have, open _Settings → Management Access → API_ in the web interface, where the installed Unraid API version should be shown [^5]. As a rule of thumb, every Unraid OS release from 7.2.5 on ships an API of 4.30.0 or newer (we checked 7.2.5, 7.2.8, 7.3.0, 7.3.2 and 7.4.0 against the release notes). The reverse does not hold: the API version does not rise steadily with the OS version, for example 7.2.8 ships 4.36.1 and 7.3.2 ships 4.35.1.
+
+[^5]: We have not checked what that page shows on each Unraid version. If you cannot find the version there, Unraid's release notes for your OS version name the API version that ships with it.
 ## Trademark attribution
 
 Unraid® is a registered trademark of Lime Technology, Inc. NOVA is an independent, community-built client; it uses the term solely to describe compatibility with the Unraid® operating system and is not affiliated with, endorsed by, or supported by Lime Technology. The project was previously named `UnraidControl`; the rename to NOVA in v0.1.33 was made to comply with the Unraid® Trademark Policy — see [ADR-0038](./docs/adr/0038-lime-trademark-compliance-rename-pending.md) and [ADR-0039](./docs/adr/0039-rename-to-nova.md).

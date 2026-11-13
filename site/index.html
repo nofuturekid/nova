@@ -375,6 +375,40 @@
             </li>
           </ol>
 
+          <h3 class="h3-gap" id="api-key">Which API key</h3>
+          <ul class="plain">
+            <li>
+              <strong>Read-only:</strong> a key with the <code>VIEWER</code>
+              role sees everything NOVA shows and cannot change anything.
+            </li>
+            <li>
+              <strong>Full control:</strong> a key with the
+              <code>ADMIN</code> role can do everything, and more than NOVA
+              needs.
+            </li>
+            <li>
+              <strong>Least privilege:</strong> the <code>VIEWER</code> role
+              plus only the controls you want, such as
+              <code>DOCKER:UPDATE_ANY</code> for containers,
+              <code>VMS:UPDATE_ANY</code> for VMs,
+              <code>ARRAY:UPDATE_ANY</code> for the array and parity checks,
+              and <code>NOTIFICATIONS:UPDATE_ANY</code> and
+              <code>NOTIFICATIONS:DELETE_ANY</code> for notifications.
+            </li>
+          </ul>
+          <p class="sub">
+            NOVA never needs the ADMIN role or any permission to manage API
+            keys. If a key lacks a permission, the server refuses the action
+            and changes nothing; a later version of NOVA will hide the controls
+            a key cannot use. Set the role and permissions when you create the
+            key, in <em>Settings &rarr; Management Access &rarr; API</em>. The
+            full table, with what was checked on a real server and what comes
+            from the Unraid API&rsquo;s source code, is in the
+            <a href="https://github.com/hellwand/nova#api-key-permissions"
+              >README</a
+            >.
+          </p>
+
           <h3 class="h3-gap">Verify the GitHub APK</h3>
           <p class="sub">
             The APKs on GitHub are signed with one release key. Its certificate
