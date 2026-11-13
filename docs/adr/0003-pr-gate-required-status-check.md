@@ -49,3 +49,16 @@ We also wanted CI to run on **every** proposed change, not just on a merge — s
 ## Amendment 2026-11-10 — administrators are bound by the protection
 
 The Decision says admins are not routinely exempt and the alternatives section rejects "admin bypass" because it undermines the protection — but the live setting had `enforce_admins=false`, so the owner account (and every agent session using its credentials) could push to `main`, merge a red or out-of-date PR, or bypass `strict`. `enforce_admins` is now **on**. Break-glass means switching it off for the duration, which is a deliberate act. The same change disabled merge commits and rebase merges (squash only; ADR-0014 depends on the `(#NN)` subject). Two corrections to the record: the required check also runs with `strict` (branch must be up to date), which the release guard relies on (ADR-0014 amendment); and the API showed `dismiss_stale_reviews: true`, which has no effect with 0 required approvals.
+
+## Amendment 2026-11-13 — rulesets and fast-forward pushes
+
+Pull requests no longer land through a merge button. A green PR head lands by a fast-forward push of that exact commit to `main`, run by the coordinating session only (agents never merge and never push `main`). Classic branch protection is replaced by two rulesets:
+
+- **"main (no bypass)"**: deletion, non-fast-forward, linear history, signed commits and the required status check `build` (GitHub Actions, strict). No bypass actor.
+- **"main: pull request (admin push bypass)"**: the pull-request rule (0 required approvals, rebase as the only allowed merge method). The admin role may bypass it, which is what permits the push.
+
+Only the pull-request rule is bypassable. The `build` check, linear history, signatures, non-fast-forward and deletion bind everyone, the admin included, so an admin push can neither skip CI, nor rewrite `main`, nor add an unsigned commit. The pull-request ruleset is still needed so that no other writer (an app, a bot with branch access) can push a green SHA straight to `main`.
+
+The merge buttons are off (squash and merge commit disabled, update-branch disabled) and branches are deleted when their PR is closed by the push. Break-glass, for an emergency fix that cannot wait for CI, is to set the ruleset "main (no bypass)" to `disabled` deliberately and back to `active` afterwards.
+
+This supersedes the 2026-11-10 sentences about `enforce_admins` and squash-only merges: classic protection is gone, and the `(#NN)` subject is no longer produced (see the ADR-0014 amendment of this date). The "GitHub Rulesets instead of classic branch protection" alternative above said to switch when ruleset features are actually needed; the feature that is now needed is the per-rule bypass, which classic protection cannot express. The history above stays as written.

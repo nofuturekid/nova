@@ -181,3 +181,7 @@ human.
   version bump or tag.
 - The established autonomous per-PR flow (branch/CI/merge/tag) and the
   operating-instruction rule on confirming risky/irreversible actions.
+
+## Amendment 2026-11-13 — landing is the coordinator's push
+
+In the per-PR flow of Tier 1, "on green, squash-merge + tag + verify release" changes: on green the agent verifies readiness and returns the push command; the coordinating session pushes `main` (a fast-forward push of the PR head) and the tags. Agents never merge and never push `main` (R-MERGE in `.claude/CLAUDE.md`). Stable promotion stays maintainer-gated as before.

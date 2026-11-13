@@ -11,7 +11,7 @@ Native Android client for Unraid NAS servers (Kotlin + Jetpack Compose, Apollo G
 - URL: https://github.com/hellwand/nova
 - License: GPL-3.0-only (relicensed from CC BY-NC-SA 4.0 — see ADR-0021)
 - Default branch: `main` (protected)
-- Owner: the GitHub organization `hellwand` (the maintainer's account `nofuturekid` is its owner). `main` protection applies to admins too (`enforce_admins` on since 2026-11-10, ADR-0003); only squash merges are allowed; tags `v*` are protected against update and deletion by the ruleset "Protect release tags" (ADR-0010).
+- Owner: the GitHub organization `hellwand` (the maintainer's account `nofuturekid` is its owner). `main` is protected by two rulesets (since 2026-11-13, ADR-0003): "main (no bypass)" (deletion, non-fast-forward, linear history, signed commits, required check `build`; binds everyone) and "main: pull request (admin push bypass)" (changes must come through a PR; only the admin role may push). Classic branch protection is removed; the merge buttons (squash, merge commit, update-branch) are off, so PRs land by a fast-forward push of the PR head; tags `v*` are protected against update and deletion by the ruleset "Protect release tags" (ADR-0010).
 - Moved: the repository moved from `nofuturekid/nova` to `hellwand/nova` on 2026-11-12. Nothing may ever be created, forked or renamed into `nofuturekid/nova`, and `hellwand/nova` must not be forked into the personal account under the name `nova`: installed app versions up to 0.1.42 find updates only through GitHub's redirect from the old name, and a repository of that name would break it. Since 0.1.43 the app addresses `hellwand/nova` directly.
 
 ## Releases shipped so far
@@ -73,7 +73,7 @@ Native Android client for Unraid NAS servers (Kotlin + Jetpack Compose, Apollo G
 | v0.1.42-beta2        | pre-release | Beta: failed actions show why, graceful VM stop + confirmations, network speed on stock Unraid API 4.35+, no background polling, store screenshots                                                                                                                                                            |
 | **v0.1.42**          | **release** | Stable promotion of the 0.1.42 cycle (beta2): failed actions show why, graceful VM stop + confirmations, network speed on stock Unraid API 4.35+, no background polling, hardened self-signed trust, store icon and screenshots, privacy policy corrections                                                   |
 | v0.1.43-beta1        | pre-release | Beta: parity card shows while a parity operation runs, plain-words message for an unreachable server, double-tap Install and missing install-permission screen fixed, VM list hides 0 vCPU / 0 GB; first release from hellwand/nova                                                                           |
-| **v0.1.43**          | **release** | Stable promotion of the 0.1.43 cycle (beta1): parity card shows while a parity operation runs, plain-words message for an unreachable server, double-tap Install and missing install-permission screen fixed, VM list hides 0 vCPU / 0 GB; first release from hellwand/nova                      |
+| **v0.1.43**          | **release** | Stable promotion of the 0.1.43 cycle (beta1): parity card shows while a parity operation runs, plain-words message for an unreachable server, double-tap Install and missing install-permission screen fixed, VM list hides 0 vCPU / 0 GB; first release from hellwand/nova                                   |
 | v0.1.44-beta1        | pre-release | Beta: toolchain-only, no app changes. Build tools and libraries updated (Kotlin 2.4, AGP 9.5, Gradle 9.9, compileSdk 37, Compose, okhttp 5.5, Apollo 5.2, Tink 1.24); nothing should look or behave differently                                                                                               |
 | **v0.1.44**          | **release** | Stable promotion of the 0.1.44 cycle (beta1): toolchain-only, no app changes. Build tools and libraries updated (Kotlin 2.4, AGP 9.5, Gradle 9.9, compileSdk 37, Compose, okhttp 5.5, Apollo 5.2, Tink 1.24); nothing looks or behaves differently **(Latest)**                                               |
 | v0.1.45-beta1        | pre-release | Beta: live values on the Overview and the container numbers recover by themselves after a dropped or silent connection to the server (new WebSocket transport, own resubscribing loop, 15 s ping); #245                                                                                                       |
@@ -148,8 +148,8 @@ app/src/main/
 
 The "why" for everything in this section lives in ADRs under [`docs/adr/`](docs/adr/). What follows is the operational summary.
 
-- **Branch protection** on `main`: PRs required, required status check `build`, 0 required approvals (solo-dev-friendly). See [ADR-0003](docs/adr/0003-pr-gate-required-status-check.md).
-- **Build-once-promote** split between `ci.yml` (builds debug+release APKs, uploads artifacts) and `release.yml` (`v*` tag → finds the SHA's successful CI run, runs the release guard (commit on `main`, PR merged as this commit, CI tree == tag tree, `versionName` == tag, `versionCode` up), downloads that run's `app-release` artifact, verifies the APK itself (package id, `versionName` == tag, `versionCode` == source, pinned signer certificate; `.github/scripts/release-verify-apk.sh`), then publishes the GitHub Release; **never rebuilds**). See [ADR-0004](docs/adr/0004-build-once-promote-pipeline.md).
+- **Rulesets** on `main` (classic branch protection is removed): "main (no bypass)" carries deletion, non-fast-forward, linear history, signed commits and the required status check `build` (strict, GitHub Actions), with no bypass actor; "main: pull request (admin push bypass)" carries the pull-request rule (0 required approvals, solo-dev-friendly) and lets the admin role push. A green, signed, rebased PR head therefore lands by a fast-forward push; nothing else can reach `main`. Break-glass: set the ruleset "main (no bypass)" to `disabled` deliberately and back to `active`. See [ADR-0003](docs/adr/0003-pr-gate-required-status-check.md) (amendment 2026-11-13).
+- **Build-once-promote** split between `ci.yml` (builds debug+release APKs, uploads artifacts) and `release.yml` (`v*` tag → finds the SHA's successful CI run (the PR run whose head is the tagged commit; squash-era tags before 2026-11-13 resolve the PR from `(#NN)` in the subject), runs the release guard (commit on `main`, CI tree == tag tree, and on the `(#NN)` path PR merged as this commit, `versionName` == tag, `versionCode` up), downloads that run's `app-release` artifact, verifies the APK itself (package id, `versionName` == tag, `versionCode` == source, pinned signer certificate; `.github/scripts/release-verify-apk.sh`), then publishes the GitHub Release; **never rebuilds**). See [ADR-0004](docs/adr/0004-build-once-promote-pipeline.md).
 - **Concurrency**: `ci.yml` cancels superseded runs unconditionally; it no longer runs on push to `main` (ADR-0014), so there is no main run to protect (ADR-0011's carve-out is moot). See [ADR-0011](docs/adr/0011-cancel-in-progress-only-on-pr-branches.md), [ADR-0014](docs/adr/0014-single-ci-run-per-pr.md).
 - **Docs-only CI bypass**: `ci.yml` builds only when a build-affecting path changed (inverted allowlist: `app/`, `gradle/`, wrapper, root Gradle files, `ci.yml`); anything else finishes in ~10s and still reports `SUCCESS` on `build`. No version bump, no tag for these. See [ADR-0029](docs/adr/0029-invert-ci-build-skip-filter.md) (supersedes ADR-0009).
 - **Tag conventions**: stable `v0.X.Y`, pre-release `v0.X.Y-beta1` / `-rc1` with trailing digit required. See [ADR-0005](docs/adr/0005-prerelease-tag-convention.md).
@@ -158,13 +158,13 @@ The "why" for everything in this section lives in ADRs under [`docs/adr/`](docs/
 
 ### Release procedure (operational)
 
-1. Feature branch → PR → CI green → squash-merge, then delete the branch. It is not deleted automatically (`delete_branch_on_merge` is off); use `gh pr merge <n> --squash --delete-branch`.
+1. Feature branch → PR → CI green → coordinator `git push origin <sha>:refs/heads/main` (the PR head, rebased on `origin/main`, every commit signed); GitHub marks the PR merged and deletes the branch (`delete_branch_on_merge` is on). No merge button and no `gh pr merge` (the maintainer's command guard blocks it); agents never push `main`.
 2. Version-bump PR (its own commit per [ADR-0015](docs/adr/0015-promotion-requires-new-commit.md)).
    **Title it `release: vX.Y.Z-betaN — <summary>`** (beta/rc) or
    **`release: X.Y.Z — <summary> (Stable)`** (stable) — not "Version bump" /
    "Promote". See CONTRIBUTING "Naming the release commit / PR".
-3. CI green on the bump → squash-merge.
-4. Tag the bump commit: `git tag -a vX.Y.Z[-betaN] -m "..." && git push origin vX.Y.Z[-betaN]`.
+3. CI green on the bump → fast-forward push of the bump PR's head to `main`.
+4. Check that `main` is that commit, run the release dry run (below), then tag the bump commit: `git tag -a vX.Y.Z[-betaN] -m "..." && git push origin vX.Y.Z[-betaN]`. Order matters: push `main` first and the tag only afterwards, otherwise the release guard (commit is an ancestor of `origin/main`) fails because the release run fetched `main` before the push.
 5. `release.yml` promotes the existing artifact.
 6. If beta: test on device → new bump PR (`release: X.Y.Z — … (Stable)`,
    versionCode bumped again) once happy. No re-tagging the same commit
@@ -173,6 +173,24 @@ The "why" for everything in this section lives in ADRs under [`docs/adr/`](docs/
 A burnt tag (v0.1.42-beta1: tag pushed, release verification failed) is never moved; fix forward with a new commit and the next version.
 
 If a tag is pushed before CI on its commit is green, `release.yml` fails with "no successful CI run found for commit". Wait, then tag.
+
+### Release dry run
+
+Run this read-only check after `main` was pushed and before the tag is pushed. It runs the lookup of `release.yml` and the guard `.github/scripts/release-guard.sh` on the same inputs and only reads (`gh api` GET, git). It matters because the lookup by head SHA ("direct match") is the normal path since 2026-11-13 and had not run in production before.
+
+```sh
+SHA=<release PR head == main tip>; TAG=<vX.Y.Z or vX.Y.Z-betaN>
+test "$(timeout 120 gh api repos/hellwand/nova/commits/main --jq .sha)" = "$SHA"
+RUN_ID=$(timeout 120 gh api "repos/hellwand/nova/actions/workflows/ci.yml/runs?head_sha=$SHA&status=success&per_page=50" \
+  --jq '.workflow_runs[] | select((.event=="pull_request" or .event=="workflow_dispatch") and .head_repository.full_name=="hellwand/nova") | .id' | head -1)
+timeout 120 gh api "repos/hellwand/nova/actions/runs/$RUN_ID/artifacts" \
+  --jq '[.artifacts[] | select(.name=="app-release" and (.expired|not))] | length'      # must be >= 1
+# in a worktree whose origin/main is fetched and contains SHA:
+TAG=$TAG SHA=$SHA RUN_ID=$RUN_ID RUN_HEAD_SHA=$SHA PR_NUM= GITHUB_REPOSITORY=hellwand/nova MAIN_REF=origin/main \
+  bash .github/scripts/release-guard.sh        # must print the four "ok:" lines
+```
+
+If the dry run passes and the release run still fails, recover with `gh run rerun <run-id>` (after `gh workflow run ci.yml --ref <tag>` if the artifact is missing). Tags are never re-pushed.
 
 ### Release cleanup
 
@@ -347,8 +365,8 @@ gh secret list --repo hellwand/nova
 3. Code → commit → `./scripts/local-ci.sh` (the PR template requires it) → `git push -u origin <branch>`
 4. `gh pr create` (or open via browser)
 5. Wait for CI green
-6. `gh pr merge <n> --squash --delete-branch`
-7. Shipping a release? Do not tag the feature merge. Open a separate version-bump PR (ADR-0015, see "Release procedure" above); once it is green and squash-merged, tag that squash commit on `main`: `git tag -a vX.Y.Z[-betaN] -m "..." && git push origin vX.Y.Z[-betaN]`
+6. Land it: the coordinator pushes the PR head, `git push origin <sha>:refs/heads/main` (R-MERGE; `nova-merge-train` verifies readiness and returns this command)
+7. Shipping a release? Do not tag the feature commit. Open a separate version-bump PR (ADR-0015, see "Release procedure" above); once it is green and on `main` by fast-forward push, tag that commit (`main`'s tip after the push): `git tag -a vX.Y.Z[-betaN] -m "..." && git push origin vX.Y.Z[-betaN]`
 8. Claude Code: saved workflows `nova-research`, `nova-pr`, `nova-merge-train` (`.claude/workflows/`); rules in `.claude/CLAUDE.md` ("Working rules"). See CONTRIBUTING.md, "Claude Code setup".
 
 ### Schema changes

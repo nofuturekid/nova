@@ -66,3 +66,7 @@ For purely metadata-only promotion PRs the `versionCode + versionName` bump qual
 - ADR-0006 — promotion-flow bullets updated to reflect this rule.
 - ADR-0013 — versionName-with-suffix rule that, in combination with the old promotion flow, produced the bug.
 - v0.1.20 / v0.1.20-beta1 → v0.1.21 transition — the case that surfaced this.
+
+## Amendment 2026-11-13 — fast-forward flow
+
+The flow is now "PR → CI → fast-forward push → tag": the version-bump PR's head commit is pushed to `main` as it is (ADR-0003 amendment of this date), and the tag goes on that same commit, after `main` holds it and before anything else is pushed to `main`. "squash-merge" in the text above reads "fast-forward push" from this date. Each version still has its own commit.

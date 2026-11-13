@@ -4,7 +4,7 @@ Thanks for wanting to contribute. The workflow is intentionally lightweight.
 
 ## Branching model
 
-- **`main`** is always shippable. Direct pushes are blocked; everything lands via PR.
+- **`main`** is always shippable. Everything lands via PR; the only push to `main` is the maintainer's fast-forward push of a green PR head (below).
 - **Feature branches**: name them whatever (`feature/x`, `fix/y`, `bump-foo`). Branch off `main`, push to the same repo if you're a collaborator, or push to your fork.
 
 ## Workflow
@@ -17,7 +17,7 @@ Thanks for wanting to contribute. The workflow is intentionally lightweight.
 2. Make changes, commit, push.
 3. Open a Pull Request against `main`.
 4. CI (`ci.yml`) runs automatically on the PR. It builds debug + signed release APKs in one shot (≈ 8 min for a code PR; docs-only PRs finish in seconds). Wait for green.
-5. Merge when CI is green. Squash-merge is the only allowed method (the repo disables merge commits and rebase merges); `release.yml` relies on the `(#NN)` in the squash subject.
+5. Maintainers land a green PR by a fast-forward push of its head to `main` (no merge button; squash, merge commits and Update branch are disabled). Commits must be signed; `main` is linear. If `main` moved while CI ran, rebase the branch onto `origin/main` (the commits stay signed) and wait for the new CI run; do not use the Update-branch button, it creates a merge commit that `main` refuses.
 
 ### Claude Code setup (maintainer tooling)
 
@@ -31,15 +31,17 @@ External contributors submit PRs from a fork. CI on a fork PR proves
 **compile/lint only** — fork PRs get no secrets by design, so signed
 release/device steps don't run there. The maintainer then reviews, runs
 the beta and the on-device acceptance pass (ADR-0027 Tier 3 — a human
-judgement gate, not delegable), and merges/releases. So an appearance or
+judgement gate, not delegable), and lands/releases. So an appearance or
 UX change can't be self-accepted in a fork PR; flag it and the
 maintainer owns acceptance.
 
-You may merge your own PR after CI passes — no required reviews. Reviews are welcome but not blocking, so the project doesn't stall when only one person is around. If you want a review, ping in the PR thread.
+Commits pushed to `main` must be signed, and a fork contributor's commits usually are not. The maintainer then re-signs them through a rebase (authorship is kept), lands them through a same-repository PR, and credits the contribution in `CHANGELOG.md`. Because that PR builds with the release secrets, the maintainer reviews the diff first.
+
+There are no required reviews, so the project doesn't stall when only one person is around; the maintainer lands a PR once CI is green. Reviews are welcome but not blocking. If you want a review, ping in the PR thread.
 
 ## Cutting a release
 
-Tags are the release trigger. After your code is on `main` AND `ci.yml` is green for that commit:
+Tags are the release trigger. After your code is on `main` AND `ci.yml` is green for that commit (push `main` first, check that it holds the commit, and only then push the tag, so the release guard finds the commit on `main`):
 
 ```bash
 git checkout main && git pull
@@ -51,7 +53,7 @@ git push origin v0.2.0
 
 If you tag too early (before CI is green), the release workflow fails with a clear message; just wait for CI and re-run the failed release run (`gh run rerun <run-id>`). Tags cannot be re-pushed (the ruleset forbids update and deletion).
 
-Before anything is published, a guard step checks that the tag matches what CI built: the commit is on `main`, the PR was squash-merged as exactly this commit, `versionName` in `app/build.gradle.kts` equals the tag (including a `-betaN` suffix) and `versionCode` is higher than at the previous tag. A failure names the mismatch; fix it with a new commit, not by moving the tag (tags are protected against update and deletion). If the artifact lookup finds no CI run (e.g. after a direct push), (or the artifact expired) run `gh workflow run ci.yml --ref <tag>`, wait for it, then re-run the failed release run (`gh run rerun <run-id>`). With tags locked, a guard failure on a version mismatch uses up that tag: fix forward with a new commit and the next version. After the artifact download, a second step reads the APK itself (`aapt2`/`apksigner`) and requires package `io.github.nofuturekid.nova`, `versionName` == tag, `versionCode` == the value in source, and the pinned release-signing certificate before anything is published ([ADR-0014](docs/adr/0014-single-ci-run-per-pr.md), `.github/scripts/release-verify-apk.sh`).
+Before anything is published, a guard step checks that the tag matches what CI built: the commit is on `main`, the CI run built exactly this commit (the PR head that was fast-forwarded onto `main`; for tags before 2026-11-13 the squash commit's PR), `versionName` in `app/build.gradle.kts` equals the tag (including a `-betaN` suffix) and `versionCode` is higher than at the previous tag. A failure names the mismatch; fix it with a new commit, not by moving the tag (tags are protected against update and deletion). If the artifact lookup finds no CI run (e.g. after a direct push), (or the artifact expired) run `gh workflow run ci.yml --ref <tag>`, wait for it, then re-run the failed release run (`gh run rerun <run-id>`). With tags locked, a guard failure on a version mismatch uses up that tag: fix forward with a new commit and the next version. After the artifact download, a second step reads the APK itself (`aapt2`/`apksigner`) and requires package `io.github.nofuturekid.nova`, `versionName` == tag, `versionCode` == the value in source, and the pinned release-signing certificate before anything is published ([ADR-0014](docs/adr/0014-single-ci-run-per-pr.md), `.github/scripts/release-verify-apk.sh`).
 
 ### Naming the release commit / PR
 

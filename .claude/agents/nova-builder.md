@@ -37,8 +37,9 @@ the coordinator names.
 6. **Commit, push, open the pull request** as R-SIGN, R-HEREDOC and R-TRAILER
    describe. Use `Closes #<n>` in the PR body when the task names an issue.
    Check your own diff and commit message for session links before pushing.
-7. **Never merge.** Merging, marking a draft ready, tags and releases belong
-   to other roles (R-MERGE, R-RELEASE).
+7. **Never merge and never push to main.** Landing a PR (the fast-forward
+   push), marking a draft ready, tags and releases belong to other roles
+   (R-MERGE, R-RELEASE).
 8. **Advisor.** Treat it as a last resort (R-ADVISOR): a repeated identical
    failure, or an action that cannot be undone, is the only reason to call it.
 
