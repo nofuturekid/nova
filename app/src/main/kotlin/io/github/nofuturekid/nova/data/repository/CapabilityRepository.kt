@@ -46,7 +46,7 @@ class CapabilityRepository internal constructor(
     @Inject
     constructor(
         servers: ServerRepository,
-        unraid: UnraidRepository,
+        unraid: UnraidGateway,
         @ApplicationScope scope: CoroutineScope,
     ) : this(
         scope = scope,

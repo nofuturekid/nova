@@ -109,6 +109,8 @@ class SettingsStore @Inject constructor(
      */
     suspend fun saveServer(list: List<Server>, serverId: String, pin: String?, dropPin: Boolean) {
         ds.edit { prefs ->
+            val before = decodeServers(prefs)
+            val activeId = prefs[Keys.ActiveServer]
             prefs[Keys.Servers] = json.encodeToString(list)
             val pins = decodePins(prefs).toMutableMap()
             when {
@@ -116,7 +118,11 @@ class SettingsStore @Inject constructor(
                 pin != null -> pins[serverId] = pin
             }
             prefs[Keys.CertPins] = json.encodeToString(pins.toMap())
-            if (prefs[Keys.ActiveServer] == null) prefs[Keys.ActiveServer] = serverId
+            // The first server becomes active. So does the first real server added while the demo
+            // entry is the active one: the demo is a place to look around, not a server to stay on.
+            val demoWasActive = before.any { it.id == activeId && it.isDemo }
+            val addedRealServer = before.none { it.id == serverId } && list.any { it.id == serverId && !it.isDemo }
+            if (activeId == null || (demoWasActive && addedRealServer)) prefs[Keys.ActiveServer] = serverId
         }
     }
 

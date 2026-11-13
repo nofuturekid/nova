@@ -47,6 +47,7 @@ import io.github.nofuturekid.nova.data.repository.CapabilityRepository
 import io.github.nofuturekid.nova.data.repository.DomainState
 import io.github.nofuturekid.nova.data.repository.ServerRepository
 import io.github.nofuturekid.nova.data.repository.SettingsRepository
+import io.github.nofuturekid.nova.data.repository.UnraidGateway
 import io.github.nofuturekid.nova.data.repository.UnraidRepository
 import io.github.nofuturekid.nova.data.update.UpdateTracker
 import javax.inject.Inject
@@ -64,7 +65,7 @@ data class MainUi(
 @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
 class MainViewModel @Inject constructor(
     private val servers: ServerRepository,
-    private val unraid: UnraidRepository,
+    private val unraid: UnraidGateway,
     private val settings: SettingsRepository,
     private val updateTracker: UpdateTracker,
     private val caps: CapabilityRepository,

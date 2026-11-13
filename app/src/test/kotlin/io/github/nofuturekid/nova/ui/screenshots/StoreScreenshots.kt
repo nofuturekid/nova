@@ -30,33 +30,16 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.github.takahirom.roborazzi.captureScreenRoboImage
+import io.github.nofuturekid.nova.data.demo.DemoFixtures
 import io.github.nofuturekid.nova.data.local.LayoutMode
-import io.github.nofuturekid.nova.data.model.ArrayInfo
-import io.github.nofuturekid.nova.data.model.ArrayState
 import io.github.nofuturekid.nova.data.model.ConnectionMode
-import io.github.nofuturekid.nova.data.model.Container
-import io.github.nofuturekid.nova.data.model.ContainerLiveStats
-import io.github.nofuturekid.nova.data.model.ContainerStatus
-import io.github.nofuturekid.nova.data.model.ContainerUpdateStatus
-import io.github.nofuturekid.nova.data.model.Disk
-import io.github.nofuturekid.nova.data.model.DiskStatus
-import io.github.nofuturekid.nova.data.model.DiskType
 import io.github.nofuturekid.nova.data.model.LiveMetrics
 import io.github.nofuturekid.nova.data.model.LogLine
 import io.github.nofuturekid.nova.data.model.NetworkThroughput
-import io.github.nofuturekid.nova.data.model.NotifImportance
-import io.github.nofuturekid.nova.data.model.NotifType
-import io.github.nofuturekid.nova.data.model.Notifications
-import io.github.nofuturekid.nova.data.model.ParityCheck
-import io.github.nofuturekid.nova.data.model.Server
-import io.github.nofuturekid.nova.data.model.ServerInfo
 import io.github.nofuturekid.nova.data.model.SensorType
 import io.github.nofuturekid.nova.data.model.Temperature
 import io.github.nofuturekid.nova.data.model.TemperatureStatus
 import io.github.nofuturekid.nova.data.model.TemperatureUnit
-import io.github.nofuturekid.nova.data.model.UnraidNotification
-import io.github.nofuturekid.nova.data.model.Vm
-import io.github.nofuturekid.nova.data.model.VmState
 import io.github.nofuturekid.nova.data.repository.DomainState
 import io.github.nofuturekid.nova.ui.screens.array.ArrayTab
 import io.github.nofuturekid.nova.ui.screens.container.ContainerDetailSheet
@@ -149,122 +132,17 @@ class StoreScreenshots {
     private fun out(n: Int) = "$outDir/$n.png"
 
     // ── Demo data ────────────────────────────────────────────────────
+    // The fictional server lives in main code (DemoFixtures, ADR-0050), the single source
+    // for these images and for the in-app demo. The entry is shown as a real one here: the
+    // store images show the app as it looks on a server, without the demo marker.
 
-    private val server = Server(
-        id = "demo",
-        name = "Tower",
-        hostname = "tower.example.net",
-        localUrl = "http://192.0.2.10",
-        remoteUrl = "https://tower.example.net",
-    )
-
-    private val info = ServerInfo(
-        hostname = "Tower",
-        uptime = "21d 6h",
-        unraidVersion = "7.2.0",
-        kernel = "6.12.54-Unraid",
-        cpuBrand = "Intel Core i5-12400",
-        cpuCores = 6,
-        cpuThreads = 12,
-        cpuMaxGhz = 4.4,
-        memTotalGb = 32.0,
-    )
-
-    private fun disk(
-        name: String, device: String, type: DiskType, size: Double, used: Double,
-        temp: Int, model: String, spinning: Boolean = true, rotational: Boolean = true,
-    ) = Disk(
-        name = name, device = device, type = type, sizeTb = size, usedTb = used,
-        tempC = temp, status = DiskStatus.Ok, model = model, isSpinning = spinning,
-        rotational = rotational, numErrors = 0, warningC = null, criticalC = null,
-    )
-
-    private val disks = listOf(
-        disk("parity", "sda", DiskType.Parity, 16.0, 0.0, 36, "WDC WD161KRYZ-01AGBB0"),
-        disk("disk1", "sdb", DiskType.Data, 16.0, 11.2, 38, "WDC WD161KRYZ-01AGBB0"),
-        disk("disk2", "sdc", DiskType.Data, 12.0, 8.4, 40, "ST12000VN0008-2YS101"),
-        disk("disk3", "sdd", DiskType.Data, 12.0, 6.1, 0, "ST12000VN0008-2YS101", spinning = false),
-        disk("disk4", "sde", DiskType.Data, 8.0, 7.3, 37, "WDC WD80EFAX-68LHPN0"),
-        disk("cache", "nvme0n1", DiskType.Cache, 1.0, 0.46, 41, "Samsung SSD 980 PRO 1TB", rotational = false),
-        disk("cache2", "nvme1n1", DiskType.Cache, 1.0, 0.46, 39, "Samsung SSD 980 PRO 1TB", rotational = false),
-    )
-
-    private val array = ArrayInfo(
-        state = ArrayState.Started,
-        totalTb = 48.0,
-        usedTb = 33.0,
-        parity = null,
-        disks = disks,
-    )
-
-    private fun ctr(
-        name: String, image: String, status: ContainerStatus = ContainerStatus.Running,
-        color: String?, cpu: Double, mem: Int, update: ContainerUpdateStatus = ContainerUpdateStatus.UpToDate,
-        port: String? = null,
-    ) = Container(
-        id = name, name = name, image = image, status = status, autoStart = true,
-        iconColorHex = color, iconUrl = null, cpu = cpu, memMb = mem,
-        ports = listOfNotNull(port),
-        volumes = listOf("/mnt/user/appdata/$name:/config", "/mnt/user/media:/data:ro"),
-        updateStatus = update,
-        webUiUrl = port?.let { "http://192.0.2.10:${it.substringBefore(':')}" },
-        networkIp = null,
-    )
-
-    private val containers = listOf(
-        ctr("plex", "lscr.io/linuxserver/plex:latest", color = "#E5A00D", cpu = 6.4, mem = 1180, port = "32400:32400/tcp"),
-        ctr("nextcloud", "nextcloud:latest", color = "#0082C9", cpu = 2.1, mem = 640, update = ContainerUpdateStatus.UpdateAvailable, port = "8443:443/tcp"),
-        ctr("home-assistant", "ghcr.io/home-assistant/home-assistant:stable", color = "#18BCF2", cpu = 3.3, mem = 820, port = "8123:8123/tcp"),
-        ctr("pihole", "pihole/pihole:latest", color = "#96060C", cpu = 0.4, mem = 96, port = "8080:80/tcp"),
-        ctr("jellyfin", "jellyfin/jellyfin:latest", color = "#00A4DC", cpu = 0.0, mem = 0, status = ContainerStatus.Exited, port = "8096:8096/tcp"),
-        ctr("sonarr", "lscr.io/linuxserver/sonarr:latest", color = "#35C5F4", cpu = 1.2, mem = 410, port = "8989:8989/tcp"),
-        ctr("radarr", "lscr.io/linuxserver/radarr:latest", color = "#FFC230", cpu = 0.9, mem = 380, port = "7878:7878/tcp"),
-        ctr("vaultwarden", "vaultwarden/server:latest", color = "#175DDC", cpu = 0.1, mem = 58, port = "8081:80/tcp"),
-        ctr("grafana", "grafana/grafana:latest", color = "#F46800", cpu = 0.7, mem = 190, update = ContainerUpdateStatus.UpdateAvailable, port = "3000:3000/tcp"),
-        ctr("mosquitto", "eclipse-mosquitto:2", color = "#3C5280", cpu = 0.1, mem = 6, port = "1883:1883/tcp"),
-    )
-
-    private val stats = mapOf(
-        "plex" to ContainerLiveStats(6.4, 3.6, "1.15 GiB / 32 GiB", "48.2 GB / 912 GB", "31.4 GB / 2.1 GB"),
-        "nextcloud" to ContainerLiveStats(2.1, 2.0, "640 MiB / 32 GiB", "3.4 GB / 1.8 GB", "12.8 GB / 4.5 GB"),
-        "home-assistant" to ContainerLiveStats(3.3, 2.6, "820 MiB / 32 GiB", "1.2 GB / 640 MB", "6.1 GB / 3.3 GB"),
-        "pihole" to ContainerLiveStats(0.4, 0.3, "96 MiB / 32 GiB", "2.9 GB / 1.1 GB", "210 MB / 96 MB"),
-        "sonarr" to ContainerLiveStats(1.2, 1.3, "410 MiB / 32 GiB", "1.0 GB / 220 MB", "4.4 GB / 1.9 GB"),
-        "radarr" to ContainerLiveStats(0.9, 1.2, "380 MiB / 32 GiB", "860 MB / 190 MB", "3.9 GB / 1.6 GB"),
-        "vaultwarden" to ContainerLiveStats(0.1, 0.2, "58 MiB / 32 GiB", "120 MB / 80 MB", "40 MB / 22 MB"),
-        "grafana" to ContainerLiveStats(0.7, 0.6, "190 MiB / 32 GiB", "410 MB / 150 MB", "1.1 GB / 0.8 GB"),
-        "mosquitto" to ContainerLiveStats(0.1, 0.0, "6 MiB / 32 GiB", "88 MB / 90 MB", "4 MB / 8 MB"),
-    )
-
-    private val vms = listOf(
-        Vm("v1", "Windows 11", VmState.Running, vcpus = 6, memGb = 16, gpu = "NVIDIA RTX 3060"),
-        Vm("v2", "Ubuntu Server 24.04", VmState.Running, vcpus = 2, memGb = 4, gpu = null),
-        Vm("v3", "Home Assistant OS", VmState.Running, vcpus = 2, memGb = 4, gpu = null),
-        Vm("v4", "Debian Build Box", VmState.Paused, vcpus = 4, memGb = 8, gpu = null),
-        Vm("v5", "macOS Sonoma", VmState.Stopped, vcpus = 4, memGb = 8, gpu = "AMD RX 580"),
-    )
-
-    private fun note(id: String, subject: String, desc: String, imp: NotifImportance, ts: String, type: NotifType = NotifType.Unread) =
-        UnraidNotification(
-            id = id, title = "Unraid Status", subject = subject, description = desc,
-            importance = imp, type = type, link = null, timestamp = null, formattedTimestamp = ts,
-        )
-
-    private val unreadNotes = listOf(
-        note("n1", "Warning [TOWER] - Disk 3 temperature", "Disk 3 is at 47 C (ST12000VN0008-2YS101_ZV70XXXX)", NotifImportance.Warning, "Today 09:14"),
-        note("n2", "Update available for nextcloud", "A newer image of nextcloud is available.", NotifImportance.Info, "Today 06:00"),
-        note("n3", "Notice [TOWER] - Parity check finished", "Parity check finished (0 errors). Duration: 11 hours, 2 minutes.", NotifImportance.Info, "Yesterday 17:42"),
-        note("n4", "Alert [TOWER] - Docker image disk utilization", "Docker image disk utilization is at 71%.", NotifImportance.Alert, "Yesterday 08:03"),
-    )
-
-    private val notifications = Notifications(
-        unreadWarning = 1, unreadAlert = 1, unreadInfo = 2, unreadTotal = 4,
-        items = unreadNotes.filter { it.importance != NotifImportance.Info },
-        unread = unreadNotes,
-        archived = listOf(
-            note("a1", "Notice [TOWER] - Array turned good", "Array has 0 disks with read errors.", NotifImportance.Info, "Mon 21:10", NotifType.Archive),
-        ),
-    )
+    private val server = DemoFixtures.server.copy(isDemo = false)
+    private val info = DemoFixtures.info
+    private val array = DemoFixtures.array
+    private val containers = DemoFixtures.containers
+    private val stats = DemoFixtures.stats
+    private val vms = DemoFixtures.vms
+    private val notifications = DemoFixtures.notifications
 
     // Demo-mode-style system bars, drawn over the app's own background the
     // way a device does edge-to-edge (Robolectric renders no system UI).

@@ -9,14 +9,14 @@ import kotlinx.coroutines.flow.stateIn
 import io.github.nofuturekid.nova.data.model.Plugin
 import io.github.nofuturekid.nova.data.model.PluginInstallOperation
 import io.github.nofuturekid.nova.data.repository.DomainState
-import io.github.nofuturekid.nova.data.repository.UnraidRepository
+import io.github.nofuturekid.nova.data.repository.UnraidGateway
 import javax.inject.Inject
 
 /**
  * Screen-scoped ViewModel for the read-only Server-plugins screen.
  *
  * Polls only while the screen is open: the upstream
- * [UnraidRepository.pluginsStream] / [UnraidRepository.pluginOperationsStream]
+ * [UnraidGateway.pluginsStream] / [UnraidGateway.pluginOperationsStream]
  * Flows are cold and gated by `WhileSubscribed(5_000)`, so when the user
  * navigates away the poll loop suspends automatically. Active-server
  * resolution + key handling is done inside the repository stream — this VM
@@ -24,7 +24,7 @@ import javax.inject.Inject
  */
 @HiltViewModel
 class PluginsViewModel @Inject constructor(
-    unraid: UnraidRepository,
+    unraid: UnraidGateway,
 ) : ViewModel() {
     val installedUnraidPlugins: StateFlow<DomainState<List<String>>> =
         unraid.installedUnraidPluginsStream()

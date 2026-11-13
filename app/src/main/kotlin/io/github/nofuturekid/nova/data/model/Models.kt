@@ -10,6 +10,13 @@ data class Server(
     val localUrl: String,
     val remoteUrl: String,
     val trustSelfSignedLocal: Boolean = false,
+    /**
+     * True only for the built-in demo entry (ADR-0050): fictional data, answered from memory,
+     * never an address, an API key or a certificate. Everything that would open a connection
+     * for a stored server (the background alert check included) must skip an entry with this
+     * flag. Not written to the stored list for a real server (the default is left out).
+     */
+    val isDemo: Boolean = false,
 )
 
 enum class ConnectionMode { Local, Remote }

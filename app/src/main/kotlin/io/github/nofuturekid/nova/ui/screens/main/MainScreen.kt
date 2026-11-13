@@ -674,7 +674,8 @@ internal fun TopBar(
                 }
             }
             Spacer(Modifier.weight(1f))
-            Box(
+            // The demo has no connection to switch: its marker takes the place of the Local pill.
+            if (server?.isDemo == true) Pill(label = "Demo", tone = Tone.Warn, dot = true) else Box(
                 modifier = Modifier
                     .clip(CircleShape)
                     .clickable(

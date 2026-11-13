@@ -84,3 +84,4 @@ ADRs live under `docs/` so the CI docs-only bypass applies — pure-ADR PRs comp
 | [0047](./0047-server-capabilities.md) | Detect the server's API version and what the API key may do | Accepted |
 | [0048](./0048-opt-in-background-alert-checks.md) | Opt-in background alert checks (amends ADR-0017) | Accepted |
 | [0049](./0049-google-play-third-distribution-channel.md) | Google Play as a third distribution channel | Accepted |
+| [0050](./0050-demo-mode.md) | A demo mode with fictional data | Proposed |

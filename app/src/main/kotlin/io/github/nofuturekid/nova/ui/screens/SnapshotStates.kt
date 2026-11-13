@@ -25,6 +25,7 @@ import io.github.nofuturekid.nova.ui.components.BtnVariant
 import io.github.nofuturekid.nova.ui.components.Tone
 import io.github.nofuturekid.nova.ui.components.UC
 import io.github.nofuturekid.nova.ui.components.UnraidButton
+import io.github.nofuturekid.nova.ui.screens.demo.LocalDemoEntry
 import io.github.nofuturekid.nova.ui.theme.UnraidTheme
 
 @Composable
@@ -186,6 +187,17 @@ fun NoServerState(onAdd: () -> Unit, modifier: Modifier = Modifier) {
             variant = BtnVariant.Filled,
             leadingIcon = { UC.Plus(14.dp, androidx.compose.ui.graphics.Color(0xFF06120E)) },
         )
+        // The demo (ADR-0050): a second, quieter choice for whoever has no server to add.
+        LocalDemoEntry.current?.let { tryDemo ->
+            Spacer(Modifier.height(8.dp))
+            UnraidButton(onClick = tryDemo, label = "Try the demo", variant = BtnVariant.Text)
+            Text(
+                text = "Look around with sample data. No server needed.",
+                color = t.muted,
+                style = MaterialTheme.typography.labelSmall,
+                textAlign = TextAlign.Center,
+            )
+        }
     }
 }
 

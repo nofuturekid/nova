@@ -38,7 +38,7 @@ import javax.inject.Singleton
  *   the factory owns these; callers MUST NOT close them (ADR-0028).
  */
 @Singleton
-class ApolloClientFactory @Inject constructor() {
+open class ApolloClientFactory @Inject constructor() {
 
     private companion object {
         /** OkHttp WebSocket ping interval (seconds), WebSocket client only. */
@@ -91,13 +91,13 @@ class ApolloClientFactory @Inject constructor() {
     private val wsClients = ConcurrentHashMap<String, ApolloClient>()
 
     /** Build a per-server client. URL must already be the base address (no trailing /graphql). */
-    fun build(baseUrl: String, apiKey: String, trust: TlsTrust = TlsTrust.Default): ApolloClient =
+    open fun build(baseUrl: String, apiKey: String, trust: TlsTrust = TlsTrust.Default): ApolloClient =
         cached("short", baseHttpClient, baseUrl, apiKey, trust)
 
     /** Same as [build] but uses the long-running OkHttp client (10-min
      *  read/write). Use exclusively for mutations that pull images or
      *  do other multi-minute server-side work. */
-    fun buildLongRunning(baseUrl: String, apiKey: String, trust: TlsTrust = TlsTrust.Default): ApolloClient =
+    open fun buildLongRunning(baseUrl: String, apiKey: String, trust: TlsTrust = TlsTrust.Default): ApolloClient =
         cached("long", longRunningHttpClient, baseUrl, apiKey, trust)
 
     /**
@@ -116,7 +116,7 @@ class ApolloClientFactory @Inject constructor() {
      * (`x-api-key`), matching the server's auth guard that reads connection
      * params as headers. See ADR-0042.
      */
-    fun buildWs(baseUrl: String, apiKey: String, trust: TlsTrust = TlsTrust.Default): ApolloClient =
+    open fun buildWs(baseUrl: String, apiKey: String, trust: TlsTrust = TlsTrust.Default): ApolloClient =
         wsClients.computeIfAbsent(wsKey(baseUrl, apiKey, trust)) {
             val httpEndpoint = baseUrl.trimEnd('/') + "/graphql"
             val wsEndpoint = httpEndpoint.replaceFirst("https://", "wss://")

@@ -104,7 +104,9 @@ The test is excluded from the normal `test` task (and so from
 dependencies (Robolectric, Roborazzi, Compose ui-test) are test-scope and
 never enter an APK. Robolectric renders no system UI, so the test draws a
 demo-mode-style status bar (12:00, Wi-Fi, signal, battery) and the gesture
-pill itself, in the insets the app already reserves. Edit the demo data and the list of screens in
+pill itself, in the insets the app already reserves. Edit the demo data in
+`app/src/main/kotlin/io/github/nofuturekid/nova/data/demo/DemoFixtures.kt` (it is also what the in-app demo mode shows,
+[ADR-0050](adr/0050-demo-mode.md)) and the list of screens in
 `app/src/test/kotlin/io/github/nofuturekid/nova/ui/screenshots/StoreScreenshots.kt`.
 Robolectric downloads its Android jar from Maven Central on first use.
 

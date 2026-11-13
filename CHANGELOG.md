@@ -27,6 +27,18 @@ release version + date and opens a fresh `[Unreleased]`.
   web UI). The pill at the top reads "Key rejected" when the key was refused
   (#247, #217).
 
+- **A demo mode to try NOVA without a server** — on the "No server configured"
+  screen, tap "Try the demo" (or use "Try the demo" in the server list) to look
+  at a fictional server called Tower with an array, Docker containers, virtual
+  machines and notifications. Everything works against sample data kept in
+  memory: start and stop containers and VMs, start and stop the array, run a
+  parity check, update a container, archive and delete notifications; the
+  Overview figures move like a live server's. A "Demo" marker at the top and one
+  sentence on the Overview say that the data is fictional. The demo never
+  connects to anything and needs no API key; nothing is saved except that the
+  demo entry exists, and removing it (the bin icon in the server list) throws
+  everything away. Adding a real server while in the demo switches to it.
+
 ### Changed
 
 - **Restarting a container is one step on newer servers** — on Unraid API 4.36.0

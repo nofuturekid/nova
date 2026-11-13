@@ -8,21 +8,21 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.stateIn
 import io.github.nofuturekid.nova.data.model.NetworkInterface
 import io.github.nofuturekid.nova.data.repository.DomainState
-import io.github.nofuturekid.nova.data.repository.UnraidRepository
+import io.github.nofuturekid.nova.data.repository.UnraidGateway
 import javax.inject.Inject
 
 /**
  * Screen-scoped ViewModel for the read-only Network-interfaces screen.
  *
  * Polls only while the screen is open: the upstream
- * [UnraidRepository.networkInterfacesStream] Flow is cold and gated by
+ * [UnraidGateway.networkInterfacesStream] Flow is cold and gated by
  * `WhileSubscribed(5_000)`, so when the user navigates away the poll
  * loop suspends automatically (ADR-0017 polling pattern, same as
  * [io.github.nofuturekid.nova.ui.screens.plugins.PluginsViewModel]).
  */
 @HiltViewModel
 class NetworkViewModel @Inject constructor(
-    unraid: UnraidRepository,
+    unraid: UnraidGateway,
 ) : ViewModel() {
     val interfaces: StateFlow<DomainState<List<NetworkInterface>>> =
         unraid.networkInterfacesStream()

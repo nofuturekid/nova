@@ -18,7 +18,7 @@ Everything the project prepares for its app-store listings that is not app code.
 | [`data-safety.md`](./data-safety.md)                                                                                                       | Data safety form answers, derived from the `store` flavor's code                              |
 | [`content-rating.md`](./content-rating.md)                                                                                                 | Content rating questionnaire answers                                                          |
 | [`app-content.md`](./app-content.md)                                                                                                       | Target audience, ads and the other App content declarations                                  |
-| [`app-access.md`](./app-access.md)                                                                                                         | Instructions for Google's reviewers (blocked on the demo mode)                                |
+| [`app-access.md`](./app-access.md)                                                                                                         | Instructions for Google's reviewers (use the demo mode, ADR-0050)                              |
 
 ## Why Play gets its own texts
 

@@ -1,14 +1,19 @@
 package io.github.nofuturekid.nova.ui.nav
 
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.getValue
+import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import io.github.nofuturekid.nova.data.model.Server
+import io.github.nofuturekid.nova.ui.screens.demo.DemoEntryViewModel
+import io.github.nofuturekid.nova.ui.screens.demo.DemoServerSheet
+import io.github.nofuturekid.nova.ui.screens.demo.LocalDemoEntry
 import io.github.nofuturekid.nova.ui.screens.main.MainScreen
 import io.github.nofuturekid.nova.ui.screens.network.NetworkScreen
 import io.github.nofuturekid.nova.ui.screens.plugins.PluginsScreen
@@ -31,6 +36,9 @@ fun AppNavGraph() {
     val navController = rememberNavController()
     var sheetServer by remember { mutableStateOf<SheetTarget?>(null) }
 
+    val demo: DemoEntryViewModel = hiltViewModel()
+
+    CompositionLocalProvider(LocalDemoEntry provides demo::enter) {
     NavHost(navController = navController, startDestination = Routes.Main) {
         composable(Routes.Main) {
             MainScreen(
@@ -64,6 +72,7 @@ fun AppNavGraph() {
             NetworkScreen(onBack = { navController.popBackStack() })
         }
     }
+    }
 
     when (val target = sheetServer) {
         SheetTarget.New -> AddEditServerSheet(
@@ -72,7 +81,11 @@ fun AppNavGraph() {
             onSaved = { sheetServer = null },
             onDeleted = { sheetServer = null },
         )
-        is SheetTarget.Edit -> AddEditServerSheet(
+        is SheetTarget.Edit -> if (target.server.isDemo) DemoServerSheet(
+            onDismiss = { sheetServer = null },
+            onRemoved = { sheetServer = null },
+            vm = demo,
+        ) else AddEditServerSheet(
             server = target.server,
             onDismiss = { sheetServer = null },
             onSaved = { sheetServer = null },

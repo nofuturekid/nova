@@ -4,6 +4,7 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
+import io.github.nofuturekid.nova.data.demo.DemoFixtures
 import io.github.nofuturekid.nova.data.local.ApiKeyResult
 import io.github.nofuturekid.nova.data.local.ApiKeyStore
 import io.github.nofuturekid.nova.data.local.ServerSnapshot
@@ -62,6 +63,15 @@ class ServerRepository @Inject constructor(
         // the certificate prompt a second time (#292). Trust off drops any pin.
         store.saveServer(next, resolved.id, pin = localCertPin, dropPin = !resolved.trustSelfSignedLocal)
         return resolved
+    }
+
+    /**
+     * Adds the demo entry (ADR-0050) and makes it the active server. No key is stored and no
+     * address exists; the entry has a fixed id, so entering twice does not add a second one.
+     */
+    suspend fun enterDemo() {
+        upsert(DemoFixtures.server, apiKey = "")
+        store.setActiveServer(DemoFixtures.SERVER_ID)
     }
 
     suspend fun delete(id: String) {

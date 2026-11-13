@@ -41,6 +41,7 @@ import kotlinx.coroutines.launch
 import io.github.nofuturekid.nova.data.model.Server
 import io.github.nofuturekid.nova.data.repository.ServerRepository
 import io.github.nofuturekid.nova.ui.components.Pill
+import io.github.nofuturekid.nova.ui.screens.demo.LocalDemoEntry
 import io.github.nofuturekid.nova.ui.components.Tone
 import io.github.nofuturekid.nova.ui.components.UC
 import io.github.nofuturekid.nova.ui.components.UnraidCard
@@ -102,6 +103,7 @@ fun ServerListScreen(
         }
 
         val d = UnraidTheme.tokens
+        val tryDemo = LocalDemoEntry.current
         LazyColumn(
             modifier = Modifier.fillMaxSize(),
             contentPadding = androidx.compose.foundation.layout.PaddingValues(
@@ -133,20 +135,21 @@ fun ServerListScreen(
                         Column(modifier = Modifier.weight(1f)) {
                             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                                 Text(s.name, color = t.text, style = MaterialTheme.typography.titleSmall)
+                                if (s.isDemo) Pill("Demo", tone = Tone.Warn, dot = true)
                                 if (active) Pill("active", tone = Tone.Accent, dot = true)
                             }
                             Spacer(Modifier.height(2.dp))
                             Text(
-                                text = s.localUrl,
+                                text = if (s.isDemo) "Fictional data, no connection" else s.localUrl,
                                 color = t.muted,
                                 style = MaterialTheme.typography.labelSmall.copy(fontFamily = JetBrainsMono),
                             )
                         }
                         UnraidIconButton(
-                            icon = { UC.Edit(16.dp, t.muted) },
+                            icon = { if (s.isDemo) UC.Trash(16.dp, t.muted) else UC.Edit(16.dp, t.muted) },
                             onClick = { onEdit(s) },
                             size = 32.dp,
-                            contentDescription = "Edit ${s.name}",
+                            contentDescription = if (s.isDemo) "Remove demo server" else "Edit ${s.name}",
                         )
                     }
                 }
@@ -164,6 +167,25 @@ fun ServerListScreen(
                     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                         UC.Plus(18.dp, t.muted)
                         Text("Add another server", color = t.muted, style = MaterialTheme.typography.labelLarge)
+                    }
+                }
+            }
+            // The demo (ADR-0050), offered until it is in the list.
+            if (tryDemo != null && ui.servers.none { it.isDemo }) {
+                item {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(UnraidTheme.tokens.rad))
+                            .border(1.dp, t.border, RoundedCornerShape(UnraidTheme.tokens.rad))
+                            .clickable(onClick = { tryDemo(); onBack() })
+                            .padding(14.dp),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                            UC.Server(18.dp, t.muted)
+                            Text("Try the demo", color = t.muted, style = MaterialTheme.typography.labelLarge)
+                        }
                     }
                 }
             }

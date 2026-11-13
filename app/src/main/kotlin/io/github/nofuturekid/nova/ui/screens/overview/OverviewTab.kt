@@ -57,6 +57,7 @@ import io.github.nofuturekid.nova.ui.screens.LoadingState
 import io.github.nofuturekid.nova.ui.screens.NoServerState
 import io.github.nofuturekid.nova.ui.util.formatBytesPerSec
 import io.github.nofuturekid.nova.ui.util.uptimeLabel
+import io.github.nofuturekid.nova.ui.screens.demo.DemoNote
 import io.github.nofuturekid.nova.ui.theme.JetBrainsMono
 import io.github.nofuturekid.nova.ui.theme.UnraidAlpha
 import io.github.nofuturekid.nova.ui.theme.UnraidTheme
@@ -208,6 +209,10 @@ private fun OverviewContent(
         ),
         verticalArrangement = Arrangement.spacedBy(d.gap),
     ) {
+        if (server?.isDemo == true) {
+            item { DemoNote() }
+        }
+
         // Absent when empty: LazyColumn leaves no gap for an item that draws nothing.
         if (attention.isNotEmpty()) {
             item { AttentionCard(attention, onOpenAttention) }
