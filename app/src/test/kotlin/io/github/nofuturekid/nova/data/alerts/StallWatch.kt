@@ -24,21 +24,39 @@ import kotlin.coroutines.CoroutineContext
  * This rule turns such a stall into a fast failure that explains itself: when the test has not
  * finished after [limitMs] it writes a dump to `build/stall-dumps/` and to stderr and ends the
  * test JVM, so Gradle reports a failed test run within a minute. The dump holds the JVM uptime,
- * the test classes that have started in this JVM so far (in order), every thread's stack, the main
+ * the watched test classes that have started in this JVM so far (in order, classes without the rule are not listed), every thread's stack, the main
  * looper, the internals of the DataStore the store sits on (is its coordinator mutex locked, what
  * is queued for its write actor) and every live coroutine with its state, dispatcher, suspension
- * point and creation stack (kotlinx-coroutines-debug). The coroutine part decides between the open
- * hypotheses of #359. H1: an edit whose caller dispatcher cannot run keeps the DataStore mutex
- * locked; the dump then shows a coroutine that holds the mutex (stack through
- * `SingleProcessCoordinator.lock`) suspended in `transformAndWrite`, an edit caller bound to a
- * looper dispatcher, and a pending message in the main looper's queue. H2: a resumption into the
- * main thread's blocking event loop never arrives; the dump then shows the test's `runBlocking`
- * coroutine suspended, an empty event loop queue, and a mutex that nobody holds.
+ * point and creation stack (kotlinx-coroutines-debug), each with the test class during which it was
+ * created. The coroutine part decides between the open hypotheses of #359. H1: an edit whose
+ * caller dispatcher cannot run keeps the DataStore mutex locked; the dump then shows a coroutine
+ * that holds the mutex (stack through `SingleProcessCoordinator.lock`) suspended in
+ * `transformAndWrite`, an edit caller bound to a dispatcher that is not served (for example a
+ * looper with a pending message in the main looper's queue) and the coordinator mutex locked.
+ * H1 has a second shape: the transform of the test's own edit is lost on its own `runBlocking`;
+ * then one holder exists and the only edit caller is on the BlockingEventLoop. H2: a resumption
+ * into the main thread's blocking event loop never arrives while nothing holds the mutex; the
+ * dump then shows the test's `runBlocking` coroutine suspended, no holder, an unlocked mutex and
+ * no edit caller. The event loop queue of the `runBlocking` cannot tell the two apart (it is
+ * empty in the H1 validation run as well). `AlertStateStoreTest.setUp` ends with an unconditional
+ * `clear()` edit that did finish in the original hang, so under H1 the blocking edit entered the
+ * write actor after `setUp`, from a coroutine that was still running then.
+ *
+ * What the dump cannot tell: with two or more edit callers on unserved dispatchers it does not say
+ * which one is in flight (the queued message's caller context is below the depth the object dump
+ * reaches); it does not show the value of the in-memory data, so within H2 it cannot separate "the
+ * answer was never completed" from "it was completed but the resumption was lost"; and the probes
+ * keep coroutines in a weak map, so a coroutine on an abandoned dispatcher that nothing else
+ * references can be missing from the coroutine list (the mutex state and the actor queue are
+ * still shown).
  *
  * It ends the JVM instead of only failing the test because the DataStore is one object per
  * Robolectric sandbox: after a stall every later test that touches it would wait for ever as well.
  * Every test class that uses that DataStore carries this rule, so a coroutine leaked by an earlier
- * class is caught in the class where it bites, and its creation stack names the class it came from.
+ * class is caught in the class where it bites. Its creation stack names the class it came from only
+ * if the stack passes through test code, which a coroutine started from another coroutine does not;
+ * so the dump also records, per coroutine, the watched class during which it was created (from the
+ * coroutine counter noted when each class started).
  *
  * The limit is a diagnostic, not a fix, and not a retry: it must stay far above any honest run of
  * one test (they take well under a second). A JUnit `Timeout` rule is not used on purpose: it runs
@@ -49,15 +67,27 @@ class StallWatch(private val limitMs: Long = 60_000) : TestRule {
     override fun apply(base: Statement, description: Description) = object : Statement() {
         override fun evaluate() {
             Probes.install()
-            noteClassStarted(description.className)
+            noteClassStarted(description.className, Probes.lastCoroutineId())
             val testThread = Thread.currentThread()
             val started = System.nanoTime()
             val done = Object()
             val finished = AtomicBoolean(false)
             val watchdog = Thread({
-                synchronized(done) { if (!finished.get()) done.wait(limitMs) }
+                synchronized(done) {
+                    // A loop on the deadline: a spurious wakeup must not end the JVM early.
+                    while (!finished.get()) {
+                        val left = limitMs - (System.nanoTime() - started) / 1_000_000
+                        if (left <= 0) break
+                        done.wait(left)
+                    }
+                }
                 if (!finished.get()) {
-                    val file = runCatching { writeDump(description, testThread, (System.nanoTime() - started) / 1_000_000) }
+                    // The dump runs on its own thread with a bound: if reading some part of it blocks, the JVM still ends.
+                    var file: Result<File>? = null
+                    val writer = Thread({ file = runCatching { writeDump(description, testThread, (System.nanoTime() - started) / 1_000_000) } }, "stall-watch-dump")
+                        .apply { isDaemon = true; start() }
+                    writer.join(DUMP_BUDGET_MS)
+                    if (writer.isAlive) file = Result.failure(IllegalStateException("dump not finished after $DUMP_BUDGET_MS ms"))
                     System.err.println("${description.displayName} stalled for $limitMs ms; dump: $file; ending the test JVM")
                     System.err.flush()
                     Runtime.getRuntime().halt(STALL_EXIT_CODE)
@@ -76,12 +106,18 @@ class StallWatch(private val limitMs: Long = 60_000) : TestRule {
         val sb = StringBuilder()
         sb.append("STALL in ${description.displayName} after $elapsedMs ms\n")
         sb.append("JVM uptime ms: ${ManagementFactory.getRuntimeMXBean().uptime}\n")
-        sb.append("test classes started in this JVM so far, in order (JVM uptime ms when each first reached this rule):\n")
+        sb.append("watched test classes started in this JVM so far, in order (JVM uptime ms when each first reached this rule; classes without the rule are not listed; the coroutine id is the highest one alive at that moment):\n")
         for (entry in startedClasses()) sb.append("  ").append(entry).append('\n')
         val mx = ManagementFactory.getThreadMXBean()
         sb.append("test thread '${testThread.name}' cpu ms: ${mx.getThreadCpuTime(testThread.id) / 1_000_000}\n")
         sb.append("main looper idle: ${runCatching { shadowOf(Looper.getMainLooper()).isIdle }}\n")
         sb.append("main looper queue: ${runCatching { looperQueue() }.getOrElse { "not readable: $it" }}\n")
+
+        sb.append("\n--- threads ---\n")
+        for ((t, stack) in Thread.getAllStackTraces()) {
+            sb.append("\"${t.name}\" ${t.state}\n")
+            stack.take(30).forEach { sb.append("    at $it\n") }
+        }
 
         sb.append("\n--- coroutines (kotlinx-coroutines-debug) ---\n")
         runCatching { dumpCoroutines(sb) }.onFailure { sb.append("coroutine dump failed: $it\n") }
@@ -92,12 +128,6 @@ class StallWatch(private val limitMs: Long = 60_000) : TestRule {
             val ds = SettingsStore::class.java.getDeclaredField("ds").apply { isAccessible = true }.get(store)
             dumpObject(sb, ds, 4, "", HashSet())
         }.onFailure { sb.append("could not read it: $it\n") }
-
-        sb.append("\n--- threads ---\n")
-        for ((t, stack) in Thread.getAllStackTraces()) {
-            sb.append("\"${t.name}\" ${t.state}\n")
-            stack.take(30).forEach { sb.append("    at $it\n") }
-        }
 
         val name = "${description.className}.${description.methodName}.txt"
         val file = File(File(System.getProperty("user.dir"), "build/stall-dumps").apply { mkdirs() }, name)
@@ -151,8 +181,9 @@ class StallWatch(private val limitMs: Long = 60_000) : TestRule {
         blocking.forEach { sb.append("    ${id(it)} ${it.state}, ${it.suspendedAt()}\n") }
         sb.append('\n')
 
-        for (c in all.take(MAX_COROUTINES)) {
+        fun detail(c: Probed) {
             sb.append("coroutine ${id(c)} state=${c.state} dispatcher=${c.dispatcher}\n")
+            sb.append("  created during: ${createdDuring(c)}\n")
             sb.append("  context: ${c.context}\n")
             sb.append("  suspended at: ${c.suspendedAt()}\n")
             val st = c.stack()
@@ -169,7 +200,28 @@ class StallWatch(private val limitMs: Long = 60_000) : TestRule {
                 dumpObject(sb, c.context[ContinuationInterceptor], 2, "    ", HashSet())
             }
         }
-        if (all.size > MAX_COROUTINES) sb.append("... ${all.size - MAX_COROUTINES} more coroutines not listed\n")
+        // The coroutines named in the summary are the ones at fault, and they are usually the newest: in full, whatever the cap.
+        val named = (never + holders + callers + onMutex + blocking).toSet()
+        val namedInOrder = all.filter { it in named }
+        sb.append("DETAILS of the ${namedInOrder.size} coroutines named in the summary (oldest first)\n\n")
+        namedInOrder.forEach { detail(it) }
+        // The rest: newest first, capped, with the number left out.
+        val rest = all.filter { it !in named }.asReversed()
+        sb.append("DETAILS of the other coroutines (newest first, at most $MAX_COROUTINES)\n\n")
+        rest.take(MAX_COROUTINES).forEach { detail(it) }
+        if (rest.size > MAX_COROUTINES) sb.append("... ${rest.size - MAX_COROUTINES} older coroutines not listed in detail\n")
+    }
+
+    /** The watched class during which the coroutine was created, from the coroutine counter noted when each class started. */
+    private fun createdDuring(c: Probed): String {
+        val id = c.coroutineId ?: return "unknown (no CoroutineId in its context)"
+        val started = startedClasses().mapNotNull { e ->
+            e.substringAfter("after coroutine id ", "").trim().toLongOrNull()?.let { e.substringBefore(" @") to it }
+        }
+        if (started.isEmpty()) return "unknown (no class start recorded)"
+        val owner = started.lastOrNull { id > it.second }
+        return if (owner == null) "before the first watched class started (${started.first().first}), or in a class without the rule"
+        else "${owner.first}, or later in a class without the rule before the next watched class started"
     }
 
     private fun dumpObject(sb: StringBuilder, o: Any?, depth: Int, indent: String, seen: MutableSet<Int>) {
@@ -199,6 +251,8 @@ class StallWatch(private val limitMs: Long = 60_000) : TestRule {
         }
 
         val state: String get() = call<Any>("getState").toString()
+        /** The counter kotlinx.coroutines puts into every context while its debug mode is on (it is under -ea). Increases with creation. */
+        val coroutineId: Long? get() = runCatching { COROUTINE_ID.find(context.toString())?.groupValues?.get(1)?.toLong() }.getOrNull()
         val context: CoroutineContext get() = call("getContext")
         val dispatcher: String get() = context[ContinuationInterceptor]?.toString() ?: "none"
         val isBlocking: Boolean get() = dispatcher.contains("BlockingEventLoop")
@@ -244,6 +298,10 @@ class StallWatch(private val limitMs: Long = 60_000) : TestRule {
             }
         }
 
+        /** Highest coroutine id alive now (0 if none): every coroutine created later has a higher one. -1 if the probes are not usable. */
+        fun lastCoroutineId(): Long =
+            if (probesClass == null) -1 else runCatching { dump().maxOfOrNull { it.coroutineId ?: 0L } ?: 0L }.getOrDefault(-1)
+
         fun dump(): List<Probed> =
             (probesClass!!.getMethod("dumpCoroutinesInfo").invoke(probes) as List<*>).map { Probed(it!!) }
     }
@@ -251,17 +309,19 @@ class StallWatch(private val limitMs: Long = 60_000) : TestRule {
     private companion object {
         const val STALL_EXIT_CODE = 70
         const val MAX_COROUTINES = 150
+        const val DUMP_BUDGET_MS = 30_000L
+        val COROUTINE_ID = Regex("""CoroutineId\((\d+)\)""")
 
         /** Set by Gradle (app/build.gradle.kts): where CI already collects the test report. */
         const val COPY_DIR_PROPERTY = "nova.stallDumpCopyDir"
         const val CLASSES_PROPERTY = "nova.stallWatch.startedClasses"
 
         /** In a system property, not a field: the sandbox class loader can be replaced, the JVM cannot. */
-        fun noteClassStarted(className: String) = synchronized(System.getProperties()) {
+        fun noteClassStarted(className: String, lastCoroutineId: Long) = synchronized(System.getProperties()) {
             val now = ManagementFactory.getRuntimeMXBean().uptime
             val known = System.getProperty(CLASSES_PROPERTY).orEmpty().split('\n').filter { it.isNotBlank() }
             if (known.none { it.substringBefore(" @") == className }) {
-                System.setProperty(CLASSES_PROPERTY, (known + "$className @ $now ms").joinToString("\n"))
+                System.setProperty(CLASSES_PROPERTY, (known + "$className @ $now ms, coroutines created after coroutine id $lastCoroutineId").joinToString("\n"))
             }
         }
 
