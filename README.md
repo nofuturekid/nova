@@ -52,7 +52,7 @@ It talks to your server through the official Unraid API (the Connect plugin's Gr
 - **VMs** — VM state with start / stop / pause / resume
 - **Multiple servers** — switch between them; each remembers its own local and remote address
 - **Live network speed** — upload/download on the Overview card (needs Unraid API 4.35.0 or newer); the NIC inventory sits under Settings → Network interfaces (vendor, model and link speed only with a third-party API plugin)
-- **Stay current** — the GitHub APK checks GitHub for its own updates and installs them in place (the F-Droid build is updated by F-Droid)
+- **Stay current** — the GitHub APK checks GitHub for new releases and shows a notice on the Overview; **Download** lets your browser fetch the file, and you open it to install (NOVA does not install updates itself; the F-Droid build is updated by F-Droid)
 
 ## What's not in yet
 
@@ -172,7 +172,7 @@ Unraid® is a registered trademark of Lime Technology, Inc. NOVA is an independe
 
 - **Full policy:** <https://github.com/hellwand/nova/blob/main/docs/privacy/POLICY.md>
 - **Your API key stays on your device.** It's encrypted at rest using Android Keystore via Google's Tink library, and explicitly excluded from cloud backup / device-transfer.
-- **No analytics, no telemetry, no tracking services.** The app talks to your Unraid server's API; in the GitHub (`direct`) build it also asks GitHub's API for app updates (at app start, when you open Settings, or on "Check now"); and it loads container icons from the URLs your own server supplies (often GitHub or a CDN).
+- **No analytics, no telemetry, no tracking services.** The app talks to your Unraid server's API; in the GitHub (`direct`) build it also asks GitHub's API for app updates (at app start, when the app returns from the background, when you open Settings, or on "Check now"); and it loads container icons from the URLs your own server supplies (often GitHub or a CDN).
 - **Update downloads** are made by your browser, not by NOVA: the update sheet opens the release's APK on GitHub, shows its SHA-256 so you can compare it with the downloaded file, and the app itself downloads and installs nothing. See [ADR-0046](./docs/adr/0046-update-via-browser-download.md).
 - **Source is the spec.** Audit, fork, run yourself — GPL v3.
 

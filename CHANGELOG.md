@@ -62,6 +62,12 @@ release version + date and opens a fresh `[Unreleased]`.
   shows "Offline" (and one that refused the key shows "Key rejected"); the tab
   that is affected explains what is off (#217).
 
+- **The update notice shows up as soon as you open the app** — if a new release
+  came out while NOVA was still open in the background, the Overview kept
+  showing nothing until you opened Settings. NOVA now looks for a newer release
+  every time you open it or come back to it, so the notice is on the first
+  screen.
+
 ## [0.1.48] - 2026-11-13
 
 The Overview now tells you when something on your server needs you, and the Docker tab can search and group containers by Compose project. A new "Needs attention" card at the top of the Overview lists what needs you, most urgent first; on a healthy server it is not there, so a quiet Overview is normal. The Docker tab has a search field with a clear button, and a new "Compose" option for the Docker view (Settings, Layout) groups containers by their Compose project. The 0.1.48 beta confirmed the search, the Compose option and the quiet Overview on a real phone. Some groundwork in this release has no visible change yet (detecting the server's API version and what the API key may do, and the rules for later opt-in alerts). As in 0.1.47, NOVA does not install updates itself: "Download" opens the release file in your browser.

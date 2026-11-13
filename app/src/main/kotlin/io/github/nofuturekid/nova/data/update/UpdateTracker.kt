@@ -28,7 +28,7 @@ import javax.inject.Singleton
 
 /**
  * The single place that holds the latest known release. The automatic check
- * at app start, the check when Settings opens, "Check now" and the check
+ * at app start and when the app returns to the foreground, the check when Settings opens, "Check now" and the check
  * after the "Include pre-releases" switch all go through [check] and store
  * their result here; the Overview notice, its sheet and the Settings update
  * section all render [status]. Before this there were two copies (one per

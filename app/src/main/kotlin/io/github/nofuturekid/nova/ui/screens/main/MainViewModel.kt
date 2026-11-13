@@ -201,7 +201,13 @@ class MainViewModel @Inject constructor(
         // Every ON_START, including a fresh MainViewModel after the activity was finished while the
         // process lived: the user may have changed the key's permissions in the Unraid web UI (ADR-0047).
         // refresh() joins a detection that is already running, so the first start does not probe twice.
-        if (visible) caps.refresh()
+        if (visible) {
+            caps.refresh()
+            // The one update check of a visit: app start and every return from the background (a
+            // ViewModel that outlived the background would otherwise keep offering the answer from
+            // before a release was published). A check already running is joined, not repeated.
+            checkForUpdate()
+        }
         _appVisible.value = visible
     }
 
@@ -336,10 +342,6 @@ class MainViewModel @Inject constructor(
     fun dismissCertPrompt() = unraid.dismissCertPrompt()
 
     init {
-        if (BuildConfig.HAS_UPDATER) {
-            checkForUpdate()
-        }
-
         // Alerts outside the app (ADR-0048): repair a cancelled schedule. With alerts off this only
         // reads one setting; WorkManager is not touched.
         viewModelScope.launch { alertScheduler.reconcileQuietly() }
