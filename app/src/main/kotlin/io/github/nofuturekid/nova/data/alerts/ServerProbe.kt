@@ -20,6 +20,9 @@ sealed interface ProbeResult {
     /** The server answered. Each half is null when its own query failed. */
     data class Ok(val notifications: Notifications?, val array: ArrayInfo?) : ProbeResult
     data object Unreachable : ProbeResult
+
+    /** No https address: not checked in the background, the connection is not encrypted. */
+    data object NotEncrypted : ProbeResult
     data object CertificateProblem : ProbeResult
     data object KeyMissing : ProbeResult
     data object KeyUndecryptable : ProbeResult

@@ -5,6 +5,7 @@ import com.apollographql.apollo.network.okHttpClient
 import com.apollographql.apollo.network.websocket.GraphQLWsProtocol
 import com.apollographql.apollo.network.websocket.WebSocketEngine
 import com.apollographql.apollo.network.websocket.WebSocketNetworkTransport
+import okhttp3.ConnectionSpec
 import okhttp3.OkHttpClient
 import okhttp3.logging.HttpLoggingInterceptor
 import java.util.concurrent.ConcurrentHashMap
@@ -13,7 +14,7 @@ import javax.inject.Inject
 import javax.inject.Singleton
 
 /**
- * Builds per-server [ApolloClient] instances. Three variants:
+ * Builds per-server [ApolloClient] instances. Four variants:
  *
  * - [build] — short timeouts (8 s connect, 15 s read/write). Used for
  *   polling queries and short-lived mutations (start/stop/pause/etc.).
@@ -26,6 +27,10 @@ import javax.inject.Singleton
  *   container recreate, which can legitimately take several minutes.
  *   Per ADR-0016 these get their own client so the polling timeout
  *   doesn't have to be relaxed globally.
+ *
+ * - [buildBackground] — the polling client for the background alert check: no redirect is
+ *   followed and no cleartext connection is made, so the API key stays on the https address it
+ *   was sent to. Only the background check uses it; the foreground is unchanged.
  *
  * - [buildWs] — WebSocket-only client for GraphQL subscriptions. Reuses
  *   the existing self-signed TLS pin (ADR-0041) via [applyTrust]. Uses
@@ -76,6 +81,22 @@ open class ApolloClientFactory @Inject constructor() {
     }
 
     /**
+     * The client of the background check: the polling client without redirects and without
+     * cleartext. A 3xx answer is returned as it is instead of being followed, so the API key
+     * cannot be sent on to another host or down to http by a server that answers with a
+     * redirect; and with only [ConnectionSpec.MODERN_TLS] (OkHttp's default first spec) OkHttp
+     * refuses any http:// request before a connection opens. Internal so a test can build the
+     * redirect case without the cleartext block masking it.
+     */
+    internal val backgroundHttpClient: OkHttpClient by lazy {
+        baseHttpClient.newBuilder()
+            .followRedirects(false)
+            .followSslRedirects(false)
+            .connectionSpecs(listOf(ConnectionSpec.MODERN_TLS))
+            .build()
+    }
+
+    /**
      * One [ApolloClient] per (variant, endpoint, apiKey). Building a fresh
      * client on every call (each poll iteration, mutation, refresh, ping)
      * leaked an ApolloClient + its wrapping OkHttpClient every time. Clients
@@ -93,6 +114,11 @@ open class ApolloClientFactory @Inject constructor() {
     /** Build a per-server client. URL must already be the base address (no trailing /graphql). */
     open fun build(baseUrl: String, apiKey: String, trust: TlsTrust = TlsTrust.Default): ApolloClient =
         cached("short", baseHttpClient, baseUrl, apiKey, trust)
+
+    /** Same as [build] but for the background alert check ([backgroundHttpClient]): https only,
+     *  no redirect is followed. The foreground variants are not affected. */
+    fun buildBackground(baseUrl: String, apiKey: String, trust: TlsTrust = TlsTrust.Default): ApolloClient =
+        cached("bg", backgroundHttpClient, baseUrl, apiKey, trust)
 
     /** Same as [build] but uses the long-running OkHttp client (10-min
      *  read/write). Use exclusively for mutations that pull images or

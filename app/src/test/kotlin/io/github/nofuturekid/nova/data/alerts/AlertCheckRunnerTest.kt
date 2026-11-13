@@ -238,6 +238,7 @@ class AlertCheckRunnerTest {
         baseline("n1")
         val failures = listOf(
             ProbeResult.CertificateProblem, ProbeResult.KeyMissing, ProbeResult.KeyUndecryptable, ProbeResult.Rejected("nope"),
+            ProbeResult.NotEncrypted,
         )
         failures.forEach { failure ->
             probe.answer(tower.id, failure)

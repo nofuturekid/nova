@@ -13,12 +13,14 @@ import kotlinx.coroutines.runBlocking
 import okhttp3.OkHttpClient
 import org.junit.After
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import java.net.InetSocketAddress
 import java.net.ServerSocket
 import java.util.concurrent.CopyOnWriteArrayList
+import java.util.concurrent.atomic.AtomicInteger
 import javax.net.ssl.SSLHandshakeException
 
 /**
@@ -29,12 +31,17 @@ import javax.net.ssl.SSLHandshakeException
  * a query the app does not already ship, tried the remote address when the local one answered,
  * took "wrong key" for "server down" (or the reverse), let one broken half hide the other,
  * accepted a certificate, or sent a request when it has no key.
+ *
+ * Stored server URLs are https placeholders, as the background check only ever contacts https;
+ * [routes] maps each placeholder to the plain-http test server that stands in for it.
  */
 class ApolloServerProbeTest {
     private val httpServers = mutableListOf<HttpServer>()
     private val operations = CopyOnWriteArrayList<String>()
     private val requestedUrls = CopyOnWriteArrayList<String>()
     private val trusts = CopyOnWriteArrayList<TlsTrust>()
+    private val routes = mutableMapOf<String, String>()
+    private val keyReads = AtomicInteger()
 
     @After fun stop() = httpServers.forEach { it.stop(0) }
 
@@ -42,8 +49,8 @@ class ApolloServerProbeTest {
     private val arrayOk = """{"data":{"array":{"state":"STOPPED","capacity":{"kilobytes":{"total":"8000000000","used":"2000000000","free":"6000000000"}},"parities":[],"disks":[],"caches":[],"parityCheckStatus":null}}}"""
     private val unauthenticated = """{"errors":[{"message":"Unauthorized","extensions":{"code":"UNAUTHENTICATED"}}]}"""
 
-    /** Starts a server; [answer] gets the operation name and returns status and body. */
-    private fun serve(answer: (String) -> Pair<Int, String> = { op -> 200 to if (op == "GetNotifications") notificationsOk else arrayOk }): String {
+    /** Starts a server; [answer] gets the operation name and returns status and body. Returns its real http URL. */
+    private fun serveOnPort(answer: (String) -> Pair<Int, String> = { op -> 200 to if (op == "GetNotifications") notificationsOk else arrayOk }): String {
         val http = HttpServer.create(InetSocketAddress("127.0.0.1", 0), 0)
         http.createContext("/graphql") { exchange ->
             val body = exchange.requestBody.readBytes().decodeToString()
@@ -60,14 +67,20 @@ class ApolloServerProbeTest {
         return "http://127.0.0.1:${http.address.port}"
     }
 
-    /** A URL nobody listens on. */
-    private fun closedUrl(): String = ServerSocket(0).use { "http://127.0.0.1:${it.localPort}" }
+    /** Like [serveOnPort], but returns the https placeholder a saved server stores, routed to the test server. */
+    private fun serve(answer: (String) -> Pair<Int, String> = { op -> 200 to if (op == "GetNotifications") notificationsOk else arrayOk }): String =
+        placeholder(serveOnPort(answer))
+
+    /** An https placeholder whose route leads to a port nobody listens on. */
+    private fun closedUrl(): String = placeholder(ServerSocket(0).use { "http://127.0.0.1:${it.localPort}" })
+
+    private fun placeholder(realUrl: String): String = "https://host${routes.size}.test".also { routes[it] = realUrl }
 
     private fun probe(
         key: ApiKeyResult = ApiKeyResult.Present("k"),
-        client: (String, TlsTrust) -> ApolloClient = { url, _ -> plainClient(url) },
+        client: (String, TlsTrust) -> ApolloClient = { url, _ -> plainClient(routes.getValue(url)) },
     ) = ApolloServerProbe(
-        readKey = { key },
+        readKey = { keyReads.incrementAndGet(); key },
         clientFor = { url, _, trust ->
             requestedUrls += url
             trusts += trust
@@ -165,7 +178,7 @@ class ApolloServerProbeTest {
     @Test fun a_certificate_problem_on_the_local_address_does_not_hide_a_trusted_remote_answer() {
         val remote = serve()
         val client = { url: String, _: TlsTrust ->
-            if (url == remote) plainClient(url) else certFailingClient()
+            if (url == remote) plainClient(routes.getValue(url)) else certFailingClient()
         }
 
         val result = run(probe(client = client), server("https://tower.local", remote))
@@ -174,13 +187,14 @@ class ApolloServerProbeTest {
     }
 
     @Test fun a_certificate_problem_wins_over_unreachable_when_no_address_answers() {
+        val closed = closedUrl()
         val client = { url: String, _: TlsTrust ->
-            if (url.startsWith("https")) certFailingClient() else plainClient(url)
+            if (url == "https://tower.local") certFailingClient() else plainClient(routes.getValue(url))
         }
 
         assertEquals(
             ProbeResult.CertificateProblem,
-            run(probe(client = client), server("https://tower.local", closedUrl())),
+            run(probe(client = client), server("https://tower.local", closed)),
         )
     }
 
@@ -192,5 +206,44 @@ class ApolloServerProbeTest {
         assertEquals(ProbeResult.KeyUndecryptable, run(probe(key = ApiKeyResult.Undecryptable), s))
         assertEquals("no client was even built", emptyList<String>(), requestedUrls.toList())
         assertEquals(emptyList<String>(), operations.toList())
+    }
+
+    @Test fun a_plain_http_address_is_never_contacted_in_the_background() {
+        // WHY: the API key would travel in clear text, unattended, to whatever answers at that
+        // name or IP in the current network. The real port makes the test fail if a request ever
+        // arrives, whatever the fake client does.
+        val listening = serveOnPort()
+        val s = server(local = listening, remote = "http://10.0.0.1")
+        val p = ApolloServerProbe(
+            readKey = { keyReads.incrementAndGet(); ApiKeyResult.Present("k") },
+            clientFor = { url, _, _ -> error("client built for $url") },
+        )
+
+        val result = run(p, s)
+
+        assertEquals(ProbeResult.NotEncrypted, result)
+        assertEquals("the key is not even read", 0, keyReads.get())
+        assertEquals(emptyList<String>(), requestedUrls.toList())
+        assertEquals(emptyList<String>(), operations.toList())
+    }
+
+    @Test fun local_http_is_skipped_and_only_the_https_remote_gets_the_key() {
+        val listening = serveOnPort()
+        val remote = serve()
+        val client = { url: String, _: TlsTrust ->
+            if (url.startsWith("https://")) plainClient(routes.getValue(url)) else error("client built for $url")
+        }
+
+        val result = run(probe(client = client), server(local = listening, remote = remote))
+
+        assertTrue(result is ProbeResult.Ok)
+        assertEquals(listOf(remote), requestedUrls.toList())
+        assertEquals("only the two queries to the remote, none to the local http server", 2, operations.size)
+    }
+
+    @Test fun a_server_without_any_address_is_unreachable_and_not_unencrypted() {
+        // WHY: "not encrypted" would tell the user to fix something that is simply not there.
+        assertEquals(ProbeResult.Unreachable, run(probe(), server(local = "", remote = "")))
+        assertFalse(keyReads.get() > 0)
     }
 }

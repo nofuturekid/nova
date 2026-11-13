@@ -241,7 +241,7 @@ class AlertRulesTest {
         // WHY: failures must travel the "nothing loaded" path, whichever way they failed.
         val failures = listOf(
             ProbeResult.Unreachable, ProbeResult.CertificateProblem, ProbeResult.KeyMissing,
-            ProbeResult.KeyUndecryptable, ProbeResult.Rejected("HTTP 401"),
+            ProbeResult.KeyUndecryptable, ProbeResult.Rejected("HTTP 401"), ProbeResult.NotEncrypted,
         )
         for (failure in failures) {
             val state = ServerAlertState(true, listOf("n1"), true, setOf("array-degraded"))

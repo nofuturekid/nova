@@ -34,7 +34,10 @@ import javax.inject.Singleton
  *   [ProbeResult.KeyUndecryptable] (ADR-0035);
  * - it does not use `UnraidRepository`'s streams, which raise the in-app certificate prompt.
  *
- * Addresses come from [checkAddresses]. An address that gives no answer (no connection, TLS
+ * Addresses come from [checkAddresses] and are https only: a plain-http address is never
+ * contacted, and a server with nothing but such addresses is [ProbeResult.NotEncrypted]. The
+ * clients are the background variant ([ApolloClientFactory.buildBackground]), which follows no
+ * redirect and speaks no cleartext. An address that gives no answer (no connection, TLS
  * failure) is followed by the next one; an address whose server answers decides the result.
  * When no address answered, a certificate problem wins over "unreachable", so the user hears
  * that the certificate changed.
@@ -48,17 +51,23 @@ class ApolloServerProbe internal constructor(
     @Inject
     constructor(factory: ApolloClientFactory, keys: ApiKeyStore) : this(
         readKey = { keys.getResult(it) },
-        clientFor = { url, key, trust -> factory.build(url, key, trust) },
+        clientFor = { url, key, trust -> factory.buildBackground(url, key, trust) },
     )
 
     override suspend fun probe(server: Server, pin: String?): ProbeResult {
+        // Decided before the key is read: a server without an https address never gets a key
+        // decrypted for it, a client built or a request sent.
+        val addresses = checkAddresses(server, pin)
+        if (addresses.isEmpty()) {
+            return if (server.hasCleartextOnlyAddresses()) ProbeResult.NotEncrypted else ProbeResult.Unreachable
+        }
         val key = when (val read = readKey(server.id)) {
             ApiKeyResult.Absent -> return ProbeResult.KeyMissing
             ApiKeyResult.Undecryptable -> return ProbeResult.KeyUndecryptable
             is ApiKeyResult.Present -> read.key.takeIf { it.isNotBlank() } ?: return ProbeResult.KeyMissing
         }
         var certificateProblem = false
-        for (address in checkAddresses(server, pin)) {
+        for (address in addresses) {
             when (val outcome = probeAddress(clientFor(address.url, key, address.trust))) {
                 is AddressOutcome.Answered -> return outcome.result
                 AddressOutcome.CertificateProblem -> certificateProblem = true
