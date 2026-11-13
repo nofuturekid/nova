@@ -149,4 +149,39 @@ class OverviewFailureTest {
         )
         assertNull(overviewFailure(DomainState.Loading, DomainState.Content(1)))
     }
+
+    // WHY: #356. With Docker off and the VMs not loaded yet, the cards must not claim "0 running · all
+    // healthy" / "0 configured": the app does not know, and says so with the dash.
+    @Test fun unknownDockerAndVms_showDashes_notZero() {
+        overview(
+            info = DomainState.Content(DemoFixtures.info),
+            array = DomainState.Content(DemoFixtures.array),
+            docker = error(ErrorReason.ServiceOff), vms = DomainState.Loading,
+        )
+        assertFalse(rule.exists("all healthy"))
+        assertFalse(rule.exists("0 configured"))
+        assertTrue(rule.onAllNodesWithText(PLACEHOLDER).fetchSemanticsNodes().size >= 4)
+    }
+
+    // WHY: the same for a key that may not read the domains: unknown, not zero.
+    @Test fun forbiddenDockerAndVms_showDashes_notZero() {
+        overview(
+            info = DomainState.Content(DemoFixtures.info),
+            array = DomainState.Content(DemoFixtures.array),
+            docker = error(ErrorReason.Forbidden), vms = error(ErrorReason.Forbidden),
+        )
+        assertFalse(rule.exists("all healthy"))
+        assertFalse(rule.exists("0 configured"))
+    }
+
+    // WHY: the guard above must be able to fail: a server that really answers with nothing keeps "0".
+    @Test fun emptyDockerAndVms_stillReadZero() {
+        overview(
+            info = DomainState.Content(DemoFixtures.info),
+            array = DomainState.Content(DemoFixtures.array),
+            docker = DomainState.Content(emptyList()), vms = DomainState.Content(emptyList()),
+        )
+        assertTrue(rule.exists("all healthy"))
+        assertTrue(rule.exists("0 configured"))
+    }
 }

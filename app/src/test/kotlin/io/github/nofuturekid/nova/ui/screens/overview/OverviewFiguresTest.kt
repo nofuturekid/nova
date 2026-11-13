@@ -1,7 +1,10 @@
 package io.github.nofuturekid.nova.ui.screens.overview
 
 import io.github.nofuturekid.nova.data.model.ArrayInfo
+import io.github.nofuturekid.nova.data.demo.DemoFixtures
 import io.github.nofuturekid.nova.data.model.ArrayState
+import io.github.nofuturekid.nova.data.model.ContainerStatus
+import io.github.nofuturekid.nova.data.model.VmState
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotEquals
@@ -139,5 +142,31 @@ class OverviewFiguresTest {
         val next = rollSeries(rollSeries(emptyList(), 5f), 0f)
         assertEquals(0f, next.last())
         assertEquals(SERIES_LENGTH, next.size)
+    }
+
+    // ── Containers and Virtual machines cards ───────────────────────
+
+    // WHY: #356. Unknown is not an empty server: "0 running · all healthy" would tell the user
+    // everything is fine while the app has no idea.
+    @Test fun unknown_containers_and_vms_show_the_placeholder() {
+        assertEquals(CountFigures(PLACEHOLDER, PLACEHOLDER), containerFigures(null))
+        assertEquals(CountFigures(PLACEHOLDER, PLACEHOLDER), vmFigures(null))
+    }
+
+    // WHY: the other half, so the placeholder cannot pass for "always dash": a real empty list stays a real 0.
+    @Test fun empty_lists_stay_zero() {
+        assertEquals(CountFigures("0", "all healthy"), containerFigures(emptyList()))
+        assertEquals(CountFigures("0", "0 configured"), vmFigures(emptyList()))
+    }
+
+    // WHY: the counts themselves must survive the move out of the card.
+    @Test fun counts_follow_the_status() {
+        fun c(status: ContainerStatus) = DemoFixtures.containers.first().copy(status = status)
+        assertEquals(
+            CountFigures("2", "1 stopped · 1 paused"),
+            containerFigures(listOf(c(ContainerStatus.Running), c(ContainerStatus.Running), c(ContainerStatus.Exited), c(ContainerStatus.Paused))),
+        )
+        fun v(state: VmState) = DemoFixtures.vms.first().copy(state = state)
+        assertEquals(CountFigures("1", "3 configured"), vmFigures(listOf(v(VmState.Running), v(VmState.Stopped), v(VmState.Paused))))
     }
 }

@@ -32,7 +32,6 @@ import io.github.nofuturekid.nova.data.model.AttentionSnapshot
 import io.github.nofuturekid.nova.data.model.AttentionTarget
 import io.github.nofuturekid.nova.data.model.attentionItems
 import io.github.nofuturekid.nova.data.model.Container
-import io.github.nofuturekid.nova.data.model.ContainerStatus
 import io.github.nofuturekid.nova.data.model.DisplayThresholds
 import io.github.nofuturekid.nova.data.model.LiveMetrics
 import io.github.nofuturekid.nova.data.model.NetworkThroughput
@@ -42,7 +41,6 @@ import io.github.nofuturekid.nova.data.model.ServerInfo
 import io.github.nofuturekid.nova.data.model.Temperature
 import io.github.nofuturekid.nova.data.model.TemperatureUnit
 import io.github.nofuturekid.nova.data.model.Vm
-import io.github.nofuturekid.nova.data.model.VmState
 import io.github.nofuturekid.nova.data.repository.DomainState
 import io.github.nofuturekid.nova.ui.components.Pill
 import io.github.nofuturekid.nova.ui.components.Sparkline
@@ -110,7 +108,7 @@ fun OverviewTab(
 
     // Same rule as the top bar's Offline pill: only an Error that says the server cannot be used
     // means there is nothing trustworthy to flag. Docker or VMs being switched off, or a key that
-    // may not read one domain, leaves the server reachable and the card in place (#217).
+    // may not read one domain, leaves the server reachable and the card in place (#217, #356).
     val offline = isOffline(infoState, arrayState, dockerState, vmsState)
     val attention = remember(array, notifications, displayThresholds, offline) {
         if (offline) emptyList()
@@ -191,11 +189,8 @@ private fun OverviewContent(
 
     val arrayFig = arrayFigures(array)
     val arrState = array?.state ?: ArrayState.Offline
-    val running = containers?.count { it.status == ContainerStatus.Running } ?: 0
-    val stopped = containers?.count { it.status == ContainerStatus.Exited } ?: 0
-    val paused  = containers?.count { it.status == ContainerStatus.Paused } ?: 0
-    val vmRunning = vms?.count { it.state == VmState.Running } ?: 0
-    val vmCount = vms?.size ?: 0
+    val dockerFig = containerFigures(containers)
+    val vmFig = vmFigures(vms)
 
     val arrTone = when (arrState) {
         ArrayState.Started -> Tone.Accent
@@ -391,18 +386,12 @@ private fun OverviewContent(
                         }
                         Spacer(Modifier.height(8.dp))
                         Row(verticalAlignment = Alignment.Bottom, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                            Text("$running", color = t.text, style = MaterialTheme.typography.headlineMedium)
+                            Text(dockerFig.value, color = t.text, style = MaterialTheme.typography.headlineMedium)
                             Text("running", color = t.muted, style = MaterialTheme.typography.bodySmall)
                         }
                         Spacer(Modifier.height(6.dp))
                         Text(
-                            text = when {
-                                stopped == 0 && paused == 0 -> "all healthy"
-                                else -> listOfNotNull(
-                                    if (stopped > 0) "$stopped stopped" else null,
-                                    if (paused > 0) "$paused paused" else null,
-                                ).joinToString(" · ")
-                            },
+                            text = dockerFig.sub,
                             color = t.muted,
                             style = MaterialTheme.typography.bodySmall,
                         )
@@ -417,11 +406,11 @@ private fun OverviewContent(
                         }
                         Spacer(Modifier.height(8.dp))
                         Row(verticalAlignment = Alignment.Bottom, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                            Text("$vmRunning", color = t.text, style = MaterialTheme.typography.headlineMedium)
+                            Text(vmFig.value, color = t.text, style = MaterialTheme.typography.headlineMedium)
                             Text("running", color = t.muted, style = MaterialTheme.typography.bodySmall)
                         }
                         Spacer(Modifier.height(6.dp))
-                        Text("$vmCount configured", color = t.muted, style = MaterialTheme.typography.bodySmall)
+                        Text(vmFig.sub, color = t.muted, style = MaterialTheme.typography.bodySmall)
                     }
                 }
             }

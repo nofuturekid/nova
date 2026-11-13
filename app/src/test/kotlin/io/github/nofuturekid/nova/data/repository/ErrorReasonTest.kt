@@ -5,6 +5,7 @@ import com.apollographql.apollo.api.http.HttpRequest
 import com.apollographql.apollo.api.http.HttpResponse
 import com.apollographql.apollo.exception.ApolloException
 import com.apollographql.apollo.network.http.HttpEngine
+import io.github.nofuturekid.nova.graphql.GetDockerContainersQuery
 import io.github.nofuturekid.nova.graphql.GetVmsQuery
 import kotlinx.coroutines.test.runTest
 import okio.Buffer
@@ -67,6 +68,14 @@ class ErrorReasonTest {
         return classifyErrorReason(resp.exception, resp.errors)
     }
 
+    /** The same for the Docker query, which the Docker-off answer is really given to. */
+    private suspend fun reasonOfDocker(server: () -> HttpResponse): ErrorReason {
+        val client = ApolloClient.Builder().serverUrl("http://unraid.test/graphql").httpEngine(Engine(server)).build()
+        val resp = client.query(GetDockerContainersQuery()).execute()
+        assertNull("the Docker-off body must parse, not fail in transport", resp.exception)
+        return classifyErrorReason(resp.exception, resp.errors)
+    }
+
     // WHY: #247. A server whose API is too old answers HTTP 400 with a validation error; the tab must
     // show the "API too old" hint, not raw validation text.
     @Test fun validationError_isApiTooOld() = runTest {
@@ -86,6 +95,15 @@ class ErrorReasonTest {
     // WHY: #217. A server with Docker or VMs turned off is healthy; that tab must say what is off.
     @Test fun dockerSocketUnavailable_isServiceOff() = runTest {
         assertEquals(ErrorReason.ServiceOff, reasonOf(dockerOff))
+    }
+
+    // WHY: #356. The Overview keeps its card only if the real Docker query turns this answer into
+    // ServiceOff; a transport exception here would fall back to Unreachable and read as offline.
+    @Test fun dockerSocketUnavailable_onTheDockerQuery_isServiceOff() = runTest {
+        val body = reply(
+            """{"errors":[{"message":"Docker socket unavailable.","path":["docker","containers"],"extensions":{"code":"INTERNAL_SERVER_ERROR"}}],"data":{"docker":null}}""",
+        )
+        assertEquals(ErrorReason.ServiceOff, reasonOfDocker(body))
     }
 
     @Test fun vmsNotAvailable_isServiceOff() = runTest {

@@ -1,6 +1,10 @@
 package io.github.nofuturekid.nova.ui.screens.overview
 
 import io.github.nofuturekid.nova.data.model.ArrayInfo
+import io.github.nofuturekid.nova.data.model.Container
+import io.github.nofuturekid.nova.data.model.ContainerStatus
+import io.github.nofuturekid.nova.data.model.Vm
+import io.github.nofuturekid.nova.data.model.VmState
 
 /** What a card shows for a value that is not known (offline, not loaded yet). Same dash as the Network and Temperature cards. */
 internal const val PLACEHOLDER = "—"
@@ -42,6 +46,30 @@ internal fun arrayFigures(array: ArrayInfo?): ArrayFigures {
         barWeights = if (total > 0) used.toFloat() to (total - used).coerceAtLeast(0.0).toFloat() else null,
     )
 }
+
+/**
+ * Headline and sub line of the Containers or Virtual machines card. Unknown ([containers] or
+ * [vms] null: not loaded yet, turned off, not allowed, offline) shows the placeholder, never
+ * "0 running · all healthy" (#356); a real empty list stays 0.
+ */
+internal data class CountFigures(val value: String, val sub: String)
+
+internal fun containerFigures(containers: List<Container>?): CountFigures {
+    if (containers == null) return CountFigures(PLACEHOLDER, PLACEHOLDER)
+    val stopped = containers.count { it.status == ContainerStatus.Exited }
+    val paused = containers.count { it.status == ContainerStatus.Paused }
+    return CountFigures(
+        value = "${containers.count { it.status == ContainerStatus.Running }}",
+        sub = if (stopped == 0 && paused == 0) "all healthy" else listOfNotNull(
+            if (stopped > 0) "$stopped stopped" else null,
+            if (paused > 0) "$paused paused" else null,
+        ).joinToString(" · "),
+    )
+}
+
+internal fun vmFigures(vms: List<Vm>?): CountFigures =
+    if (vms == null) CountFigures(PLACEHOLDER, PLACEHOLDER)
+    else CountFigures("${vms.count { it.state == VmState.Running }}", "${vms.size} configured")
 
 /** CPU headline: the load, or the placeholder while it is unknown. */
 internal fun cpuValue(cpuPercent: Double?): String =
