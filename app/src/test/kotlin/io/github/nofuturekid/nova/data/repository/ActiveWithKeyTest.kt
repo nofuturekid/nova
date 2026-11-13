@@ -1,6 +1,7 @@
 package io.github.nofuturekid.nova.data.repository
 
 import io.github.nofuturekid.nova.data.local.ApiKeyResult
+import io.github.nofuturekid.nova.data.local.ServerSnapshot
 import io.github.nofuturekid.nova.data.model.ConnectionMode
 import io.github.nofuturekid.nova.data.model.Server
 import io.github.nofuturekid.nova.data.repository.ServerRepository.Companion.activeWithKeyFlow
@@ -27,7 +28,7 @@ class ActiveWithKeyTest {
         val out = mutableListOf<ActiveServer?>()
         val job = launch {
             activeWithKeyFlow(
-                MutableStateFlow(server), MutableStateFlow(ConnectionMode.Local), MutableStateFlow(emptyMap()),
+                MutableStateFlow(ServerSnapshot(listOf(server), "s1", ConnectionMode.Local, emptyMap())),
                 keyChanges,
             ) { ApiKeyResult.Present(keys.getValue(it)) }.toList(out)
         }

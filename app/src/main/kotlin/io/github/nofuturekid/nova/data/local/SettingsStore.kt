@@ -45,6 +45,14 @@ private object Keys {
  *  (Docker → by status, VMs → by state, Array → by disk type). */
 enum class LayoutMode { List, Grid, Grouped }
 
+/** One consistent read of the stored server selection; see [SettingsStore.serverSnapshot]. */
+data class ServerSnapshot(
+    val servers: List<Server>,
+    val activeId: String?,
+    val mode: ConnectionMode,
+    val pins: Map<String, String>,
+)
+
 @Singleton
 class SettingsStore @Inject constructor(
     @param:ApplicationContext private val context: Context,
@@ -52,18 +60,30 @@ class SettingsStore @Inject constructor(
     private val ds = context.dataStore
     private val json = Json { ignoreUnknownKeys = true }
 
-    val servers: Flow<List<Server>> = ds.data.map { prefs ->
+    val servers: Flow<List<Server>> = ds.data.map { decodeServers(it) }
+
+    private fun decodeServers(prefs: Preferences): List<Server> =
         prefs[Keys.Servers]?.let {
             runCatching { json.decodeFromString<List<Server>>(it) }.getOrDefault(emptyList())
         } ?: emptyList()
+
+    /**
+     * The inputs the active server is derived from (list, active id, mode, pins), read
+     * from ONE DataStore snapshot. Combining the separate flows above can pair the new
+     * list with the pins of the previous snapshot, i.e. a new server without its pin,
+     * even when both were written in one transaction (#292).
+     */
+    val serverSnapshot: Flow<ServerSnapshot> = ds.data.map {
+        ServerSnapshot(decodeServers(it), it[Keys.ActiveServer], decodeMode(it), decodePins(it))
     }
 
     /** server id → pinned local-cert SHA-256 (colon-separated hex). */
-    val certPins: Flow<Map<String, String>> = ds.data.map { prefs ->
+    val certPins: Flow<Map<String, String>> = ds.data.map { decodePins(it) }
+
+    private fun decodePins(prefs: Preferences): Map<String, String> =
         prefs[Keys.CertPins]?.let {
             runCatching { json.decodeFromString<Map<String, String>>(it) }.getOrDefault(emptyMap())
         } ?: emptyMap()
-    }
 
     suspend fun pinFor(serverId: String): String? = certPins.first()[serverId]
 
@@ -77,14 +97,34 @@ class SettingsStore @Inject constructor(
         ds.edit { it[Keys.CertPins] = json.encodeToString(next) }
     }
 
+    /**
+     * The server list, the server's pin and (when none is set yet) the active
+     * server in ONE DataStore transaction, so the flows built on them (the
+     * polling streams) never see the new server without the pin the user
+     * accepted for it. [pin] null with [dropPin] false keeps the stored pin.
+     */
+    suspend fun saveServer(list: List<Server>, serverId: String, pin: String?, dropPin: Boolean) {
+        ds.edit { prefs ->
+            prefs[Keys.Servers] = json.encodeToString(list)
+            val pins = decodePins(prefs).toMutableMap()
+            when {
+                dropPin -> pins.remove(serverId)
+                pin != null -> pins[serverId] = pin
+            }
+            prefs[Keys.CertPins] = json.encodeToString(pins.toMap())
+            if (prefs[Keys.ActiveServer] == null) prefs[Keys.ActiveServer] = serverId
+        }
+    }
+
     val activeServerId: Flow<String?> = ds.data.map { it[Keys.ActiveServer] }
 
-    val connectionMode: Flow<ConnectionMode> = ds.data.map {
-        when (it[Keys.ConnMode]) {
+    val connectionMode: Flow<ConnectionMode> = ds.data.map { decodeMode(it) }
+
+    private fun decodeMode(prefs: Preferences): ConnectionMode =
+        when (prefs[Keys.ConnMode]) {
             "Remote" -> ConnectionMode.Remote
             else     -> ConnectionMode.Local
         }
-    }
 
     private fun layoutFlow(key: androidx.datastore.preferences.core.Preferences.Key<String>): Flow<LayoutMode> =
         ds.data.map {

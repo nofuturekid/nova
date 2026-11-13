@@ -27,6 +27,7 @@ import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.scan
 import kotlinx.coroutines.flow.transformLatest
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withTimeoutOrNull
 import io.github.nofuturekid.nova.data.api.ApolloClientFactory
@@ -121,6 +122,18 @@ class UnraidRepository @Inject constructor(
     private val apolloFactory: ApolloClientFactory,
 ) {
     companion object {
+        /**
+         * The certificate prompt that is still worth showing once [active] is known. A prompt
+         * for the fingerprint the active server has already pinned is answered: showing it
+         * would ask the user to trust what they trusted already (#292). A prompt for any
+         * other fingerprint (a changed certificate, a server without a pin) stays. Pure and
+         * internal so the unit test drives the decision production uses.
+         */
+        internal fun certPromptAfterActive(prompt: CertPrompt?, active: ActiveServer?): CertPrompt? =
+            if (prompt != null && active != null &&
+                prompt.serverId == active.server.id && prompt.presentedSha256 == active.localCertPin
+            ) null else prompt
+
         /** Default poll interval per domain (ms). Values reflect how often
          *  each domain actually changes — info almost never, metrics often. */
         const val POLL_INFO_MS = 60_000L      // hostname/version/CPU specs change between reboots
@@ -807,6 +820,8 @@ class UnraidRepository @Inject constructor(
         .distinctUntilChanged()
         .flatMapLatest { active ->
             flow {
+                // A pin that has landed since the prompt was raised answers it.
+                _certPrompt.update { certPromptAfterActive(it, active) }
                 if (active == null) {
                     emit(DomainState.NoServer)
                     return@flow

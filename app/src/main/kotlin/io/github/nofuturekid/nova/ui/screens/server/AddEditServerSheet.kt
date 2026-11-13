@@ -245,7 +245,11 @@ class AddEditServerViewModel @Inject constructor(
         val localUrl = EndpointUrl.compose(s.localHost, s.localSsl)
         val remoteUrl = EndpointUrl.compose(s.remoteHost, s.remoteSsl)
         val hostname = EndpointUrl.normalizeHost(s.localHost).ifBlank { EndpointUrl.normalizeHost(s.remoteHost) }
-        val saved = servers.upsert(
+        // If the user confirmed a self-signed cert at Test time, upsert stores that pin
+        // in the same write as the entry (a separate write afterwards would let the new
+        // server go active without it and prompt a second time). It also drops the pin
+        // when trust is off.
+        servers.upsert(
             Server(
                 id = existingId,
                 name = s.name.trim(),
@@ -255,11 +259,8 @@ class AddEditServerViewModel @Inject constructor(
                 trustSelfSignedLocal = s.trustSelfSignedLocal,
             ),
             apiKey = s.apiKey,
+            localCertPin = pinToPersist(s),
         )
-        // If the user confirmed a self-signed cert at Test time, pin it now
-        // (upsert minted the id for a new server). upsert() already clears the
-        // pin when trust is off, so only persist when trust is on.
-        pinToPersist(s)?.let { servers.setLocalCertPin(saved.id, it) }
     }
 
     fun delete(onDone: () -> Unit) {

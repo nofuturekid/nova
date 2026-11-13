@@ -15,6 +15,14 @@ release version + date and opens a fresh `[Unreleased]`.
 
 ## [Unreleased]
 
+### Fixed
+- **A new self-signed server asks you to trust its certificate only once** —
+  when you added a server with "Trust self-signed certificate", confirmed the
+  certificate during Test and then saved, the same "Trust this certificate?"
+  dialog appeared a second time on the main screen. The certificate you accept
+  is now stored together with the server, so it is already trusted when the
+  server first connects. A certificate that later changes still asks (#292).
+
 ## [0.1.45] - 2026-11-13
 
 Live values on the Overview and the container numbers now recover by themselves after the connection to your server drops or goes quiet. The 0.1.45 beta confirmed this on a real phone with a real Wi-Fi change.

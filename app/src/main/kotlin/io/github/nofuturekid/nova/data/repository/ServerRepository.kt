@@ -6,6 +6,7 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import io.github.nofuturekid.nova.data.local.ApiKeyResult
 import io.github.nofuturekid.nova.data.local.ApiKeyStore
+import io.github.nofuturekid.nova.data.local.ServerSnapshot
 import io.github.nofuturekid.nova.data.local.SettingsStore
 import io.github.nofuturekid.nova.data.model.ConnectionMode
 import io.github.nofuturekid.nova.data.model.Server
@@ -40,9 +41,13 @@ class ServerRepository @Inject constructor(
     }
 
     val activeWithKey: Flow<ActiveServer?> =
-        activeWithKeyFlow(activeServer, connectionMode, store.certPins, keys.ciphertexts, keys::getResult)
+        activeWithKeyFlow(store.serverSnapshot, keys.ciphertexts, keys::getResult)
 
-    suspend fun upsert(input: Server, apiKey: String): Server {
+    /**
+     * Stores [input]. [localCertPin] is the fingerprint the user accepted for it; it is
+     * written atomically with the entry. Null keeps the stored pin; trust off drops it.
+     */
+    suspend fun upsert(input: Server, apiKey: String, localCertPin: String? = null): Server {
         val current = store.servers.first()
         val resolved = if (input.id.isBlank()) input.copy(id = UUID.randomUUID().toString()) else input
         val next = current.filter { it.id != resolved.id } + resolved
@@ -52,9 +57,10 @@ class ServerRepository @Inject constructor(
         if (apiKey.isNotBlank()) {
             keys.put(resolved.id, apiKey)
         }
-        store.setServers(next)
-        if (store.activeServerId.first() == null) store.setActiveServer(resolved.id)
-        if (!resolved.trustSelfSignedLocal) store.clearPin(resolved.id)
+        // List, pin and first-server activation in one write: the pin the user accepted
+        // must exist the moment the entry can become active, or the streams would raise
+        // the certificate prompt a second time (#292). Trust off drops any pin.
+        store.saveServer(next, resolved.id, pin = localCertPin, dropPin = !resolved.trustSelfSignedLocal)
         return resolved
     }
 
@@ -88,27 +94,26 @@ class ServerRepository @Inject constructor(
 
     companion object {
         /**
-         * Active server + its key. [keyChanges] is part of the combine so a
-         * key-only change (list unchanged, DataStore skips the write) still
-         * re-emits. Internal for the seam test.
+         * Active server + its key. [snapshot] carries list, active id, mode and pins from one
+         * DataStore read, so a server is never paired with the pins of an older snapshot.
+         * [keyChanges] is part of the combine so a key-only change (list unchanged,
+         * DataStore skips the write) still re-emits. Internal for the seam test.
          */
         internal fun activeWithKeyFlow(
-            activeServer: Flow<Server?>,
-            connectionMode: Flow<ConnectionMode>,
-            certPins: Flow<Map<String, String>>,
+            snapshot: Flow<ServerSnapshot>,
             keyChanges: Flow<*>,
             readKey: suspend (String) -> ApiKeyResult,
         ): Flow<ActiveServer?> =
-            combine(activeServer, connectionMode, certPins, keyChanges) { s, mode, pins, _ -> Triple(s, mode, pins) }
-                .map { (s, mode, pins) ->
-                    s?.let {
+            combine(snapshot, keyChanges) { snap, _ -> snap }
+                .map { snap ->
+                    resolveActiveServer(snap.servers, snap.activeId)?.let {
                         val result = readKey(it.id)
                         ActiveServer(
                             server = it,
-                            mode = mode,
+                            mode = snap.mode,
                             apiKey = (result as? ApiKeyResult.Present)?.key.orEmpty(),
                             keyState = result,
-                            localCertPin = pins[it.id],
+                            localCertPin = snap.pins[it.id],
                         )
                     }
                 }
