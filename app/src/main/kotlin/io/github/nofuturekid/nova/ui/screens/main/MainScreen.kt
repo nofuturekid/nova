@@ -52,6 +52,7 @@ import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import kotlinx.coroutines.launch
 import io.github.nofuturekid.nova.BuildConfig
 import io.github.nofuturekid.nova.data.model.ArrayState
+import io.github.nofuturekid.nova.data.model.AttentionTarget
 import io.github.nofuturekid.nova.data.model.Container
 import io.github.nofuturekid.nova.data.model.ConnectionMode
 import io.github.nofuturekid.nova.data.model.NotifType
@@ -224,6 +225,14 @@ fun MainScreen(
                         temperature = (temperatureState as? DomainState.Content)?.value,
                         cpuWarnC = displayThresholds?.cpuWarnC,
                         cpuCritC = displayThresholds?.cpuCritC,
+                        notifications = (notificationsState as? DomainState.Content)?.value,
+                        displayThresholds = displayThresholds,
+                        onOpenAttention = { target ->
+                            when (target) {
+                                AttentionTarget.Array -> vm.setSelectedTab(MainTab.Array)
+                                AttentionTarget.Notifications -> showNotifications = true
+                            }
+                        },
                     )
                     MainTab.Array    -> ArrayTab(
                         state = arrayState,

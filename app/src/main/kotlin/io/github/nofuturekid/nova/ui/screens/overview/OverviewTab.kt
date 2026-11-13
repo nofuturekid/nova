@@ -27,10 +27,16 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import io.github.nofuturekid.nova.data.model.ArrayInfo
 import io.github.nofuturekid.nova.data.model.ArrayState
+import io.github.nofuturekid.nova.data.model.AttentionItem
+import io.github.nofuturekid.nova.data.model.AttentionSnapshot
+import io.github.nofuturekid.nova.data.model.AttentionTarget
+import io.github.nofuturekid.nova.data.model.attentionItems
 import io.github.nofuturekid.nova.data.model.Container
 import io.github.nofuturekid.nova.data.model.ContainerStatus
+import io.github.nofuturekid.nova.data.model.DisplayThresholds
 import io.github.nofuturekid.nova.data.model.LiveMetrics
 import io.github.nofuturekid.nova.data.model.NetworkThroughput
+import io.github.nofuturekid.nova.data.model.Notifications
 import io.github.nofuturekid.nova.data.model.Server
 import io.github.nofuturekid.nova.data.model.ServerInfo
 import io.github.nofuturekid.nova.data.model.Temperature
@@ -75,6 +81,9 @@ fun OverviewTab(
     temperature: Temperature? = null,
     cpuWarnC: Int? = null,
     cpuCritC: Int? = null,
+    notifications: Notifications? = null,
+    displayThresholds: DisplayThresholds? = null,
+    onOpenAttention: (AttentionTarget) -> Unit = {},
 ) {
     // Any single NoServer → no server picked.
     if (infoState is DomainState.NoServer || metricsState is DomainState.NoServer ||
@@ -103,7 +112,18 @@ fun OverviewTab(
         return
     }
 
-    OverviewContent(info, metrics, array, containers, vms, server, networkThroughput, temperature, cpuWarnC, cpuCritC)
+    // Same rule as the top bar's Offline pill: an Error on any of these streams
+    // means the server is not reachable, so there is nothing trustworthy to flag.
+    val offline = listOf(infoState, arrayState, dockerState, vmsState).any { it is DomainState.Error }
+    val attention = remember(array, notifications, displayThresholds, offline) {
+        if (offline) emptyList()
+        else attentionItems(AttentionSnapshot(array, notifications, displayThresholds))
+    }
+
+    OverviewContent(
+        info, metrics, array, containers, vms, server, networkThroughput, temperature, cpuWarnC, cpuCritC,
+        attention, onOpenAttention,
+    )
 }
 
 @Composable
@@ -118,6 +138,8 @@ private fun OverviewContent(
     temperature: Temperature? = null,
     cpuWarnC: Int? = null,
     cpuCritC: Int? = null,
+    attention: List<AttentionItem> = emptyList(),
+    onOpenAttention: (AttentionTarget) -> Unit = {},
 ) {
     val t = UnraidTheme.colors
 
@@ -186,6 +208,11 @@ private fun OverviewContent(
         ),
         verticalArrangement = Arrangement.spacedBy(d.gap),
     ) {
+        // Absent when empty: LazyColumn leaves no gap for an item that draws nothing.
+        if (attention.isNotEmpty()) {
+            item { AttentionCard(attention, onOpenAttention) }
+        }
+
         item {
             UnraidCard(padding = UnraidTheme.tokens.padHero) {
                 Column {

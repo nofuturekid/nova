@@ -15,6 +15,17 @@ release version + date and opens a fresh `[Unreleased]`.
 
 ## [Unreleased]
 
+### Added
+
+- **A "Needs attention" card on the Overview** — when something needs you, a
+  card at the top lists it, most urgent first: an array that is not started or is
+  degraded, a parity check that is running, paused or failed, disks with errors,
+  disks at or above their warning or critical temperature, and unread alert and
+  warning notifications. Tap a row to open the Array tab or the notifications.
+  The card is hidden when all is well and while the server is offline. It uses
+  only data NOVA already loads, and it flags only what it knows: a sleeping disk
+  or a missing value is never reported as a problem.
+
 ## [0.1.47] - 2026-11-13
 
 NOVA no longer installs updates itself. It still tells you when a new version is out and shows the release notes, the file size and its SHA-256; "Download" now lets your browser download the release file, and you install it by opening the downloaded file. The "Update available" notice and Settings now always show the same latest version. The 0.1.47 betas confirmed this on a real phone: the download and the install from the downloaded file work, and Google Play Protect offered a scan of the new file and then rated it as seeming safe. Play Protect can still offer to scan every new file before it installs; that is expected. If you update from 0.1.46 or older, that one last update still goes through the old installer and can show the old warning once more.

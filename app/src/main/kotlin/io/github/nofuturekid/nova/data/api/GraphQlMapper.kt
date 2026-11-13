@@ -17,6 +17,8 @@ import io.github.nofuturekid.nova.data.model.NotifImportance
 import io.github.nofuturekid.nova.data.model.NotifType
 import io.github.nofuturekid.nova.data.model.Notifications
 import io.github.nofuturekid.nova.data.model.ParityCheck
+import io.github.nofuturekid.nova.data.model.ParityLastRun
+import io.github.nofuturekid.nova.data.model.ParityOutcome
 import io.github.nofuturekid.nova.data.model.Plugin
 import io.github.nofuturekid.nova.data.model.PluginInstallOperation
 import io.github.nofuturekid.nova.data.model.PluginInstallStatus
@@ -180,6 +182,14 @@ fun GetArrayQuery.Data.toArrayInfo(): ArrayInfo {
             )
         },
         disks = parities + data + caches,
+        parityLastRun = arrBlock.parityCheckStatus?.takeIf { it.running != true && it.paused != true }?.let { p ->
+            when (p.status) {
+                GParityStatus.COMPLETED -> ParityLastRun(ParityOutcome.Completed, p.errors)
+                GParityStatus.CANCELLED -> ParityLastRun(ParityOutcome.Cancelled, p.errors)
+                GParityStatus.FAILED -> ParityLastRun(ParityOutcome.Failed, p.errors)
+                else -> null
+            }
+        },
     )
 }
 

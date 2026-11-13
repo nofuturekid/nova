@@ -130,12 +130,27 @@ data class ParityCheck(
     val paused: Boolean,
 )
 
+/** How the last parity operation ended, as far as the API reports it. */
+enum class ParityOutcome { Completed, Cancelled, Failed }
+
+/**
+ * The last finished parity operation. [errors] is null while the API does not
+ * report an error count (today it does not fill it), so null means unknown,
+ * never zero. Null in [ArrayInfo.parityLastRun] means no finished run is known.
+ */
+data class ParityLastRun(
+    val outcome: ParityOutcome,
+    val errors: Int?,
+)
+
 data class ArrayInfo(
     val state: ArrayState,
     val totalTb: Double,
     val usedTb: Double,
     val parity: ParityCheck?,
     val disks: List<Disk>,
+    /** Set only while no operation is running; see [ParityLastRun]. */
+    val parityLastRun: ParityLastRun? = null,
 )
 
 enum class ContainerStatus { Running, Paused, Exited }

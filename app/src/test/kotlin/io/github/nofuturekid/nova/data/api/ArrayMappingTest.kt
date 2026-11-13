@@ -2,6 +2,7 @@ package io.github.nofuturekid.nova.data.api
 
 import io.github.nofuturekid.nova.data.model.DiskStatus
 import io.github.nofuturekid.nova.data.model.DiskType
+import io.github.nofuturekid.nova.data.model.ParityOutcome
 import io.github.nofuturekid.nova.graphql.GetArrayQuery
 import io.github.nofuturekid.nova.graphql.type.ArrayDiskStatus
 import io.github.nofuturekid.nova.graphql.type.ArrayDiskType
@@ -224,6 +225,41 @@ class ArrayMappingTest {
         assertNull(arrayData(parityStatus = parityStatus(status = GParityStatus.UNKNOWN__)).toArrayInfo().parity)
     }
 
+    // ── Last parity run (needs-attention card, issue #319) ────────────
+    //
+    // WHY: the card must tell a failed or error-ridden finished check from a
+    // calm one, but only from what the API says. An error count the API does not
+    // fill stays null (unknown), never 0, and a never-run array has no last run.
+
+    @Test fun finished_parity_statuses_map_to_the_last_run_outcome() {
+        val expected = mapOf(
+            GParityStatus.COMPLETED to ParityOutcome.Completed,
+            GParityStatus.CANCELLED to ParityOutcome.Cancelled,
+            GParityStatus.FAILED to ParityOutcome.Failed,
+        )
+        for ((status, outcome) in expected) {
+            val last = arrayData(parityStatus = parityStatus(status = status)).toArrayInfo().parityLastRun
+            assertEquals("$status", outcome, last?.outcome)
+        }
+    }
+
+    @Test fun last_run_keeps_an_unreported_error_count_unknown() {
+        val last = arrayData(parityStatus = parityStatus(status = GParityStatus.COMPLETED)).toArrayInfo().parityLastRun
+        assertNull("an error count the API does not fill must stay unknown, not 0", last!!.errors)
+    }
+
+    @Test fun last_run_carries_a_reported_error_count() {
+        val last = arrayData(parityStatus = parityStatus(status = GParityStatus.COMPLETED, errors = 3)).toArrayInfo().parityLastRun
+        assertEquals(3, last!!.errors)
+    }
+
+    @Test fun never_run_unknown_and_running_have_no_last_run() {
+        for (s in listOf(GParityStatus.NEVER_RUN, GParityStatus.UNKNOWN__, GParityStatus.RUNNING, GParityStatus.PAUSED)) {
+            assertNull("$s", arrayData(parityStatus = parityStatus(status = s)).toArrayInfo().parityLastRun)
+        }
+        assertNull(arrayData(parityStatus = null).toArrayInfo().parityLastRun)
+    }
+
     // ── Builders ─────────────────────────────────────────────────────
 
     private fun arrayData(
@@ -250,11 +286,12 @@ class ArrayMappingTest {
         speed: String? = null,
         running: Boolean? = null,
         paused: Boolean? = null,
+        errors: Int? = null,
     ) = GetArrayQuery.ParityCheckStatus(
         status = status,
         progress = progress,
         speed = speed,
-        errors = null,
+        errors = errors,
         running = running,
         paused = paused,
     )
