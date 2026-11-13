@@ -109,7 +109,7 @@ Requires an Unraid 7.x server with the API/Connect plugin enabled. All app featu
 
 NOVA talks to your server with one API key per server. **NOVA never needs the ADMIN role or any permission to manage API keys.** Pick whichever of these suits you:
 
-- **Simplest, read-only: a key with the VIEWER role.** It can see everything NOVA shows and cannot change anything. Buttons that need more rights are refused by the server.
+- **Simplest, read-only: a key with the VIEWER role.** It can see everything NOVA shows and cannot change anything, except that servers older than Unraid API 4.37.4 let every key archive and delete notifications [^4]. Buttons that need more rights are refused by the server.
 - **Simplest, full control: a key with the ADMIN role.** It can do everything NOVA offers. It can also do much more, which NOVA never uses.
 - **Least privilege: the VIEWER role plus only the controls you want.** See the table below.
 
@@ -134,7 +134,7 @@ A least-privilege key for full control is therefore the VIEWER role plus `DOCKER
 
 [^2]: From the guards in the Unraid API source at version 4.37.11 and the role table, which is identical from 4.30.0 on. Not tried with a key that has only these explicit permissions, because that needs a key created on a server. A key with permissions but no role does not inherit `ME:READ_ANY`, hence `ME` in the list.
 
-[^3]: The VIEWER refusal of a container start was confirmed live. That `DOCKER:UPDATE_ANY` is enough is from the source at 4.37.11. The one-step container restart needs API 4.36.0 or newer; on older servers it is a stop followed by a start.
+[^3]: The VIEWER refusal of a container start was confirmed live. That `DOCKER:UPDATE_ANY` is enough is from the source at 4.37.11. NOVA restarts a container as a stop followed by a start, so a restart needs the same `DOCKER:UPDATE_ANY`.
 
 [^4]: Servers before API 4.37.4 do not check these two permissions at all (read from the source of 4.37.3 and 4.37.4), so every key can archive and delete notifications there.
 
