@@ -15,6 +15,10 @@ release version + date and opens a fresh `[Unreleased]`.
 
 ## [Unreleased]
 
+## [0.1.46-beta1] - 2026-11-13
+
+Beta: adding a self-signed server should ask about its certificate only once, and the Overview should show dashes instead of zeros when it has no data. Please add a server that uses a self-signed certificate and check that the trust question appears just once. Then switch Wi-Fi off for a moment while watching the Overview, check that CPU, Memory and Array show dashes rather than zeros, and look at the Uptime on the System card and the disk rows on the Array tab. Tell us if anything looks wrong.
+
 ### Fixed
 - **The Overview shows a dash instead of zeros when it has no data** — after the
   connection to your server dropped, the Array card read "0,0 / 0 TB used" with a
