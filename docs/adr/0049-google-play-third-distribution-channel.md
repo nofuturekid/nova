@@ -1,4 +1,4 @@
-# ADR-0047: Google Play as a third distribution channel
+# ADR-0049: Google Play as a third distribution channel
 
 - **Status**: Accepted (2026-11-13)
 - **Date**: 2026-11-13

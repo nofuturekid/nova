@@ -5,7 +5,7 @@ Everything the project prepares for its app-store listings that is not app code.
 | Store                      | Reads                                                                                                       | Notes                                                                                                                     |
 | -------------------------- | ----------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------- |
 | F-Droid                    | `fastlane/metadata/android/en-US/` (texts, `images/`, `changelogs/`), from the tag it builds                 | Unchanged by the Google Play work except that the images now also contain `featureGraphic.png` (F-Droid shows it).         |
-| Google Play (not live yet) | the texts in [`play-listing/`](./play-listing/) and the declarations in this folder; images from `fastlane/` | Entered by hand in Play Console. [ADR-0047](../adr/0047-google-play-third-distribution-channel.md) records the decision. |
+| Google Play (not live yet) | the texts in [`play-listing/`](./play-listing/) and the declarations in this folder; images from `fastlane/` | Entered by hand in Play Console. [ADR-0049](../adr/0049-google-play-third-distribution-channel.md) records the decision. |
 
 ## What lives where
 

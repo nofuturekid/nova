@@ -106,4 +106,4 @@ The Signing paragraph says the `store` flavor is "unsigned in CI output". `app/b
 
 ## Amendment 2026-11-13 — Play signing and the migration claim
 
-[ADR-0047](./0047-google-play-third-distribution-channel.md) corrects two statements above for Google Play. The developer holds the Play _upload_ key and Google holds the app signing key (the "Signing" paragraph has this the wrong way round). And the Play build carries the existing release key, given to Google through Play App Signing, so GitHub and Play installs update each other in place; only F-Droid, which signs with its own key, still needs an uninstall and reinstall. The text above stays as written.
+[ADR-0049](./0049-google-play-third-distribution-channel.md) corrects two statements above for Google Play. The developer holds the Play _upload_ key and Google holds the app signing key (the "Signing" paragraph has this the wrong way round). And the Play build carries the existing release key, given to Google through Play App Signing, so GitHub and Play installs update each other in place; only F-Droid, which signs with its own key, still needs an uninstall and reinstall. The text above stays as written.

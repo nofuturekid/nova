@@ -81,4 +81,4 @@ ADRs live under `docs/` so the CI docs-only bypass applies — pure-ADR PRs comp
 | [0044](./0044-container-detail-live-stats-overlay.md) | Surface live CPU/Mem/Net/Disk in the container detail sheet from the docker stats overlay | Accepted |
 | [0045](./0045-array-disk-display.md) | Array disk display — sleeping disks, per-disk thresholds, errors | Accepted (updated beta10 — 2026-05-30) |
 | [0046](./0046-update-via-browser-download.md) | Offer updates of the GitHub build as a browser download, without an in-app installer | Accepted |
-| [0047](./0047-google-play-third-distribution-channel.md) | Google Play as a third distribution channel | Accepted |
+| [0049](./0049-google-play-third-distribution-channel.md) | Google Play as a third distribution channel | Accepted |
