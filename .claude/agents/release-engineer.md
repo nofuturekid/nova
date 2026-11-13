@@ -17,17 +17,21 @@ decision and you do **not** promote to stable.
 
 ## Pipeline model (build-once-promote)
 
-The pipeline is **build-once-promote** (ADR-0004): `ci.yml` builds and signs
-the APK on every PR (not on push to `main`, ADR-0014) and uploads it as the
-`app-release` artifact; `release.yml` does **not rebuild** — on a `v*` tag push
+The pipeline is **build-once-promote** (ADR-0004): `ci.yml` builds the APK
+on every PR (not on push to `main`, ADR-0014) without any secret, debug-signed
+by the Gradle fallback, and uploads it as the `app-release` artifact; `release.yml` does **not rebuild** — on a `v*` tag push
 it resolves tag → commit SHA, finds the successful CI run (by the tagged SHA,
 which is the PR head that main was fast-forwarded to; `(#NN)` only for
 squash-era tags before 2026-11-13), runs a guard in a read-only job (commit on
 `main`, a green `pull_request` run on the tagged commit itself, CI tree == tag
 tree, `versionName` == tag, `versionCode` increased, non-empty `CHANGELOG.md`
 section; on the `(#NN)` path also PR merged as exactly this commit), and only
-then, in a second job with write access, downloads the already-built APK and
-`mapping.txt`, verifies the APK itself (package id, `versionName` == tag,
+then, in a signing job (`sign`, environment `release`, limited to `v*` tags,
+no write access), replaces the debug signature of the already-built APK with
+the release signature (`.github/scripts/release-sign.sh`: apksigner, alignment
+check, entry-by-entry CRC-32 comparison with the CI artifact) and runs the
+pinned-signer check, and then, in a third job with write access, takes that
+signed APK and the CI run's `mapping.txt`, verifies the APK itself (package id, `versionName` == tag,
 `versionCode` == source, pinned signer certificate;
 `.github/scripts/release-verify-apk.sh`), and publishes the GitHub Release
 draft-first (draft, upload, then public). A tag can only ship if the commit's CI was green. `v*` tags are

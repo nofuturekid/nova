@@ -29,7 +29,9 @@ Run it before every push. It:
 3. exits non-zero on any failure (and prints `LOCAL CI FAILED`).
 
 Release signing falls back to debug signing when no keystore is present —
-that is expected locally; no secrets are needed or added.
+that is expected locally and, since 2026-11-13, also in CI (no pull request
+build has the release key; `release.yml` signs at the tag, ADR-0004); no secrets
+are needed or added.
 
 > The task list lives in **one** place: the `GRADLE_TASKS` array at the top
 > of `scripts/local-ci.sh`. If CI's tasks change, change only that array to

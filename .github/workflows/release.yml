@@ -3,14 +3,24 @@ name: Release
 # 'Build once, promote' — release builds REUSE the APK produced by ci.yml
 # for the same commit instead of rebuilding from scratch.
 #
-# Two jobs (issue #295, WP2):
+# Three jobs (issue #295, WP2 and WP3):
 #   guard    read-only. Finds the CI run, checks that tag, commit and run agree
 #            (release-guard.sh, which also runs release-preflight.sh).
-#   publish  contents: write. Runs only when the guard passed and the event is a
-#            tag push. Downloads the APK and mapping, verifies the APK and
-#            publishes the release.
+#   sign     contents: read, environment `release`. Runs only when the guard
+#            passed and the event is a tag push. The release signing key exists
+#            only here: as secrets of the environment `release`, which is
+#            limited to v* tags, so a pull request run or a branch run is
+#            refused by GitHub before the job starts. The job downloads the
+#            debug-signed APK that CI built without any secret, replaces its
+#            signature with the release signature (apksigner, no Gradle),
+#            proves that no entry changed, and runs the pinned-signer check
+#            (release-sign.sh, release-verify-apk.sh).
+#   publish  contents: write. Runs only when guard and sign passed. Takes the
+#            signed APK from the sign job and the mapping from the CI run,
+#            verifies the APK again and publishes the release.
 # The write permission therefore never exists in a job that has not passed the
-# guard, and a dry run (workflow_dispatch, below) can never publish.
+# guard, the signing key never exists in a job that can write, and a dry run
+# (workflow_dispatch, below) can never sign or publish.
 #
 # Resolution order for finding the build artifact (ADR-0014):
 #   1. Direct lookup: CI run whose head_sha matches the tagged commit. Normal
@@ -27,12 +37,17 @@ name: Release
 # is a workflow_dispatch of ci.yml on the tag. Before anything is downloaded or
 # published, release-guard.sh checks tag/commit/CI-run consistency, that a
 # pull_request run of this repository was green on the tagged commit itself, and
-# that the version and the CHANGELOG.md section are in order; after the download
+# that the version and the CHANGELOG.md section are in order; after signing
 # release-verify-apk.sh checks the APK's own version, package, signer.
+#
+# If the sign job fails (wrong environment secret, for instance): correct the
+# secret of the environment `release`, then `gh run rerun <run id>`. The tag is
+# not moved or re-pushed (HANDOFF.md, "Release signing").
 #
 # Dry run: `gh workflow run release.yml -f sha=<commit> -f version=<versionName>`
 # runs only the guard job, on a commit that is already on main and has no tag
-# yet. Nothing is published and no tag is needed (HANDOFF.md, "Release dry run").
+# yet. Nothing is signed or published and no tag is needed (HANDOFF.md,
+# "Release dry run").
 on:
   push:
     tags: ["v*"]
@@ -217,9 +232,89 @@ jobs:
           SHA: ${{ steps.target.outputs.sha }}
         run: echo "Dry run passed — a push of tag $TAG on $SHA would be released. Nothing was published."
 
-  publish:
+  sign:
     needs: guard
     if: ${{ !cancelled() && needs.guard.result == 'success' && github.event_name == 'push' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    # The environment `release` holds KEYSTORE_B64, KEYSTORE_PASSWORD, KEY_ALIAS
+    # and KEY_PASSWORD and accepts only v* tags (deployment tag policy), so this
+    # job never starts on a pull request or a branch.
+    environment: release
+    permissions:
+      contents: read
+      actions: read # download the artifact of the CI run
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      # The debug-signed `direct` APK that CI built for this commit.
+      - name: Download release APK from CI run
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: app-release
+          path: artifacts/apk
+          run-id: ${{ needs.guard.outputs.run_id }}
+          github-token: ${{ github.token }}
+
+      # The key file lives in the runner's temp directory only, with mode 600,
+      # and is deleted in the always() step below.
+      - name: Decode release keystore
+        env:
+          KEYSTORE_B64: ${{ secrets.KEYSTORE_B64 }}
+        run: |
+          set -euo pipefail
+          if [ -z "$KEYSTORE_B64" ]; then
+            echo "::error::KEYSTORE_B64 is empty — the secret is missing from the environment 'release'. Set it there, then re-run this run: gh run rerun $GITHUB_RUN_ID"
+            exit 1
+          fi
+          (umask 077; printf '%s' "$KEYSTORE_B64" | base64 -d > "$RUNNER_TEMP/release.keystore")
+
+      # Replace the debug signature with the release signature and prove that
+      # only the signature changed: apksigner (v2 only), zipalign check, and the
+      # entry list with CRC-32 of the downloaded and the signed APK must be
+      # identical. Logic in release-sign.sh.
+      - name: Sign the CI-built APK
+        env:
+          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
+        run: |
+          set -euo pipefail
+          [ "$(find artifacts/apk -maxdepth 1 -name '*.apk' | wc -l)" = 1 ] \
+            || { echo "::error::Expected exactly one APK in the app-release artifact."; ls -la artifacts/apk; exit 1; }
+          IN=$(find artifacts/apk -maxdepth 1 -name '*.apk')
+          mkdir signed
+          KEYSTORE="$RUNNER_TEMP/release.keystore" .github/scripts/release-sign.sh sign "$IN" "signed/$(basename "$IN")"
+
+      # Fail closed: the pinned release certificate, exactly one signer, and the
+      # APK's own package, versionName (== tag) and versionCode (== the guard's
+      # source value). Unchanged from the check the publish job ran before.
+      - name: Verify APK version, package and signer
+        env:
+          TAG: ${{ github.ref_name }}
+          EXPECTED_VERSION_CODE: ${{ needs.guard.outputs.vcode }}
+        run: |
+          set -e
+          APK=$(find signed -maxdepth 1 -name '*.apk') .github/scripts/release-verify-apk.sh
+
+      - name: Delete the keystore
+        if: ${{ always() }}
+        run: rm -f "$RUNNER_TEMP/release.keystore"
+
+      - name: Hand the signed APK to publish
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: signed-apk
+          path: signed/*.apk
+          retention-days: 7
+          overwrite: true # a re-run of the whole run uploads the same name again
+          if-no-files-found: error
+
+  publish:
+    needs: [guard, sign]
+    if: ${{ !cancelled() && needs.guard.result == 'success' && needs.sign.result == 'success' && github.event_name == 'push' }}
     runs-on: ubuntu-latest
     timeout-minutes: 15
     permissions:
@@ -231,19 +326,16 @@ jobs:
           # contents: write job; git only reads here, gh uses GH_TOKEN.
           persist-credentials: false
 
-      # The `app-release` artifact contains the `direct`-flavor APK only
-      # (ADR-0040). CI builds both flavors at release type but uploads
-      # only `direct` here — `store` is built by F-Droid themselves from
-      # source. The artifact name is unchanged; the file inside is now
-      # `app-direct-release.apk` (was `app-release.apk`), which the
-      # `Rename APK` step below picks up generically via `find … *.apk`.
-      - name: Download release APK from CI run
+      # The signed `direct`-flavor APK from the sign job of THIS run (ADR-0040:
+      # CI builds both flavors at release type but promotes only `direct`;
+      # `store` is built by F-Droid themselves from source). The file inside is
+      # `app-direct-release.apk`, which the `Rename APK` step below picks up
+      # generically via `find … *.apk`.
+      - name: Download signed release APK from the sign job
         uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
-          name: app-release
+          name: signed-apk
           path: artifacts/apk
-          run-id: ${{ needs.guard.outputs.run_id }}
-          github-token: ${{ github.token }}
 
       # Mandatory: under immutable releases a missing mapping.txt can never be
       # added later, so the job fails here instead of publishing without it.
@@ -258,7 +350,9 @@ jobs:
       # The APK is the source of truth, not the gradle text the guard parsed:
       # require its own package, versionName (== tag), versionCode (== the
       # guard's source value) and the pinned signer before anything is
-      # published (ADR-0014 amendment). Logic in release-verify-apk.sh.
+      # published (ADR-0014 amendment). Logic in release-verify-apk.sh. The sign
+      # job ran the same check; it runs again here because the file crossed a
+      # job boundary on its way to the release.
       - name: Verify APK version, package and signer
         env:
           TAG: ${{ github.ref_name }}
@@ -266,7 +360,7 @@ jobs:
         run: |
           set -e
           [ "$(find artifacts/apk -maxdepth 1 -name '*.apk' | wc -l)" = 1 ] \
-            || { echo "::error::Expected exactly one APK in the app-release artifact."; ls -la artifacts/apk; exit 1; }
+            || { echo "::error::Expected exactly one APK in the signed-apk artifact."; ls -la artifacts/apk; exit 1; }
           [ -f artifacts/mapping/mapping.txt ] \
             || { echo "::error::The mapping artifact has no mapping.txt."; ls -la artifacts/mapping; exit 1; }
           APK=$(find artifacts/apk -maxdepth 1 -name '*.apk') .github/scripts/release-verify-apk.sh

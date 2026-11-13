@@ -52,6 +52,18 @@ Decision:
 
 Residual: a human-authored pull request that pulls in bot-written changes is still signed; whoever opens the pull request is responsible for its content.
 
+## Amendment 2026-11-13 — sign at promotion, in a protected environment (issue #295, WP3)
+
+The key was available to every human same-repo pull request build, which runs the Gradle plugins, annotation processors and build-time code of every dependency. A platform policy can keep it away from those builds, but only one that matches the ref of the run: a `pull_request` run has `refs/pull/N/merge`, so an environment limited to `v*` tags refuses every pull request run. Moving the secrets therefore moves the signing step, from the pull request to the tag. This replaces the 2026-11-12 amendment above, whose author-based `if` kept the secrets from bot pull requests only.
+
+Decision:
+
+- **ci.yml builds the release APK once, with no secret**, for every run (human, bot, fork, dispatch). `app/release.keystore` does not exist, so `app/build.gradle.kts` signs with the debug key (unchanged; the F-Droid build of the `store` flavor, which builds from source without our key, sees the same input as before). The jobs `build-release-unsigned` and the author condition are gone. The artifacts are still `app-release` (the `direct` APK) and `mapping`.
+- **release.yml signs that artifact at the tag**, in the job `sign` (between `guard` and `publish`), which declares `environment: release` and `contents: read`. The environment holds `KEYSTORE_B64`, `KEYSTORE_PASSWORD`, `KEY_ALIAS` and `KEY_PASSWORD` and its deployment policy accepts only tags matching `v*`; GitHub refuses the job on any other ref before it starts. The job decodes the keystore into the runner's temp directory, runs `apksigner sign` (`.github/scripts/release-sign.sh`: v2 on; v1, v3, v4 off, like every published APK so far), checks `zipalign -c -P 16 -v 4`, compares the entry list with CRC-32 values of the downloaded and the signed APK (signature files excluded; any difference fails), runs `release-verify-apk.sh` unchanged (pinned certificate, exactly one signer, so a surviving debug signature fails closed), deletes the keystore, and hands the signed APK to `publish` as an artifact of the same run. `publish` uses that APK and the mapping from the CI run.
+- **"Bit-for-bit" becomes "entry for entry".** What is promoted is the same compiled code and resources that the pull request built and tested, entry for entry (the comparison above proves it on every release); the signature is added at promotion. The released file is not byte-identical to the CI artifact, and nothing needs it to be: the in-app updater checks the published asset's digest, and immutable releases freeze that digest.
+- **Costs.** Pull request CI no longer proves that the release key works; a broken environment secret fails the tag run before anything is published, and is fixed by correcting the secret and re-running the run (`gh run rerun`), with no new tag. A release takes about a minute longer. A bug in the sign job uses up that version (fix forward, ADR-0015).
+- **Residual.** Who may push a `v*` tag stays a convention (R-RELEASE); the environment has no required reviewer, because every tag is the maintainer's decision and all guards run before signing.
+
 ## Alternatives considered
 
 - **Build on tag push** (the naive approach) — slower and introduces drift.

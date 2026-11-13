@@ -16,8 +16,9 @@ set -euo pipefail
 # stay in lockstep with .github/workflows/ci.yml:
 #   build-debug   → :app:assembleDirectDebug :app:lintDirectDebug
 #   build-release → :app:assembleRelease     (both `direct` + `store`
-#                   flavors per ADR-0040; debug-signed locally when no
-#                   keystore is present — expected, see ADR/CONTRIBUTING)
+#                   flavors per ADR-0040; debug-signed when no keystore
+#                   is present — which is also exactly what CI does now:
+#                   the release signature is added at the tag, ADR-0004)
 # generateApolloSources is a transitive dependency of assemble; it is
 # listed explicitly first so Apollo codegen failures surface crisply.
 # If CI's task list changes, change ONLY this array.

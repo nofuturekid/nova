@@ -154,7 +154,7 @@ app/src/main/
 The "why" for everything in this section lives in ADRs under [`docs/adr/`](docs/adr/). What follows is the operational summary.
 
 - **Rulesets** on `main` (classic branch protection is removed): "main (no bypass)" carries deletion, non-fast-forward, linear history, signed commits and the required status check `build` (strict, GitHub Actions), with no bypass actor; "main: pull request (admin push bypass)" carries the pull-request rule (0 required approvals, solo-dev-friendly) and lets the admin role push. A green, signed, rebased PR head therefore lands by a fast-forward push; nothing else can reach `main`. Break-glass: set the ruleset "main (no bypass)" to `disabled` deliberately and back to `active`. See [ADR-0003](docs/adr/0003-pr-gate-required-status-check.md) (amendment 2026-11-13).
-- **Build-once-promote** split between `ci.yml` (builds debug+release APKs, uploads artifacts) and `release.yml` (`v*` tag → finds the SHA's successful CI run (the PR run whose head is the tagged commit; squash-era tags before 2026-11-13 resolve the PR from `(#NN)` in the subject), runs the release guard in the read-only job `guard` (commit on `main`, a green `pull_request` run of this repository on the tagged commit itself, or on the `(#NN)` path for squash-era tags the PR merged as this commit, CI tree == tag tree, `.github/scripts/release-preflight.sh`: version shape, `versionCode` up, tag name free, non-empty `CHANGELOG.md` section; `versionName` == tag), then the job `publish` (the only one with `contents: write`) downloads that run's `app-release` and `mapping` artifacts (both mandatory), verifies the APK itself (package id, `versionName` == tag, `versionCode` == source, pinned signer certificate; `.github/scripts/release-verify-apk.sh`), and publishes the GitHub Release draft-first with one `gh release create` (draft, upload both files, then public); **never rebuilds**). See [ADR-0004](docs/adr/0004-build-once-promote-pipeline.md).
+- **Build-once-promote** split between `ci.yml` (builds debug+release APKs with no secret at all, release variants debug-signed by the fallback in `app/build.gradle.kts`, uploads artifacts) and `release.yml` (`v*` tag → finds the SHA's successful CI run (the PR run whose head is the tagged commit; squash-era tags before 2026-11-13 resolve the PR from `(#NN)` in the subject), runs the release guard in the read-only job `guard` (commit on `main`, a green `pull_request` run of this repository on the tagged commit itself, or on the `(#NN)` path for squash-era tags the PR merged as this commit, CI tree == tag tree, `.github/scripts/release-preflight.sh`: version shape, `versionCode` up, tag name free, non-empty `CHANGELOG.md` section; `versionName` == tag), then the job `sign` (`environment: release`, limited to `v*` tags; `contents: read`) downloads that run's `app-release` artifact, replaces its debug signature with the release signature and proves that no entry changed (`.github/scripts/release-sign.sh`, see "Release signing" below), then the job `publish` (the only one with `contents: write`) takes the signed APK from the `sign` job and the mandatory `mapping` artifact from the CI run, verifies the APK itself (package id, `versionName` == tag, `versionCode` == source, pinned signer certificate; `.github/scripts/release-verify-apk.sh`, which `sign` also ran), and publishes the GitHub Release draft-first with one `gh release create` (draft, upload both files, then public); **never rebuilds**). A pull request build therefore never holds the release key, and its `app-release` artifact (also on bot and fork pull requests) is debug-signed and not installable as an update. See [ADR-0004](docs/adr/0004-build-once-promote-pipeline.md) (amendment 2026-11-13) and [ADR-0014](docs/adr/0014-single-ci-run-per-pr.md).
 - **Concurrency**: `ci.yml` cancels superseded runs unconditionally; it no longer runs on push to `main` (ADR-0014), so there is no main run to protect (ADR-0011's carve-out is moot). See [ADR-0011](docs/adr/0011-cancel-in-progress-only-on-pr-branches.md), [ADR-0014](docs/adr/0014-single-ci-run-per-pr.md).
 - **Docs-only CI bypass**: `ci.yml` builds only when a build-affecting path changed (inverted allowlist: `app/`, `gradle/`, wrapper, root Gradle files, `ci.yml`); anything else finishes in ~10s and still reports `SUCCESS` on `build`. No version bump, no tag for these. The diff is taken against the merge base with `origin/main` and fails closed (no merge base or an empty diff fails `setup`). The jobs `ci-lint` (actionlint, shellcheck, `renovate.json` validator when changed, no session links in commit messages) and `release-check` (`.github/scripts/release-preflight.sh` when `versionName` changed) run on every run and `build` needs `success` from both. On `workflow_dispatch` the aggregate job reports as `build (dispatch)`, never as `build`. See [ADR-0029](docs/adr/0029-invert-ci-build-skip-filter.md) (supersedes ADR-0009; amendment 2026-11-13) and [ADR-0003](docs/adr/0003-pr-gate-required-status-check.md).
 - **Tag conventions**: stable `v0.X.Y`, pre-release `v0.X.Y-beta1` / `-rc1` with trailing digit required. See [ADR-0005](docs/adr/0005-prerelease-tag-convention.md).
@@ -197,7 +197,7 @@ gh workflow run release.yml -f sha=<release PR head == main tip> -f version=<ver
 timeout 120 gh run list --workflow release.yml --event workflow_dispatch --limit 1   # then: gh run view <id>
 ```
 
-The `guard` job must be green (it prints the `ok:` lines: commit on `origin/main`, green `pull_request` run, CI tree, version shape, `versionCode` up, tag name free, `CHANGELOG.md` section, `versionName` == tag) and `publish` must show as skipped. A red guard names the mismatch; a missing CHANGELOG section or a commit without a green pull request run is refused here, before any tag exists. The dry run matters because the lookup by head SHA ("direct match") is the normal path since 2026-11-13.
+Only `guard` runs; `sign` (the job with the environment `release`) and `publish` stay skipped, so the dry run needs no signing key. The `guard` job must be green (it prints the `ok:` lines: commit on `origin/main`, green `pull_request` run, CI tree, version shape, `versionCode` up, tag name free, `CHANGELOG.md` section, `versionName` == tag) and `sign` and `publish` must show as skipped. A red guard names the mismatch; a missing CHANGELOG section or a commit without a green pull request run is refused here, before any tag exists. The dry run matters because the lookup by head SHA ("direct match") is the normal path since 2026-11-13.
 
 Fallback if dispatching is not possible: the same guard can be run locally, read-only (`gh api` GET, git), in a worktree whose `origin/main` is fetched and contains the SHA:
 
@@ -215,7 +215,17 @@ TAG=$TAG SHA=$SHA RUN_ID=$RUN_ID RUN_HEAD_SHA=$SHA PR_NUM= GITHUB_REPOSITORY=hel
 If the dry run passes and the release run still fails, recover with `gh run rerun <run-id>` (after `gh workflow run ci.yml --ref <tag>` if the artifact is missing; that run reports as `build (dispatch)` and supplies the artifact only, the green pull request run on the commit is still required). Tags are never re-pushed. Two cautions once immutable releases are on:
 
 - Never re-run a release run whose tagged commit predates WP2 (issue #295): a re-run uses the `release.yml` of the tagged commit, and the old file publishes a pre-release before its APK is uploaded, which would lock the tag without the APK. Only runs of tags made after WP2 are re-runnable.
+- Re-running after a failed `sign` job needs no such check (nothing was published); see "Release signing" below.
 - Before re-running a failed `publish` job, look at what exists for the tag: `gh api repos/hellwand/nova/releases --jq '.[] | select(.tag_name=="<tag>") | {id,draft,immutable,assets:[.assets[].name]}'`. If a published release is listed, do not re-run and do not delete it (`gh` can report an error after the server already published, and a deleted immutable release burns the tag name for good). Delete a leftover draft (`gh api -X DELETE repos/hellwand/nova/releases/<id>`) before re-running; a draft is left behind when the job is killed during the upload.
+
+### Release signing
+
+The release key is used in exactly one place: the job `sign` of `release.yml`, which declares `environment: release`. That environment holds the secrets `KEYSTORE_B64`, `KEYSTORE_PASSWORD`, `KEY_ALIAS` and `KEY_PASSWORD`, and its deployment policy accepts only tags matching `v*`. GitHub refuses a job that names the environment on any other ref (a pull request, a branch) with "not allowed to deploy to release due to environment protection rules", so pull request code cannot reach the key. The job signs the APK that the pull request's CI built (debug-signed, no secret involved) with `apksigner`, v2 only, then checks the alignment, compares the entry list and CRC-32 values of the downloaded and the signed APK (signature files excluded; any difference fails the job), runs `release-verify-apk.sh` (pinned certificate, exactly one signer) and deletes the keystore file. Only then can `publish` run. See [ADR-0004](docs/adr/0004-build-once-promote-pipeline.md), amendment 2026-11-13.
+
+- **What a contributor's pull request builds:** the same minified release APKs as before (both flavors), signed with the Gradle debug fallback. The step "Confirm there is no signing key" in `build-release` prints `Release build runs WITHOUT the keystore` and fails the job if a keystore or signing variable is ever present. Whether the release key works is first proven by the tag run.
+- **What the release run does:** `guard` → `sign` → `publish`. The Actions UI shows a deployment to `release` for the `sign` job.
+- **If `sign` fails** (typically `KEYSTORE_B64 is empty`, "keystore password was incorrect" or a wrong alias): fix the secret in the environment (`gh secret set KEYSTORE_B64 --env release < keystore.b64`, and likewise the other three; read back the names with `gh secret list --env release`), then `gh run rerun <run-id>`. The tag is not moved, no new version is needed, and nothing was published. A failure of the entry comparison or of the pinned-signer check is not a secret problem: do not retry blindly, find out what changed between the CI artifact and the signed file. A bug in the workflow or script itself uses up that version (ADR-0015); fix forward.
+- **One-time step after the first good tag run** (the `sign` job green and the release published): delete the repository-level copies of the four secrets, so that the environment is the only place that has them: `gh secret delete KEYSTORE_B64 --repo hellwand/nova` and likewise `KEYSTORE_PASSWORD`, `KEY_ALIAS`, `KEY_PASSWORD`. Then `gh api repos/hellwand/nova/actions/secrets --jq '[.secrets[].name]'` must print `[]`, and the next pull request's CI is still green (it never used them). Until then the repository secrets exist but no workflow references them (a job with `environment: release` reads the environment's values first).
 
 ### Release cleanup
 
@@ -284,15 +294,19 @@ NOVA does not need introspection. The limits come from the server's code on that
 
 ## Secrets
 
-### GitHub Actions secrets (already set on the repo)
+### GitHub Actions secrets (environment `release`)
+
+The four secrets live in the GitHub environment `release` (deployment policy: tags matching `v*` only; no required reviewer), read only by the `sign` job of `release.yml` (see "Release signing" above). No other workflow references a signing secret.
 
 - `KEYSTORE_B64` — base64 of the release keystore
 - `KEYSTORE_PASSWORD`, `KEY_PASSWORD` — PKCS12 only supports one password, so they're identical
 - `KEY_ALIAS` = `unraidcontrol`
 
+Repository-level copies of the same four secrets existed before 2026-11-13; they are deleted after the first good tag run with the signing job (see "Release signing"). Check: `gh secret list --repo hellwand/nova` (repository) and `gh secret list --env release --repo hellwand/nova` (environment).
+
 ### Local backup
 
-A verified backup of the release keystore and its passwords has existed in the maintainer's password manager since 2026-11-12 (certificate SHA-256 as pinned in `.github/scripts/release-verify-apk.sh`). The GitHub Actions secrets above remain the copy the pipeline uses. Lose every copy and you cannot ship updates that Android will accept as upgrades of existing installs — they'll require uninstall/reinstall.
+A verified backup of the release keystore and its passwords has existed in the maintainer's password manager since 2026-11-12 (certificate SHA-256 as pinned in `.github/scripts/release-verify-apk.sh`). The environment secrets above are the copy the pipeline uses. Lose every copy and you cannot ship updates that Android will accept as upgrades of existing installs — they'll require uninstall/reinstall.
 
 ## Local development
 
@@ -401,7 +415,8 @@ gh pr list --repo hellwand/nova
 gh run list --repo hellwand/nova --limit 10
 gh release list --repo hellwand/nova
 gh run download <id> --repo hellwand/nova --name app-release
-gh secret list --repo hellwand/nova
+gh secret list --repo hellwand/nova                  # repository secrets: none after the WP3 cleanup
+gh secret list --env release --repo hellwand/nova    # the four signing secrets (names only)
 ```
 
 ## Resuming work — quick start
