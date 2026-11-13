@@ -2,8 +2,9 @@
 # Release preflight (issue #295, decision f): the checks on a version bump that
 # do not depend on a CI run, so that the pull request and the tag cannot drift
 # apart. ci.yml (job `release-check`) runs it on a pull request whose
-# versionName changed; release.yml will call it at the tag (a later work
-# package). It only reads git; it needs no token and no Gradle.
+# versionName changed; release-guard.sh runs it in the `guard` job of
+# release.yml (tag run and dry run). It only reads git; it needs no token and
+# no Gradle.
 #
 # Usage: release-preflight.sh <commit>
 #

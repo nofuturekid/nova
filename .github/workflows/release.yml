@@ -3,24 +3,52 @@ name: Release
 # 'Build once, promote' — release builds REUSE the APK produced by ci.yml
 # for the same commit instead of rebuilding from scratch.
 #
+# Two jobs (issue #295, WP2):
+#   guard    read-only. Finds the CI run, checks that tag, commit and run agree
+#            (release-guard.sh, which also runs release-preflight.sh).
+#   publish  contents: write. Runs only when the guard passed and the event is a
+#            tag push. Downloads the APK and mapping, verifies the APK and
+#            publishes the release.
+# The write permission therefore never exists in a job that has not passed the
+# guard, and a dry run (workflow_dispatch, below) can never publish.
+#
 # Resolution order for finding the build artifact (ADR-0014):
-#   1. Direct lookup: CI run whose head_sha matches the tagged commit
-#      (covers manual `gh workflow run ci.yml --ref <tag>` rebuilds).
-#   2. PR lookup: parse `(#NN)` from the tagged commit's message,
-#      resolve that PR's head SHA via the GitHub API, find its CI run.
-#      Covers the normal case — squash-merge commit on main → PR-CI artifact.
+#   1. Direct lookup: CI run whose head_sha matches the tagged commit. Normal
+#      since 2026-11-13: the tagged commit is the pull request head that was
+#      landed by a fast-forward push, so its own pull_request run matches. Also
+#      covers a recovery run (`gh workflow run ci.yml --ref <tag>`) when the
+#      artifact of that run expired.
+#   2. PR lookup, for squash-era tags (before 2026-11-13): parse `(#NN)` from
+#      the tagged commit's subject, resolve that PR's head SHA via the GitHub
+#      API, find its CI run. The guard verifies that the PR was merged as
+#      exactly this commit.
 #
 # Falls back to a clear error message if neither path resolves; recovery
-# is a manual workflow_dispatch on the tag. Before anything is downloaded or
-# published, release-guard.sh checks tag/commit/CI-run consistency; after the
-# download release-verify-apk.sh checks the APK's own version, package, signer.
+# is a workflow_dispatch of ci.yml on the tag. Before anything is downloaded or
+# published, release-guard.sh checks tag/commit/CI-run consistency, that a
+# pull_request run of this repository was green on the tagged commit itself, and
+# that the version and the CHANGELOG.md section are in order; after the download
+# release-verify-apk.sh checks the APK's own version, package, signer.
+#
+# Dry run: `gh workflow run release.yml -f sha=<commit> -f version=<versionName>`
+# runs only the guard job, on a commit that is already on main and has no tag
+# yet. Nothing is published and no tag is needed (HANDOFF.md, "Release dry run").
 on:
   push:
-    tags: ['v*']
+    tags: ["v*"]
+  workflow_dispatch:
+    inputs:
+      sha:
+        description: "Commit to check (the release PR head, already on main)"
+        required: true
+        type: string
+      version:
+        description: "versionName of that commit, e.g. 0.1.46 or 0.1.46-beta1 (the tag is v<version>)"
+        required: true
+        type: string
 
 permissions:
-  contents: write
-  actions: read
+  contents: read
 
 # Serialise releases per tag and never cancel an in-flight one: a release
 # job that has started publishing must finish (it writes a user-visible
@@ -32,30 +60,73 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  release:
+  guard:
     runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      actions: read
+    outputs:
+      run_id: ${{ steps.run.outputs.id }}
+      vcode: ${{ steps.guard.outputs.vcode }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          fetch-depth: 0  # need history to resolve tag → commit SHA
-          # contents: write job; git only reads here, gh uses GH_TOKEN.
+          fetch-depth: 0 # need history to resolve tag → commit SHA and the previous tag
           persist-credentials: false
 
-      - name: Resolve target commit SHA
-        id: sha
+      # Tag push: the tag and the commit it points at. Dry run: the tag the
+      # version input would get, and the commit input. Inputs come in through
+      # env, never inline in the script.
+      - name: Resolve target tag and commit
+        id: target
+        env:
+          EVENT: ${{ github.event_name }}
+          REF_NAME: ${{ github.ref_name }}
+          INPUT_SHA: ${{ inputs.sha }}
+          INPUT_VERSION: ${{ inputs.version }}
         run: |
-          SHA=$(git rev-parse "${GITHUB_REF#refs/tags/}^{commit}")
-          echo "sha=$SHA" >> "$GITHUB_OUTPUT"
-          echo "Tag ${GITHUB_REF#refs/tags/} points at $SHA"
+          set -euo pipefail
+          if [ "$EVENT" = push ]; then
+            TAG="$REF_NAME"
+            SHA=$(git rev-parse "$TAG^{commit}")
+            echo "Tag $TAG points at $SHA"
+          else
+            VER="${INPUT_VERSION#v}"
+            if ! [[ "$VER" =~ ^[0-9]+\.[0-9]+\.[0-9]+(-(alpha|beta|rc|pre)[0-9]+)?$ ]]; then
+              echo "::error::Input version \"$INPUT_VERSION\" is not X.Y.Z or X.Y.Z-(alpha|beta|rc|pre)N (ADR-0005)."
+              exit 1
+            fi
+            if ! [[ "$INPUT_SHA" =~ ^[0-9a-f]{7,40}$ ]]; then
+              echo "::error::Input sha \"$INPUT_SHA\" is not a hexadecimal commit id."
+              exit 1
+            fi
+            TAG="v$VER"
+            SHA=$(git rev-parse --verify --quiet "$INPUT_SHA^{commit}") \
+              || { echo "::error::Commit $INPUT_SHA does not exist in this repository."; exit 1; }
+            echo "Dry run: would release $TAG from $SHA. Nothing will be published."
+          fi
+          { echo "tag=$TAG"; echo "sha=$SHA"; } >> "$GITHUB_OUTPUT"
 
       - name: Find CI artifact for this commit
         id: run
         env:
           GH_TOKEN: ${{ github.token }}
-          SHA: ${{ steps.sha.outputs.sha }}
+          SHA: ${{ steps.target.outputs.sha }}
+          TAG: ${{ steps.target.outputs.tag }}
+          EVENT: ${{ github.event_name }}
           REPO: ${{ github.repository }}
         run: |
           set -e
+
+          # What to do after fixing a missing artifact.
+          if [ "$EVENT" = push ]; then
+            AGAIN="re-run this release run:  gh run rerun $GITHUB_RUN_ID (tags are protected; do not re-push)."
+            RECOVER_REF="$TAG"
+          else
+            AGAIN="start the dry run again."
+            RECOVER_REF="<a branch or tag that points at $SHA>"
+          fi
 
           # Newest successful ci.yml run for a head SHA that (a) came from a
           # trusted source — `pull_request` from THIS repo (not a fork) or
@@ -77,10 +148,12 @@ jobs:
             done
           }
 
-          # Path 1 — direct: CI run whose head_sha == tagged commit.
-          # Hits when someone manually triggered ci.yml on the tag
-          # (workflow_dispatch with --ref <tag>). Normal squash-merge commits
-          # won't have a direct match and fall through to Path 2.
+          # Path 1 — direct: CI run whose head_sha == tagged commit. This is
+          # the normal case: the tagged commit is the pull request head that
+          # was landed by a fast-forward push. It also hits when someone
+          # triggered ci.yml on the tag (workflow_dispatch with --ref <tag>)
+          # to rebuild an expired artifact. release-guard.sh separately
+          # requires a successful pull_request run on this commit.
           RUN_ID=$(find_run "$SHA")
           if [ -n "$RUN_ID" ]; then
             echo "Found CI run $RUN_ID for $SHA (direct match)."
@@ -88,29 +161,32 @@ jobs:
             exit 0
           fi
 
-          # Path 2 — via PR: parse `(#NN)` from the tagged commit's
-          # subject line (GitHub's squash-merge format), resolve PR head
-          # SHA, look up the PR's CI run. The guard step below verifies the
-          # PR really was merged as this commit.
+          # Path 2 — via PR, for squash-era tags (before 2026-11-13): parse
+          # `(#NN)` from the tagged commit's subject line (GitHub's squash
+          # format), resolve the PR head SHA, look up the PR's CI run. The
+          # guard step below verifies the PR really was merged as this commit.
           SUBJECT=$(git log -1 "$SHA" --format=%s)
           PR_NUM=$(echo "$SUBJECT" | grep -oE '\(#[0-9]+\)$' | tr -d '(#)' || true)
           if [ -z "$PR_NUM" ]; then
             echo "::error::No CI run with an app-release artifact for $SHA and no PR # in commit message."
             echo "::error::Subject was: $SUBJECT"
-            echo "::error::Direct-push? Run CI on the tag:  gh workflow run ci.yml --ref ${GITHUB_REF#refs/tags/}  — wait for it, then re-run this release run:  gh run rerun $GITHUB_RUN_ID (tags are protected; do not re-push)."
+            echo "::error::Artifact expired or never built? Run CI on the tag:  gh workflow run ci.yml --ref $RECOVER_REF  — wait for it, then $AGAIN"
             exit 1
           fi
 
-          PR_SHA=$(gh pr view "$PR_NUM" --json headRefOid --jq '.headRefOid // empty')
+          # An issue number in the subject (not a PR) or a deleted PR makes
+          # `gh pr view` fail; that lands in the error below, with the hint.
+          PR_SHA=$(gh pr view "$PR_NUM" --json headRefOid --jq '.headRefOid // empty' 2>/dev/null || true)
           if [ -z "$PR_SHA" ]; then
-            echo "::error::Couldn't resolve PR #$PR_NUM head SHA (deleted PR?)."
+            echo "::error::Couldn't resolve PR #$PR_NUM head SHA (#$PR_NUM is an issue or a deleted PR?), and there is no CI run with an app-release artifact for $SHA."
+            echo "::error::Artifact expired or never built? Run CI on the tag:  gh workflow run ci.yml --ref $RECOVER_REF  — wait for it, then $AGAIN"
             exit 1
           fi
 
           RUN_ID=$(find_run "$PR_SHA")
           if [ -z "$RUN_ID" ]; then
             echo "::error::No successful PR CI run with an app-release artifact for SHA $PR_SHA (PR #$PR_NUM)."
-            echo "::error::Re-run the PR's CI (expired artifact: gh workflow run ci.yml --ref ${GITHUB_REF#refs/tags/}), wait for it, then re-run this release run:  gh run rerun $GITHUB_RUN_ID (tags are protected; do not re-push)."
+            echo "::error::Re-run the PR's CI (expired artifact: gh workflow run ci.yml --ref $RECOVER_REF), wait for it, then $AGAIN"
             exit 1
           fi
 
@@ -118,19 +194,42 @@ jobs:
           { echo "id=$RUN_ID"; echo "head_sha=$PR_SHA"; echo "pr_num=$PR_NUM"; } >> "$GITHUB_OUTPUT"
 
       # Refuse to promote an artifact that does not belong to this tag: the
-      # commit must be on main, the PR merged as exactly this commit, the CI
-      # tree equal to the tagged tree, versionName == tag, versionCode up.
+      # commit must be on main, its own pull request must have been green (or,
+      # for a squash-era tag, merged as exactly this commit), the CI tree equal
+      # to the tagged tree, the version and the CHANGELOG section in order
+      # (release-preflight.sh), versionName == tag.
       # Logic lives in .github/scripts/release-guard.sh (CI review H2, ADR-0014).
       - name: Guard — artifact matches tag
         id: guard
         env:
           GH_TOKEN: ${{ github.token }}
-          TAG: ${{ github.ref_name }}
-          SHA: ${{ steps.sha.outputs.sha }}
+          TAG: ${{ steps.target.outputs.tag }}
+          SHA: ${{ steps.target.outputs.sha }}
           RUN_ID: ${{ steps.run.outputs.id }}
           RUN_HEAD_SHA: ${{ steps.run.outputs.head_sha }}
           PR_NUM: ${{ steps.run.outputs.pr_num }}
         run: .github/scripts/release-guard.sh
+
+      - name: Dry run result
+        if: ${{ github.event_name == 'workflow_dispatch' }}
+        env:
+          TAG: ${{ steps.target.outputs.tag }}
+          SHA: ${{ steps.target.outputs.sha }}
+        run: echo "Dry run passed — a push of tag $TAG on $SHA would be released. Nothing was published."
+
+  publish:
+    needs: guard
+    if: ${{ !cancelled() && needs.guard.result == 'success' && github.event_name == 'push' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: write # create the release
+      actions: read # download the artifacts of the CI run
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          # contents: write job; git only reads here, gh uses GH_TOKEN.
+          persist-credentials: false
 
       # The `app-release` artifact contains the `direct`-flavor APK only
       # (ADR-0040). CI builds both flavors at release type but uploads
@@ -143,17 +242,18 @@ jobs:
         with:
           name: app-release
           path: artifacts/apk
-          run-id: ${{ steps.run.outputs.id }}
+          run-id: ${{ needs.guard.outputs.run_id }}
           github-token: ${{ github.token }}
 
+      # Mandatory: under immutable releases a missing mapping.txt can never be
+      # added later, so the job fails here instead of publishing without it.
       - name: Download mapping from CI run
         uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
           name: mapping
           path: artifacts/mapping
-          run-id: ${{ steps.run.outputs.id }}
+          run-id: ${{ needs.guard.outputs.run_id }}
           github-token: ${{ github.token }}
-        continue-on-error: true
 
       # The APK is the source of truth, not the gradle text the guard parsed:
       # require its own package, versionName (== tag), versionCode (== the
@@ -162,11 +262,13 @@ jobs:
       - name: Verify APK version, package and signer
         env:
           TAG: ${{ github.ref_name }}
-          EXPECTED_VERSION_CODE: ${{ steps.guard.outputs.vcode }}
+          EXPECTED_VERSION_CODE: ${{ needs.guard.outputs.vcode }}
         run: |
           set -e
           [ "$(find artifacts/apk -maxdepth 1 -name '*.apk' | wc -l)" = 1 ] \
             || { echo "::error::Expected exactly one APK in the app-release artifact."; ls -la artifacts/apk; exit 1; }
+          [ -f artifacts/mapping/mapping.txt ] \
+            || { echo "::error::The mapping artifact has no mapping.txt."; ls -la artifacts/mapping; exit 1; }
           APK=$(find artifacts/apk -maxdepth 1 -name '*.apk') .github/scripts/release-verify-apk.sh
 
       - name: Rename APK to include tag
@@ -191,10 +293,11 @@ jobs:
           fi
 
       # Slice the CHANGELOG.md section matching this tag into the release
-      # body (ADR-0031). Non-fatal: a missing/empty section just warns and
-      # the release still publishes with the appended auto notes. The tag
-      # name comes from GITHUB_REF (maintainer-pushed, not untrusted input)
-      # and is read via an env var, quoted.
+      # body (ADR-0031). Fatal when empty: the guard already refused a tag
+      # without a section, so this only trips if the file differs from the one
+      # the guard read. The tag name comes from GITHUB_REF (maintainer-pushed,
+      # not untrusted input) and is read via an env var, quoted. The heading is
+      # matched literally, as release-preflight.sh does.
       - name: Extract changelog section
         id: changelog
         env:
@@ -204,26 +307,34 @@ jobs:
           TAG="${REF#refs/tags/}"
           VER="${TAG#v}"
           awk -v ver="$VER" '
-            $0 ~ ("^## \\[" ver "\\]") {found=1; next}
+            index($0, "## [" ver "]") == 1 {found = 1; next}
             found && /^## \[/ {exit}
             found {print}
-          ' CHANGELOG.md > changelog_section.md || true
-          # strip leading/trailing blank lines
+          ' CHANGELOG.md > changelog_section.md
+          # strip leading blank lines
           sed -i -e '/./,$!d' changelog_section.md
           if [ ! -s changelog_section.md ]; then
-            echo "::warning::No CHANGELOG.md section for $VER — publishing with auto notes only."
-          else
-            echo "Changelog section for $VER:"
-            sed 's/^/  /' changelog_section.md
+            echo "::error::No CHANGELOG.md section for $VER (the guard should have refused this tag)."
+            exit 1
           fi
+          echo "Changelog section for $VER:"
+          sed 's/^/  /' changelog_section.md
 
+      # Draft-first, in ONE command: `gh release create` with assets creates the
+      # release as a draft, uploads every file, and only then publishes it (and
+      # deletes the draft if an upload fails). The assets are therefore in place
+      # before the release is public, which immutable releases require. With
+      # --notes-file and --generate-notes the generated notes are appended to the
+      # changelog section. Nothing may edit or upload to the release afterwards.
       - name: Publish GitHub Release
-        uses: softprops/action-gh-release@8a0cd651e5b2365bd640854a3fa5dfc70e4875f3 # v3.0.4
-        with:
-          files: |
-            ${{ steps.rename.outputs.apk }}
-            artifacts/mapping/mapping.txt
-          body_path: changelog_section.md
-          generate_release_notes: true
-          fail_on_unmatched_files: false
-          prerelease: ${{ steps.prerelease.outputs.value == 'true' }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          TAG: ${{ github.ref_name }}
+          APK: ${{ steps.rename.outputs.apk }}
+          PRERELEASE: ${{ steps.prerelease.outputs.value }}
+        run: |
+          set -euo pipefail
+          args=(--verify-tag --title "$TAG" --notes-file changelog_section.md --generate-notes)
+          if [ "$PRERELEASE" = true ]; then args+=(--prerelease); fi
+          gh release create "$TAG" "${args[@]}" "$APK" artifacts/mapping/mapping.txt

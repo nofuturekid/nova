@@ -22,12 +22,15 @@ the APK on every PR (not on push to `main`, ADR-0014) and uploads it as the
 `app-release` artifact; `release.yml` does **not rebuild** — on a `v*` tag push
 it resolves tag → commit SHA, finds the successful CI run (by the tagged SHA,
 which is the PR head that main was fast-forwarded to; `(#NN)` only for
-squash-era tags before 2026-11-13), runs a guard (commit on `main`, CI tree ==
-tag tree, `versionName` == tag, `versionCode` increased; on the `(#NN)` path
-also PR merged as exactly this commit), downloads the already-built artifact, verifies the APK itself
-(package id, `versionName` == tag, `versionCode` == source, pinned signer
-certificate; `.github/scripts/release-verify-apk.sh`), and publishes the GitHub
-Release. A tag can only ship if the commit's CI was green. `v*` tags are
+squash-era tags before 2026-11-13), runs a guard in a read-only job (commit on
+`main`, a green `pull_request` run on the tagged commit itself, CI tree == tag
+tree, `versionName` == tag, `versionCode` increased, non-empty `CHANGELOG.md`
+section; on the `(#NN)` path also PR merged as exactly this commit), and only
+then, in a second job with write access, downloads the already-built APK and
+`mapping.txt`, verifies the APK itself (package id, `versionName` == tag,
+`versionCode` == source, pinned signer certificate;
+`.github/scripts/release-verify-apk.sh`), and publishes the GitHub Release
+draft-first (draft, upload, then public). A tag can only ship if the commit's CI was green. `v*` tags are
 protected against update and deletion; fix a bad tag with a new commit and
 tag, never by moving it.
 
@@ -103,7 +106,9 @@ in-app updater shows verbatim. Rules:
    that SHA) and **return** the push command plus the tag commands; you never
    merge and never push `main` or a tag. The coordinator runs them in this
    order: first `git push origin <sha>:refs/heads/main`, then a check that
-   `main` == `<sha>`, then the release dry run (HANDOFF.md, "Release dry run"),
+   `main` == `<sha>`, then the release dry run (`gh workflow run release.yml -f sha=<sha> -f
+   version=<versionName>`, HANDOFF.md, "Release dry run"; the guard job must be
+   green, `publish` skipped),
    then `git tag -s vX.Y.Z-betaN -m "..." <sha> && git push origin
 refs/tags/vX.Y.Z-betaN`. `release.yml` then promotes the known-good
    artifact built for that exact SHA.

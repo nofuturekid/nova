@@ -150,7 +150,7 @@ app/src/main/
 The "why" for everything in this section lives in ADRs under [`docs/adr/`](docs/adr/). What follows is the operational summary.
 
 - **Rulesets** on `main` (classic branch protection is removed): "main (no bypass)" carries deletion, non-fast-forward, linear history, signed commits and the required status check `build` (strict, GitHub Actions), with no bypass actor; "main: pull request (admin push bypass)" carries the pull-request rule (0 required approvals, solo-dev-friendly) and lets the admin role push. A green, signed, rebased PR head therefore lands by a fast-forward push; nothing else can reach `main`. Break-glass: set the ruleset "main (no bypass)" to `disabled` deliberately and back to `active`. See [ADR-0003](docs/adr/0003-pr-gate-required-status-check.md) (amendment 2026-11-13).
-- **Build-once-promote** split between `ci.yml` (builds debug+release APKs, uploads artifacts) and `release.yml` (`v*` tag → finds the SHA's successful CI run (the PR run whose head is the tagged commit; squash-era tags before 2026-11-13 resolve the PR from `(#NN)` in the subject), runs the release guard (commit on `main`, CI tree == tag tree, and on the `(#NN)` path PR merged as this commit, `versionName` == tag, `versionCode` up), downloads that run's `app-release` artifact, verifies the APK itself (package id, `versionName` == tag, `versionCode` == source, pinned signer certificate; `.github/scripts/release-verify-apk.sh`), then publishes the GitHub Release; **never rebuilds**). See [ADR-0004](docs/adr/0004-build-once-promote-pipeline.md).
+- **Build-once-promote** split between `ci.yml` (builds debug+release APKs, uploads artifacts) and `release.yml` (`v*` tag → finds the SHA's successful CI run (the PR run whose head is the tagged commit; squash-era tags before 2026-11-13 resolve the PR from `(#NN)` in the subject), runs the release guard in the read-only job `guard` (commit on `main`, a green `pull_request` run of this repository on the tagged commit itself, or on the `(#NN)` path for squash-era tags the PR merged as this commit, CI tree == tag tree, `.github/scripts/release-preflight.sh`: version shape, `versionCode` up, tag name free, non-empty `CHANGELOG.md` section; `versionName` == tag), then the job `publish` (the only one with `contents: write`) downloads that run's `app-release` and `mapping` artifacts (both mandatory), verifies the APK itself (package id, `versionName` == tag, `versionCode` == source, pinned signer certificate; `.github/scripts/release-verify-apk.sh`), and publishes the GitHub Release draft-first with one `gh release create` (draft, upload both files, then public); **never rebuilds**). See [ADR-0004](docs/adr/0004-build-once-promote-pipeline.md).
 - **Concurrency**: `ci.yml` cancels superseded runs unconditionally; it no longer runs on push to `main` (ADR-0014), so there is no main run to protect (ADR-0011's carve-out is moot). See [ADR-0011](docs/adr/0011-cancel-in-progress-only-on-pr-branches.md), [ADR-0014](docs/adr/0014-single-ci-run-per-pr.md).
 - **Docs-only CI bypass**: `ci.yml` builds only when a build-affecting path changed (inverted allowlist: `app/`, `gradle/`, wrapper, root Gradle files, `ci.yml`); anything else finishes in ~10s and still reports `SUCCESS` on `build`. No version bump, no tag for these. The diff is taken against the merge base with `origin/main` and fails closed (no merge base or an empty diff fails `setup`). The jobs `ci-lint` (actionlint, shellcheck, `renovate.json` validator when changed, no session links in commit messages) and `release-check` (`.github/scripts/release-preflight.sh` when `versionName` changed) run on every run and `build` needs `success` from both. On `workflow_dispatch` the aggregate job reports as `build (dispatch)`, never as `build`. See [ADR-0029](docs/adr/0029-invert-ci-build-skip-filter.md) (supersedes ADR-0009; amendment 2026-11-13) and [ADR-0003](docs/adr/0003-pr-gate-required-status-check.md).
 - **Tag conventions**: stable `v0.X.Y`, pre-release `v0.X.Y-beta1` / `-rc1` with trailing digit required. See [ADR-0005](docs/adr/0005-prerelease-tag-convention.md).
@@ -182,11 +182,20 @@ The "why" for everything in this section lives in ADRs under [`docs/adr/`](docs/
 
 A burnt tag (v0.1.42-beta1: tag pushed, release verification failed) is never moved; fix forward with a new commit and the next version.
 
-If a tag is pushed before CI on its commit is green, `release.yml` fails with "no successful CI run found for commit". Wait, then tag.
+If a tag is pushed before CI on its commit is green, `release.yml` fails in the `guard` job ("no successful CI run" or the pull-request-green check). Wait, then re-run the release run; if the commit never had a green pull request run, it cannot be released: fix forward with a new commit and the next version.
 
 ### Release dry run
 
-Run this read-only check after `main` was pushed and before the tag is pushed. It runs the lookup of `release.yml` and the guard `.github/scripts/release-guard.sh` on the same inputs and only reads (`gh api` GET, git). It matters because the lookup by head SHA ("direct match") is the normal path since 2026-11-13 and had not run in production before.
+Run this after `main` was pushed and before the tag is pushed. It is the workflow `release.yml` itself started by hand: only the read-only `guard` job runs, with the same lookup and the same `release-guard.sh` as the tag run. Nothing is published and no tag is needed; the tag name is derived from the version input.
+
+```sh
+gh workflow run release.yml -f sha=<release PR head == main tip> -f version=<versionName, e.g. 0.1.46 or 0.1.46-beta1>
+timeout 120 gh run list --workflow release.yml --event workflow_dispatch --limit 1   # then: gh run view <id>
+```
+
+The `guard` job must be green (it prints the `ok:` lines: commit on `origin/main`, green `pull_request` run, CI tree, version shape, `versionCode` up, tag name free, `CHANGELOG.md` section, `versionName` == tag) and `publish` must show as skipped. A red guard names the mismatch; a missing CHANGELOG section or a commit without a green pull request run is refused here, before any tag exists. The dry run matters because the lookup by head SHA ("direct match") is the normal path since 2026-11-13.
+
+Fallback if dispatching is not possible: the same guard can be run locally, read-only (`gh api` GET, git), in a worktree whose `origin/main` is fetched and contains the SHA:
 
 ```sh
 SHA=<release PR head == main tip>; TAG=<vX.Y.Z or vX.Y.Z-betaN>
@@ -195,12 +204,14 @@ RUN_ID=$(timeout 120 gh api "repos/hellwand/nova/actions/workflows/ci.yml/runs?h
   --jq '.workflow_runs[] | select((.event=="pull_request" or .event=="workflow_dispatch") and .head_repository.full_name=="hellwand/nova") | .id' | head -1)
 timeout 120 gh api "repos/hellwand/nova/actions/runs/$RUN_ID/artifacts" \
   --jq '[.artifacts[] | select(.name=="app-release" and (.expired|not))] | length'      # must be >= 1
-# in a worktree whose origin/main is fetched and contains SHA:
 TAG=$TAG SHA=$SHA RUN_ID=$RUN_ID RUN_HEAD_SHA=$SHA PR_NUM= GITHUB_REPOSITORY=hellwand/nova MAIN_REF=origin/main \
-  bash .github/scripts/release-guard.sh        # must print the four "ok:" lines
+  GH_TOKEN=$(gh auth token) bash .github/scripts/release-guard.sh        # must end with "ok: versionName ... == tag"
 ```
 
-If the dry run passes and the release run still fails, recover with `gh run rerun <run-id>` (after `gh workflow run ci.yml --ref <tag>` if the artifact is missing; that run reports as `build (dispatch)`). Tags are never re-pushed.
+If the dry run passes and the release run still fails, recover with `gh run rerun <run-id>` (after `gh workflow run ci.yml --ref <tag>` if the artifact is missing; that run reports as `build (dispatch)` and supplies the artifact only, the green pull request run on the commit is still required). Tags are never re-pushed. Two cautions once immutable releases are on:
+
+- Never re-run a release run whose tagged commit predates WP2 (issue #295): a re-run uses the `release.yml` of the tagged commit, and the old file publishes a pre-release before its APK is uploaded, which would lock the tag without the APK. Only runs of tags made after WP2 are re-runnable.
+- Before re-running a failed `publish` job, look at what exists for the tag: `gh api repos/hellwand/nova/releases --jq '.[] | select(.tag_name=="<tag>") | {id,draft,immutable,assets:[.assets[].name]}'`. If a published release is listed, do not re-run and do not delete it (`gh` can report an error after the server already published, and a deleted immutable release burns the tag name for good). Delete a leftover draft (`gh api -X DELETE repos/hellwand/nova/releases/<id>`) before re-running; a draft is left behind when the job is killed during the upload.
 
 ### Release cleanup
 

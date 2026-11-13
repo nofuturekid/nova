@@ -89,3 +89,11 @@ convention only; performing it is out of band.
 ## Amendment 2026-11-10 — tags are now mechanically protected
 
 "Never delete a tag" relied on discipline. The repository ruleset "Protect release tags" now applies to `refs/tags/v*` and blocks **update** (moving a tag) and **deletion**; creation stays allowed. Consequences: the re-push recovery above (delete/recreate a tag, steps 1–3) now needs the ruleset disabled temporarily — a deliberate break-glass step, as intended. A wrong tag is fixed by a new commit and a new tag (ADR-0015), never by moving it. The release-entry pruning policy in the previous amendment is unaffected (it deletes Release entries, not tags). Retention is also not yet being applied: the `v0.1.40-beta1…beta10` entries are still published; that is a process item, tracked separately.
+
+## Amendment 2026-11-13 — immutable releases
+
+Once the repository setting "immutable releases" is on (issue #295, WP2), a published release locks its assets and its tag. The tag of an immutable release cannot be deleted while the release exists, and after the release is deleted its tag name can never be reused. The recovery recipe above (re-push a deleted tag) therefore does not apply to those tags; it was already moot because the tag ruleset blocks deletion with no bypass. The setting applies only to releases published after it is switched on.
+
+Pruning is unaffected: the retention policy deletes old beta/rc release *entries* and keeps their tags, which stays allowed (`gh release delete <tag> --yes`, never `--cleanup-tag`). The release body, title and the pre-release and latest flags stay editable, but nothing in the flow edits or uploads to a release after publication: `release.yml` publishes draft-first in a single `gh release create` (ADR-0014 amendment), so the assets are in place before the release is public.
+
+A re-run (`gh run rerun`) uses the `release.yml` of the tagged commit. A release run started before WP2 therefore still runs the old file with `softprops/action-gh-release`, which publishes a pre-release first and uploads the assets afterwards. Once immutable releases are on, never re-run a release run whose tagged commit predates WP2: it would publish a beta without its APK and lock the tag. Only runs of tags made after WP2 are re-runnable.

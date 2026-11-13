@@ -131,3 +131,7 @@ removes its footer reference-links.
 
 See [ADR-0010](./0010-release-cleanup-keeps-tags.md) for the tag-keeping
 + release-prune rationale this amendment is symmetric with.
+
+## Amendment 2026-11-13 — the section is mandatory (issue #295, WP1/WP2)
+
+The section for a release is no longer optional. `release-preflight.sh` checks it on the version-bump pull request (`release-check` in `ci.yml`) and again in the release guard, before anything is downloaded; the publish step of `release.yml` fails when the extracted section is empty. This replaces the non-fatal extraction above, and the release body is passed to `gh release create --notes-file ... --generate-notes` instead of `body_path` of `softprops/action-gh-release` (ADR-0014 amendment). The API still prepends the curated body to the generated notes, so the compare link stays below the curated section as before.

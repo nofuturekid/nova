@@ -45,15 +45,17 @@ Tags are the release trigger. After your code is on `main` AND `ci.yml` is green
 
 ```bash
 git checkout main && git pull
+gh workflow run release.yml -f sha=$(git rev-parse HEAD) -f version=0.2.0   # dry run: only the guard job runs
+# wait for it: the guard job must be green and `publish` skipped (HANDOFF.md, "Release dry run")
 git tag -a v0.2.0 -m "v0.2.0 — what's new"
 git push origin v0.2.0
 ```
 
-`release.yml` then runs. It does **not** rebuild — it downloads the release APK that `ci.yml` already produced for this commit's PR (the PR head SHA), and attaches it to a new GitHub Release.
+`release.yml` then runs. It does **not** rebuild — it downloads the release APK and `mapping.txt` that `ci.yml` already produced for this commit (the PR head SHA) and publishes them as a new GitHub Release. The release is created as a draft, both files are uploaded, and only then it becomes public, in one `gh release create` command (this is what lets immutable releases work).
 
 If you tag too early (before CI is green), the release workflow fails with a clear message; just wait for CI and re-run the failed release run (`gh run rerun <run-id>`). Tags cannot be re-pushed (the ruleset forbids update and deletion).
 
-Before anything is published, a guard step checks that the tag matches what CI built: the commit is on `main`, the CI run built exactly this commit (the PR head that was fast-forwarded onto `main`; for tags before 2026-11-13 the squash commit's PR), `versionName` in `app/build.gradle.kts` equals the tag (including a `-betaN` suffix) and `versionCode` is higher than at the previous tag. A failure names the mismatch; fix it with a new commit, not by moving the tag (tags are protected against update and deletion). If the artifact lookup finds no CI run (e.g. after a direct push), (or the artifact expired) run `gh workflow run ci.yml --ref <tag>` (it reports as `build (dispatch)` and never as `build`, so it cannot satisfy the ruleset), wait for it, then re-run the failed release run (`gh run rerun <run-id>`). With tags locked, a guard failure on a version mismatch uses up that tag: fix forward with a new commit and the next version. After the artifact download, a second step reads the APK itself (`aapt2`/`apksigner`) and requires package `io.github.nofuturekid.nova`, `versionName` == tag, `versionCode` == the value in source, and the pinned release-signing certificate before anything is published ([ADR-0014](docs/adr/0014-single-ci-run-per-pr.md), `.github/scripts/release-verify-apk.sh`).
+Before anything is downloaded or published, the read-only `guard` job checks that the tag matches what CI built: the commit is on `main`, it was the head of its own pull request and that pull request's `ci.yml` run was green on exactly this commit (a `workflow_dispatch` run made after tagging does not count; for tags before 2026-11-13 the squash commit's PR must have been merged as this commit), the CI run built the same tree, `versionName` in `app/build.gradle.kts` equals the tag (including a `-betaN` suffix), `versionCode` is higher than at the previous tag, and `CHANGELOG.md` has a non-empty section for the version (`.github/scripts/release-preflight.sh`, the same check the pull request runs). Only the `publish` job has write access, and it runs only after the guard passed. A failure names the mismatch; fix it with a new commit, not by moving the tag (tags are protected against update and deletion). If the artifact lookup finds no CI run (e.g. after a direct push), (or the artifact expired) run `gh workflow run ci.yml --ref <tag>` (it reports as `build (dispatch)` and never as `build`, so it cannot satisfy the ruleset), wait for it, then re-run the failed release run (`gh run rerun <run-id>`). With tags locked, a guard failure on a version mismatch uses up that tag: fix forward with a new commit and the next version. Before pushing the tag, run the dry run, which executes only the guard (`gh workflow run release.yml -f sha=<release PR head> -f version=<versionName>`; see HANDOFF.md, "Release dry run"). After the artifact download, a second step reads the APK itself (`aapt2`/`apksigner`) and requires package `io.github.nofuturekid.nova`, `versionName` == tag, `versionCode` == the value in source, and the pinned release-signing certificate before anything is published ([ADR-0014](docs/adr/0014-single-ci-run-per-pr.md), `.github/scripts/release-verify-apk.sh`).
 
 ### Naming the release commit / PR
 
@@ -77,6 +79,7 @@ The `<summary>` is what the cut delivers (the bundled feature/fix), not
 ### Pre-releases (beta → rc → stable)
 
 ```bash
+gh workflow run release.yml -f sha=$(git rev-parse HEAD) -f version=0.2.0-beta1   # dry run first: guard green, `publish` skipped
 git tag -a v0.2.0-beta1 -m "v0.2.0 beta 1"
 git push origin v0.2.0-beta1
 ```
