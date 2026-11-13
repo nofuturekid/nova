@@ -50,7 +50,13 @@
         "/^com\\.google\\.devtools\\.ksp/",
         "/^com\\.google\\.dagger[:.]/"
       ],
-      "groupName": "toolchain"
+      "groupName": "toolchain",
+      "separateMajorMinor": false
+    },
+    {
+      "description": "Gradle and Gradle wrapper updates use the build: prefix. This overrides the chore:/fix: types that config:recommended sets through :semanticPrefixFixDepsChoreOthers.",
+      "matchManagers": ["gradle", "gradle-wrapper"],
+      "semanticCommitType": "build"
     },
     {
       "description": "KSP 2.3.13 has a known concurrency regression (issue 250).",

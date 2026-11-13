@@ -30,7 +30,7 @@ via `.github/dependabot.yml`:
   pins).
 - **`gradle`** ecosystem (root + `app/build.gradle.kts` + the
   `libs.versions.toml` version catalog): monthly, single grouped
-  "radar" PR, no auto-merge. Treated as a *suggestion* — it still goes
+  "radar" PR, no auto-merge. Treated as a _suggestion_ — it still goes
   through the normal beta cycle + device verification; a grouped PR may
   be split when a major (Apollo-5-class) bump rides along.
 - `open-pull-requests-limit: 3`, Conventional-Commit prefixes
@@ -59,6 +59,7 @@ unchanged.
 ## Consequences
 
 **Positive**
+
 - Removes the manual "is there a newer version, which one" legwork —
   Dependabot opens PRs with the correct target version pre-resolved.
 - Keeps the GitHub-Actions pins current automatically (the tedious
@@ -68,6 +69,7 @@ unchanged.
   beta/ADR flow instead of fighting it.
 
 **Negative / trade-offs**
+
 - Each Dependabot PR triggers the (non-trivial) CI.
 - A grouped Gradle PR can mix a risky major with trivial minors →
   reviewer must split it when needed; the group is a radar, not a
@@ -76,6 +78,7 @@ unchanged.
   on-device beta check.
 
 **Trigger to revisit**
+
 - PR noise still too high → move Gradle to quarterly or split groups by
   update-type (major separate).
 - A future, lower-risk subset could get auto-merge (e.g.
@@ -142,7 +145,9 @@ beta cycle (ADR-0006) and on-device acceptance.
   Actions). Coupled updates arrive together: `toolchain` (AGP, Gradle wrapper,
   Kotlin and its plugins, KSP, Dagger Hilt), `androidx-compose` (AndroidX and
   the Compose BOM), `network-data` (okhttp, Apollo, coil, kotlinx-serialization)
-  and one group for the remaining Gradle dependencies. The two version
+  and one group for the remaining Gradle dependencies. `toolchain` keeps majors
+  and minors in one pull request; the other groups split majors into separate
+  `major-<group>` pull requests (Renovate's `separateMajorMinor` default). The two version
   exclusions carried over from Dependabot (KSP 2.3.13, kotlinx-serialization-json
   1.12.0) are `allowedVersions` rules.
 - **Dependabot** remains the advisory radar: alerts and security-update pull
