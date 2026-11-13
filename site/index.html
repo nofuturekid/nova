@@ -390,8 +390,8 @@
             <li>
               <strong>Least privilege:</strong> the <code>VIEWER</code> role
               plus only the controls you want, such as
-              <code>DOCKER:UPDATE_ANY</code> for containers,
-              <code>VMS:UPDATE_ANY</code> for VMs,
+              <code>DOCKER:UPDATE_ANY</code> for containers (checked on a real
+              server), <code>VMS:UPDATE_ANY</code> for VMs,
               <code>ARRAY:UPDATE_ANY</code> for the array and parity checks,
               and <code>NOTIFICATIONS:UPDATE_ANY</code> and
               <code>NOTIFICATIONS:DELETE_ANY</code> for notifications.
@@ -404,7 +404,7 @@
             a key cannot use. Set the role and permissions when you create the
             key, in <em>Settings &rarr; Management Access &rarr; API</em>. The
             full table, with what was checked on a real server and what comes
-            from the Unraid API&rsquo;s source code, is in the
+            from the Unraid API&rsquo;s source code (not every row was tried live), is in the
             <a href="https://github.com/hellwand/nova#api-key-permissions"
               >README</a
             >.

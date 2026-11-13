@@ -115,28 +115,32 @@ NOVA talks to your server with one API key per server. **NOVA never needs the AD
 
 ### What each feature needs
 
-A permission is written as `RESOURCE:ACTION`, for example `DOCKER:UPDATE_ANY`. The action must match exactly: `UPDATE_ANY` does not include `READ_ANY`, and the `_OWN` actions never count. The last column says how well a row is established: **Live** means we ran it against a real server, **Source** means it was read from the Unraid API's source code and has not been tried with a key that holds only that permission (see the notes below the table).
+A permission is written as `RESOURCE:ACTION`, for example `DOCKER:UPDATE_ANY`. The action must match exactly: `UPDATE_ANY` does not include `READ_ANY`, and the `_OWN` actions never count. The last column says how well a row is established: **Live** means we ran it against a real server with a key that holds the permission; **Refusal live** means we saw a key without the permission refused, while that the named permission is enough comes from the Unraid API's source code; **Source** means only from the source code (see the notes below the table).
 
-| NOVA feature                                                                                         | A key needs                                                                                   | Established |
-| ---------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------- | ----------- |
-| See everything (Overview, metrics, network, array, containers and logs, VMs, notifications, plugins) | Role **VIEWER**                                                                               | Live [^1]   |
-| The same, without a role                                                                             | `READ_ANY` on `INFO`, `DISPLAY`, `ARRAY`, `DOCKER`, `VMS`, `NOTIFICATIONS`, `CONFIG` and `ME` | Source [^2] |
-| Start, stop, restart, pause, resume and update containers; update all                                | `DOCKER:UPDATE_ANY`                                                                           | Source [^3] |
-| Start, stop, pause, resume, reboot, reset and force-stop VMs                                         | `VMS:UPDATE_ANY`                                                                              | Source      |
-| Start or stop the array; start, pause, resume or cancel a parity check                               | `ARRAY:UPDATE_ANY`                                                                            | Source      |
-| Archive, mark as unread, archive all notifications                                                   | `NOTIFICATIONS:UPDATE_ANY`                                                                    | Source [^4] |
-| Delete a notification, delete all archived                                                           | `NOTIFICATIONS:DELETE_ANY`                                                                    | Source [^4] |
-| Never needed                                                                                         | The ADMIN role, any `API_KEY` or `PERMISSION` permission, any `CREATE_ANY` permission         | Source      |
+| NOVA feature                                                                                         | A key needs                                                                                   | Established       |
+| ---------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------- | ----------------- |
+| See everything (Overview, metrics, network, array, containers and logs, VMs, notifications, plugins) | Role **VIEWER**                                                                               | Live [^1]         |
+| Start, stop, restart, pause, resume and update one container                                         | `DOCKER:UPDATE_ANY`, on top of VIEWER                                                         | Live [^3]         |
+| Update all containers                                                                                | `DOCKER:UPDATE_ANY`                                                                           | Source [^6]       |
+| Start, stop, pause, resume, reboot, reset and force-stop VMs                                         | `VMS:UPDATE_ANY`                                                                              | Refusal live [^7] |
+| Start or stop the array; start, pause, resume or cancel a parity check                               | `ARRAY:UPDATE_ANY`                                                                            | Source [^6]       |
+| Archive, mark as unread, archive all notifications                                                   | `NOTIFICATIONS:UPDATE_ANY`                                                                    | Refusal live [^4] |
+| Delete a notification, delete all archived                                                           | `NOTIFICATIONS:DELETE_ANY`                                                                    | Refusal live [^4] |
+| Never needed                                                                                         | The ADMIN role, any `API_KEY` or `PERMISSION` permission, any `CREATE_ANY` permission         | Source            |
 
-A least-privilege key for full control is therefore the VIEWER role plus `DOCKER:UPDATE_ANY`, `VMS:UPDATE_ANY`, `ARRAY:UPDATE_ANY`, `NOTIFICATIONS:UPDATE_ANY` and `NOTIFICATIONS:DELETE_ANY`. Leave out the ones for things you do not want NOVA to do.
+A least-privilege key is the VIEWER role plus the explicit permissions for the actions you want, for example `DOCKER:UPDATE_ANY`, `VMS:UPDATE_ANY`, `ARRAY:UPDATE_ANY`, `NOTIFICATIONS:UPDATE_ANY` and `NOTIFICATIONS:DELETE_ANY` for full control. Leave out the ones for things you do not want NOVA to do. The server reports a key's effective rights as the role's rights plus its explicit permissions (confirmed live for VIEWER plus `DOCKER:UPDATE_ANY`). Only the container part of this recipe was tried with such a key.
 
-[^1]: Checked on 2026-11-13 against a server running Unraid 7.4.0 with Unraid API 4.37.11: a VIEWER key loaded every query NOVA sends with HTTP 200 and no errors, and the same key was refused when it tried to start a container (sent with an id that does not exist, so nothing could change; see "When a permission is missing" below).
+Do not build a key from read permissions only. The server's command line tool cannot create a key without a role (it requires one), and we did not check whether the web interface can. As background, from the server's source and not verified with such a key: reading everything without the VIEWER role would need `READ_ANY` on `INFO`, `DISPLAY`, `ARRAY`, `DOCKER`, `VMS`, `NOTIFICATIONS`, `CONFIG` and `ME`.
 
-[^2]: From the guards in the Unraid API source at version 4.37.11 and the role table, which is identical from 4.30.0 on. Not tried with a key that has only these explicit permissions, because that needs a key created on a server. A key with permissions but no role does not inherit `ME:READ_ANY`, hence `ME` in the list.
+[^1]: Checked on 2026-11-13 against a server running Unraid 7.4.0 with Unraid API 4.37.11: a VIEWER key loaded every query NOVA sends with HTTP 200 and data.
 
-[^3]: The VIEWER refusal of a container start was confirmed live. That `DOCKER:UPDATE_ANY` is enough is from the source at 4.37.11. NOVA restarts a container as a stop followed by a start, so a restart needs the same `DOCKER:UPDATE_ANY`.
+[^3]: Checked live on the same server: a VIEWER key was refused when it started, stopped, paused, unpaused or updated a container, and a VIEWER key with `DOCKER:UPDATE_ANY` got past the permission check (tried with an id that does not exist, so nothing could change). NOVA restarts a container as a stop followed by a start, so a restart needs the same `DOCKER:UPDATE_ANY`.
 
-[^4]: Servers before API 4.37.4 do not check these two permissions at all (read from the source of 4.37.3 and 4.37.4), so every key can archive and delete notifications there.
+[^4]: Servers before API 4.37.4 do not check these two permissions at all (read from the source of 4.37.3 and 4.37.4), so every key can archive and delete notifications there. On 4.37.11 the refusal of a VIEWER key was seen live for archive, mark as unread and delete.
+
+[^6]: Not testable without acting on a server (they have no id that could be faked), so this row is from the source code at 4.37.11 only.
+
+[^7]: Live: a key without `VMS:UPDATE_ANY` is refused on VM start and stop. Not tried with a key that holds it, and not every VM action was probed.
 
 ### Where to set the key and its permissions
 
@@ -147,11 +151,11 @@ unraid-api apikey --create --name "NOVA" --roles VIEWER \
   --permissions "DOCKER:UPDATE_ANY,VMS:UPDATE_ANY,ARRAY:UPDATE_ANY,NOTIFICATIONS:UPDATE_ANY,NOTIFICATIONS:DELETE_ANY"
 ```
 
-That command is quoted from the documentation's syntax and has not been run by us. If you change a key's permissions later, the key itself stays the same, so you do not need to enter it again in NOVA.
+The command shape, with the VIEWER role and `DOCKER:UPDATE_ANY`, was run live and works; the other permissions in the example were not tried. If you change a key's permissions later, the key itself stays the same, so you do not need to enter it again in NOVA.
 
 ### When a permission is missing
 
-The server decides, not NOVA. An action the key may not do is refused with the message **"Forbidden resource"** and nothing changes on the server (confirmed live for starting a container with a VIEWER key). A read the key may not do is refused the same way, so that screen fails to load. A key the server does not accept at all is answered with "API key validation failed". A later version of NOVA will hide the controls a key cannot use instead of showing buttons that are refused.
+The server decides, not NOVA. An action the key may not do is refused with the message **"Forbidden resource"** and nothing changes on the server (confirmed live for container actions with a VIEWER key). A read the key may not do is refused the same way, so that screen fails to load. A key the server does not accept at all is answered with "API key validation failed". A later version of NOVA will hide the controls a key cannot use instead of showing buttons that are refused.
 
 ### Which Unraid API version you need
 
