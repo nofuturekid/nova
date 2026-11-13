@@ -69,6 +69,7 @@ class ServerRepository @Inject constructor(
         store.setServers(current)
         keys.remove(id)
         store.clearPin(id)
+        store.clearAlertState(id)
         if (store.activeServerId.first() == id) {
             store.setActiveServer(nextActiveAfterDelete(current))
         }

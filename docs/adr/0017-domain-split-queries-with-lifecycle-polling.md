@@ -88,6 +88,10 @@ fires one shared `refreshNudge` that every domain stream waits on (previously
 a fetch started after the request has completed, bounded by
 `REFRESH_MAX_WAIT_MS`.
 
+## Amendment — 2026-11-13 (opt-in background alert checks)
+
+"Backgrounded app = zero polls, period" holds for every screen stream and stays in force. The one exception is the optional alert check of [ADR-0048](./0048-opt-in-background-alert-checks.md): only while the user has switched "Alerts from your servers" on, a periodic background job asks each server for its unread alerts and warnings and its array state. It is off by default, and with it off the app does no background work, as before.
+
 ## References
 
 - The v0.1.22-beta1 incident: `Cannot query field "updateStatus" on type "DockerContainer"` collapsing the entire app to "Can't reach the server", despite the bad field only affecting Docker data. Fixed in PR #25.

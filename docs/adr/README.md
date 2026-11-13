@@ -51,7 +51,7 @@ ADRs live under `docs/` so the CI docs-only bypass applies — pure-ADR PRs comp
 | [0014](./0014-single-ci-run-per-pr.md) | Single CI run per PR — release workflow resolves through PR | Accepted |
 | [0015](./0015-promotion-requires-new-commit.md) | Promotion to a different version-string requires a new commit | Accepted |
 | [0016](./0016-long-running-apollo-client.md) | Separate Apollo client for long-running mutations | Accepted |
-| [0017](./0017-domain-split-queries-with-lifecycle-polling.md) | Domain-split queries with lifecycle-aware polling | Accepted |
+| [0017](./0017-domain-split-queries-with-lifecycle-polling.md) | Domain-split queries with lifecycle-aware polling | Accepted (amended 2026-11-13 by ADR-0048) |
 | [0018](./0018-gradle-cache-warm-on-main.md) | Populate the Gradle build cache on push to main | Reversed 2026-05-17 (no measurable CI speedup in practice) |
 | [0019](./0019-parallel-debug-release-jobs.md) | Split CI into parallel debug + release jobs | Accepted |
 | [0020](./0020-migrate-to-ksp2.md) | Migrate from KSP1 to KSP2 | Accepted |
@@ -82,4 +82,5 @@ ADRs live under `docs/` so the CI docs-only bypass applies — pure-ADR PRs comp
 | [0045](./0045-array-disk-display.md) | Array disk display — sleeping disks, per-disk thresholds, errors | Accepted (updated beta10 — 2026-05-30) |
 | [0046](./0046-update-via-browser-download.md) | Offer updates of the GitHub build as a browser download, without an in-app installer | Accepted |
 | [0047](./0047-server-capabilities.md) | Detect the server's API version and what the API key may do | Accepted |
+| [0048](./0048-opt-in-background-alert-checks.md) | Opt-in background alert checks (amends ADR-0017) | Accepted |
 | [0049](./0049-google-play-third-distribution-channel.md) | Google Play as a third distribution channel | Accepted |

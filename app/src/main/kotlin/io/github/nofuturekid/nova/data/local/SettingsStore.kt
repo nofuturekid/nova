@@ -14,6 +14,7 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
+import io.github.nofuturekid.nova.data.alerts.ServerAlertState
 import io.github.nofuturekid.nova.data.model.AppSettings
 import io.github.nofuturekid.nova.data.model.ConnectionMode
 import io.github.nofuturekid.nova.data.model.Server
@@ -38,6 +39,7 @@ private object Keys {
     val LastUpdateCheck     = longPreferencesKey("last_update_check")
     val DismissedUpdateTag  = stringPreferencesKey("dismissed_update_tag")
     val CertPins              = stringPreferencesKey("local_cert_pins_json")
+    val AlertStates           = stringPreferencesKey("alert_state_json")
 }
 
 /** Shared layout mode for the Docker / VMs / Array list views. Each
@@ -215,5 +217,33 @@ class SettingsStore @Inject constructor(
             if (tag == null) prefs.remove(Keys.DismissedUpdateTag)
             else prefs[Keys.DismissedUpdateTag] = tag
         }
+    }
+
+    // ── Alert state ───────────────────────────────────────────────
+
+    /** server id → what was already reported for it. Unreadable data counts as empty. */
+    private fun decodeAlertStates(prefs: Preferences): Map<String, ServerAlertState> =
+        prefs[Keys.AlertStates]?.let {
+            runCatching { json.decodeFromString<Map<String, ServerAlertState>>(it) }.getOrDefault(emptyMap())
+        } ?: emptyMap()
+
+    suspend fun alertStateFor(serverId: String): ServerAlertState =
+        decodeAlertStates(ds.data.first())[serverId] ?: ServerAlertState()
+
+    suspend fun setAlertState(serverId: String, state: ServerAlertState) {
+        ds.edit { prefs ->
+            prefs[Keys.AlertStates] = json.encodeToString(decodeAlertStates(prefs) + (serverId to state))
+        }
+    }
+
+    suspend fun clearAlertState(serverId: String) {
+        ds.edit { prefs ->
+            val next = decodeAlertStates(prefs) - serverId
+            if (next.isEmpty()) prefs.remove(Keys.AlertStates) else prefs[Keys.AlertStates] = json.encodeToString(next)
+        }
+    }
+
+    suspend fun clearAllAlertStates() {
+        ds.edit { it.remove(Keys.AlertStates) }
     }
 }
