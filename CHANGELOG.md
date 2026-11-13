@@ -15,6 +15,10 @@ release version + date and opens a fresh `[Unreleased]`.
 
 ## [Unreleased]
 
+## [0.1.48-beta1] - 2026-11-13
+
+Beta: the first beta of the 0.1.48 cycle. Please look at two things. On the Docker tab, try the search field (type, then clear it with the new clear button) and the new "Compose" option for the Docker view under Settings, Layout, which groups containers by their Compose project. On the Overview of a healthy server, there should be no extra card: the new "Needs attention" card only appears when something needs you, so a quiet Overview is the expected result. Some groundwork in this beta has no visible change yet (detecting the server's API version and what the API key may do, and the rules for later opt-in alerts). As in 0.1.47, NOVA no longer installs updates itself: if you run 0.1.47, this beta reaches you as a browser download.
+
 ### Added
 
 - **A "Needs attention" card on the Overview** — when something needs you, a

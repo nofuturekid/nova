@@ -83,6 +83,7 @@ Native Android client for Unraid NAS servers (Kotlin + Jetpack Compose, Apollo G
 | v0.1.47-beta1        | pre-release | Beta: NOVA no longer installs updates itself; the update check stays and "Download" opens the release file in the browser (ADR-0046); the Google Play Protect notice is documented; #306, #307, #312                                                                                                          |
 | v0.1.47-beta2        | pre-release | Beta: the update notice on the Overview and the Settings line show the same latest version, Settings shows the progress of a check again; #331, #332                                                                                                                                                          |
 | **v0.1.47**          | **release** | Stable promotion of the 0.1.47 cycle (beta1, beta2): NOVA no longer installs updates itself, "Download" opens the release file in the browser (ADR-0046); notice and Settings show the same latest version; Play Protect notice documented; #306, #307, #312, #331 **(Latest)**                               |
+| v0.1.48-beta1        | pre-release | Beta: a "Needs attention" card on the Overview (only when needed), container search with a clear button and Compose grouping (Settings, Layout, Docker view); groundwork for later alerts; API key permissions and store listing documented; #335, #336, #339, #341-#343                                      |
 
 ## Stack
 
