@@ -110,9 +110,12 @@ fun AlertsSection(vm: AlertsViewModel = hiltViewModel()) {
                 Toggle(value = settings.enabled, onChange = { on -> if (on) showExplanation = true else vm.turnOff() })
             }
 
-            if (ui.blocked) {
+            if (ui.blocked || ui.channelBlocked) {
                 Text(
-                    text = if (settings.enabled) {
+                    text = if (ui.channelBlocked) {
+                        "Android blocks NOVA's \"Server alerts\" or \"Server warnings\" notifications, so those " +
+                            "alerts are not shown. Allow them in Android's settings."
+                    } else if (settings.enabled) {
                         "Android blocks notifications for NOVA, so no alert can be shown and the checks are paused. " +
                             "Allow notifications in Android's settings."
                     } else {

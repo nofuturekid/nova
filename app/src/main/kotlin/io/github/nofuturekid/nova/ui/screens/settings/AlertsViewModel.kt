@@ -27,6 +27,7 @@ import io.github.nofuturekid.nova.data.model.Server
 import io.github.nofuturekid.nova.data.model.UnraidNotification
 import io.github.nofuturekid.nova.data.repository.SettingsRepository
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -45,6 +46,8 @@ data class AlertsUi(
     val settings: AlertSettings = AlertSettings(),
     /** Android blocks NOVA's notifications and the user needs to know (switch on, or a request was denied). */
     val blocked: Boolean = false,
+    /** Alerts are on and Android allows NOVA, but the user switched off one of its two channels. */
+    val channelBlocked: Boolean = false,
     val servers: List<ServerCheckLine> = emptyList(),
     val hasDemoServer: Boolean = false,
     /** At least one saved server can be checked, so the test action means something. */
@@ -67,6 +70,8 @@ class AlertsViewModel @Inject constructor(
     private val probe: ServerProbe,
 ) : ViewModel() {
     private val allowed = MutableStateFlow(notifier.canPost())
+    private val channelBlocked = MutableStateFlow(notifier.blockedChannel())
+    private var testJob: Job? = null
 
     /** The user said no to the permission request, or the switch could not be turned on. */
     private val denied = MutableStateFlow(false)
@@ -77,14 +82,15 @@ class AlertsViewModel @Inject constructor(
         snapshot.servers to states
     }
 
-    private val notificationState = combine(allowed, denied, testing, testMessage) { a, d, t, m ->
-        NotificationState(a, d, t, m)
+    private val notificationState = combine(allowed, channelBlocked, denied, testing, testMessage) { a, c, d, t, m ->
+        NotificationState(a, c, d, t, m)
     }
 
     val state: StateFlow<AlertsUi> = combine(repo.alertSettings, servers, notificationState) { settings, (list, states), n ->
         AlertsUi(
             settings = settings,
             blocked = !n.allowed && (settings.enabled || n.denied),
+            channelBlocked = settings.enabled && n.allowed && n.channelBlocked,
             servers = list.map { serverCheckLine(it, states[it.id]?.lastCheck) },
             hasDemoServer = list.any { it.isDemo },
             canTest = list.any { it.isBackgroundCheckable() },
@@ -97,6 +103,7 @@ class AlertsViewModel @Inject constructor(
     fun refreshNotificationsAllowed() {
         val now = notifier.canPost()
         allowed.value = now
+        channelBlocked.value = notifier.blockedChannel()
         if (now) denied.value = false
     }
 
@@ -113,12 +120,15 @@ class AlertsViewModel @Inject constructor(
             val chosen = repo.alertSettings.first()
             val ok = scheduler.enable(chosen.intervalMinutes, chosen.level, chosen.unmeteredOnly)
             allowed.value = notifier.canPost()
+            channelBlocked.value = notifier.blockedChannel()
             denied.value = !ok
             testMessage.value = null
         }
     }
 
     fun turnOff() {
+        testJob?.cancel()
+        testJob = null
         viewModelScope.launch {
             scheduler.disable()
             denied.value = false
@@ -145,7 +155,7 @@ class AlertsViewModel @Inject constructor(
      */
     fun sendTest() {
         if (testing.value) return
-        viewModelScope.launch {
+        testJob = viewModelScope.launch {
             testing.value = true
             testMessage.value = null
             testMessage.value = try {
@@ -182,6 +192,7 @@ class AlertsViewModel @Inject constructor(
                 "Test: NOVA reached ${server.name}. No unread alerts or warnings."
             }
         }
+        if (!repo.alertSettings.first().enabled) return "Test cancelled: alerts are off."
         val subject = newest.subject.ifBlank { newest.title }.ifBlank { "Server notification" }
         val ref = ServerRef(server.id, server.name)
         val posted = notifier.post(ref, AlertEvaluation(ref, listOf(newest.toTestAlert(subject)), 0, ServerAlertState()))
@@ -190,6 +201,7 @@ class AlertsViewModel @Inject constructor(
 
     private data class NotificationState(
         val allowed: Boolean,
+        val channelBlocked: Boolean,
         val denied: Boolean,
         val testing: Boolean,
         val testMessage: String?,

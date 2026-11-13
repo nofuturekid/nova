@@ -2,6 +2,7 @@ package io.github.nofuturekid.nova.ui.screens.settings
 
 import android.Manifest
 import android.app.Application
+import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.content.Context
 import android.content.pm.PackageManager
@@ -23,6 +24,7 @@ import androidx.work.WorkInfo
 import androidx.work.WorkManager
 import androidx.work.impl.WorkManagerImpl
 import androidx.work.testing.WorkManagerTestInitHelper
+import io.github.nofuturekid.nova.data.alerts.ALERTS_CHANNEL_ID
 import io.github.nofuturekid.nova.data.alerts.ALERT_WORK_NAME
 import io.github.nofuturekid.nova.data.alerts.AlertLevel
 import io.github.nofuturekid.nova.data.alerts.AlertNotifier
@@ -34,6 +36,7 @@ import io.github.nofuturekid.nova.data.alerts.FakeServerProbe
 import io.github.nofuturekid.nova.data.alerts.InMemoryAlertStateStore
 import io.github.nofuturekid.nova.data.alerts.ProbeResult
 import io.github.nofuturekid.nova.data.alerts.ServerAlertState
+import io.github.nofuturekid.nova.data.alerts.ServerProbe
 import io.github.nofuturekid.nova.data.alerts.okResult
 import io.github.nofuturekid.nova.data.alerts.testServer
 import io.github.nofuturekid.nova.data.alerts.unraidNotification
@@ -43,6 +46,7 @@ import io.github.nofuturekid.nova.data.model.Server
 import io.github.nofuturekid.nova.data.repository.SettingsRepository
 import io.github.nofuturekid.nova.ui.theme.ThemeMode
 import io.github.nofuturekid.nova.ui.theme.UnraidTheme
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
 import org.junit.After
@@ -385,6 +389,54 @@ class AlertsSectionTest {
         val posted = nm.activeNotifications.single()
         assertEquals(tower.id, posted.tag)
         assertEquals(remembered, runBlocking { settings.alertStateFor(tower.id) })
+    }
+
+    // WHY: with the app-level permission granted, a user who switches off one of NOVA's channels would
+    // otherwise read "On" while every alert of that channel is silently dropped (and marked as seen).
+    @Test fun a_blocked_channel_is_named_with_a_way_to_fix_it() {
+        runBlocking {
+            settings.setServers(listOf(tower))
+            settings.setAlertSettings(AlertSettings(enabled = true))
+        }
+        notifier.ensureChannels()
+        show(viewModel(scheduler()))
+        waitForText("Send test notification")
+        rule.onNodeWithText("Open notification settings").assertDoesNotExist()
+
+        nm.deleteNotificationChannel(ALERTS_CHANNEL_ID)
+        nm.createNotificationChannel(NotificationChannel(ALERTS_CHANNEL_ID, "Server alerts", NotificationManager.IMPORTANCE_NONE))
+        rule.activityRule.scenario.moveToState(androidx.lifecycle.Lifecycle.State.STARTED)
+        rule.activityRule.scenario.moveToState(androidx.lifecycle.Lifecycle.State.RESUMED)
+
+        waitForText("Android blocks NOVA's \"Server alerts\" or \"Server warnings\" notifications", substring = true)
+        rule.onNodeWithText("Open notification settings").assertExists()
+    }
+
+    // WHY: "switching off cancels the work": a test already waiting on a slow server must not post a
+    // notification after the user said off.
+    @Test fun switching_off_while_a_test_is_running_posts_nothing() {
+        val gate = CompletableDeferred<ProbeResult>()
+        var entered = false
+        val slow = object : ServerProbe {
+            override suspend fun probe(server: Server, pin: String?): ProbeResult {
+                entered = true
+                return gate.await()
+            }
+        }
+        val scheduler = switchOnWithOneServer()
+        val vm = AlertsViewModel(SettingsRepository(settings), scheduler, notifier, slow)
+        show(vm)
+        waitForText("Send test notification")
+
+        rule.onNodeWithText("Send test notification").performClick()
+        waitUntil { entered }
+        vm.turnOff()
+        waitForText("Off. NOVA does nothing in the background.")
+        gate.complete(okResult(listOf(unraidNotification("n2", subject = "Disk 1 is hot", timestamp = "2026-11-13T10:00:00.000Z"))))
+        rule.waitForIdle()
+
+        assertTrue("no notification after the switch is off", nm.activeNotifications.isEmpty())
+        assertFalse(enabled())
     }
 
     @Test fun the_test_action_on_a_server_that_cannot_be_reached_says_so_and_posts_nothing() {

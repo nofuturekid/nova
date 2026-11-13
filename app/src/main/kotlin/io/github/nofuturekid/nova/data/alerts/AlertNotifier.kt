@@ -52,6 +52,15 @@ class AlertNotifier @Inject constructor(
     /** False when the user (or Android 13+, without the permission) blocks NOVA's notifications. */
     fun canPost(): Boolean = compat.areNotificationsEnabled()
 
+    /**
+     * True when the user switched off one of NOVA's two channels in Android's settings. Read-only:
+     * the worker posts as before, Android just drops what goes into such a channel. A channel that
+     * does not exist yet is not blocked.
+     */
+    fun blockedChannel(): Boolean = listOf(ALERTS_CHANNEL_ID, WARNINGS_CHANNEL_ID).any {
+        compat.getNotificationChannel(it)?.importance == NotificationManager.IMPORTANCE_NONE
+    }
+
     /** Creates the two channels. Safe to call again: an existing channel is left as the user set it. */
     fun ensureChannels() {
         compat.createNotificationChannel(
