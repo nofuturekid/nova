@@ -48,7 +48,7 @@ export const meta = {
 // The pull request of a task is established by the script, not by the builder: after the builder returns, a light
 // read-only agent lists the open PRs of the task branch; that number is the source of truth. A builder number that
 // differs from it, or no open PR for the branch, makes the task not ready (nothing is reviewed).
-// Scratch output belongs under /home/thomas/.cache or the scratch argument, never under /tmp (the machine's /tmp is a
+// Scratch output belongs under ~/.cache or the scratch argument, never under /tmp (the machine's /tmp is a
 // small shared tmpfs).
 
 const REPO_SLUG = "hellwand/nova";

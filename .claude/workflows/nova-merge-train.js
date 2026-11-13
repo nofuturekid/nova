@@ -34,7 +34,7 @@ export const meta = {
 //                     branch must never be main or start with refs/.
 //                     branch/worktree enable the rebase refresh and the cleanup; worktree must be <checkout>-<slug>.
 //                     dependabot/renovate are only consistency assertions: the PR author decides the path.
-// Scratch output belongs under /home/thomas/.cache or the scratch argument, never under /tmp (the machine's /tmp is a
+// Scratch output belongs under ~/.cache or the scratch argument, never under /tmp (the machine's /tmp is a
 // small shared tmpfs).
 // Cleanup: a remote branch that GitHub already deleted after the push (delete-branch-on-merge) is the expected
 // outcome and is no problem; a remote branch that still exists is deleted only if its tip is the pushed head or already
@@ -988,23 +988,8 @@ if (cfg.mode === "cleanup") {
         "cleanup action agent returned nothing; worktrees, branches and the main checkout may not have been updated",
       );
     else {
-      // Backstop for the model: a remote branch GitHub already deleted is expected; drop a report that only says so.
-      const goneOnly = (text) =>
-        plan.some(
-          (i) =>
-            i.remoteGone &&
-            (text.includes("#" + i.number) || text.includes(i.branch)) &&
-            /remote/i.test(text) &&
-            /(already|gone|deleted|does not exist|not exist|no such|not found)/i.test(
-              text,
-            ),
-        );
-      for (const x of cleanup.problems)
-        if (goneOnly(x)) log(`expected, not a problem: ${x}`);
-        else problems.push(x);
-      for (const k of cleanup.kept)
-        if (goneOnly(k)) log(`expected, not a problem: kept ${k}`);
-        else problems.push(`cleanup kept: ${k}`);
+      problems.push(...cleanup.problems);
+      for (const k of cleanup.kept) problems.push(`cleanup kept: ${k}`);
       for (const pr of cfg.prs) {
         if (pr.branch === undefined) continue;
         const r = cleanup.remote_after.find((x) => x.number === pr.number);

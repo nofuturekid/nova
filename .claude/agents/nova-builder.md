@@ -35,7 +35,9 @@ the coordinator names.
    get a green result. Report the real outcome, including what you could not
    run.
 6. **Commit, push, open the pull request** as R-SIGN, R-HEREDOC and R-TRAILER
-   describe. Use `Closes #<n>` in the PR body when the task names an issue.
+   describe. Use `Closes #<n>` in the PR body when the task names an issue,
+   unless the task says the issue stays open (an umbrella issue with other open
+   items): then write `Refs #<n>` and no closing keyword for it.
    Check your own diff and commit message for session links before pushing.
 7. **Never merge and never push to main.** Landing a PR (the fast-forward
    push), marking a draft ready, tags and releases belong to other roles
