@@ -311,14 +311,10 @@ executed as a blocking CI gate (ADR-0036), resilient action launchers
   polling via `subscriptionOrPoll`; docker stats have no fallback (there is
   no query path). Still polled: array, notifications, docker list/state, VMs,
   server info (array and notifications are blocked server-side, see the
-  ADR-0026 amendment). **Known limitation:** there is no in-session
-  WebSocket reconnect — the app configures no reopen/retry for the socket
-  (Apollo's `reopenWhen` is opt-in), so after a socket error the stream is not
-  resubscribed. The cards above drop to the poll after a short grace window and
-  the live docker stats disappear, until the stream is collected again: the
-  screen gate flips (tab change, app to the background and back) or the active
-  server, connection mode or key changes. (The doc comment on
-  `subscriptionStream` that says Apollo reconnects on its own is inaccurate.)
+  ADR-0026 amendment). A dropped, completed or silent socket is resubscribed
+  by `UnraidRepository.resubscribing` with backoff (ADR-0042 amendment
+  2026-11-13, #245); the docker stats are cleared during an outage and refill
+  without leaving the tab.
 - **Baseline Profiles: parked** — modest startup gain vs. real infra
   cost (generation needs an emulator; only an on-demand GMD workflow
   fits our lean CI). Own ADR if revisited.

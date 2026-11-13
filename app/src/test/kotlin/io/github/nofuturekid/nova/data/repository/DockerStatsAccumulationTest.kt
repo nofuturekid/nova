@@ -4,7 +4,12 @@ import io.github.nofuturekid.nova.data.api.toContainerLiveStat
 import io.github.nofuturekid.nova.data.model.ContainerLiveStats
 import io.github.nofuturekid.nova.graphql.DockerContainerStatsSubscription
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.awaitCancellation
+import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.toList
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.test.TestScope
+import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
 import org.junit.Test
@@ -86,5 +91,48 @@ class DockerStatsAccumulationTest {
             out.last(),
         )
         assertEquals(3, out.size)
+    }
+
+    /** WHY (issue 245): there is no poll for per-container stats, so during an
+     *  outage the overlay must be CLEARED (rows show no live numbers) rather
+     *  than keep numbers that are no longer live; after the stream is
+     *  resubscribed it must fill again from the new frames only, without the
+     *  user leaving the tab. Stale ids (a, b) must not come back. Runs the real
+     *  fold behind `dockerStatsStream` on top of the real resubscribing loop. */
+    @Test fun clears_on_outage_and_refills_without_restart() = runTest {
+        val scope = TestScope(UnconfinedTestDispatcher(testScheduler))
+        var call = 0
+        val frames = UnraidRepository.resubscribing(attempt = {
+            call++
+            if (call == 1) {
+                flow {
+                    emit(DomainState.Content("a" to stat(10.0, 20.0, "1GiB"), "https://x"))
+                    emit(DomainState.Content("b" to stat(30.0, 40.0, "2GiB"), "https://x"))
+                }
+            } else {
+                flow {
+                    emit(DomainState.Content("c" to stat(50.0, 60.0, "3GiB"), "https://x"))
+                    awaitCancellation()
+                }
+            }
+        })
+        val out = mutableListOf<DomainState<Map<String, ContainerLiveStats>>>()
+        val job = scope.launch { UnraidRepository.accumulateDockerStats(frames).collect { out += it } }
+        testScheduler.advanceTimeBy(5_000)
+        testScheduler.runCurrent()
+
+        assertEquals(
+            listOf(
+                DomainState.Content(mapOf("a" to stat(10.0, 20.0, "1GiB")), "https://x"),
+                DomainState.Content(
+                    mapOf("a" to stat(10.0, 20.0, "1GiB"), "b" to stat(30.0, 40.0, "2GiB")),
+                    "https://x",
+                ),
+                DomainState.Error("Live stream ended"),
+                DomainState.Content(mapOf("c" to stat(50.0, 60.0, "3GiB")), "https://x"),
+            ),
+            out,
+        )
+        job.cancel()
     }
 }

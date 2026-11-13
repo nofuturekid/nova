@@ -242,3 +242,46 @@ collected anew (one cheap query per Overview start, never per poll), so an API
 upgrade takes effect without an app restart. Virtual interfaces the upstream
 list now includes (`docker*`, `br-<hash>`, `veth*`, `vnet*`, `virbr*`, `shim-*`,
 `lo`) are ignored when choosing the interface to show.
+
+## Amendment 2026-11-13 — the socket does not reconnect by itself (#245)
+
+The sentence in Consequences that says "Apollo WS auto-reconnects and re-sends
+`connectionPayload`; brief drops hold the last `Content` value" was wrong, and the
+doc comment on `subscriptionStream` repeated it. The app never enabled any retry
+(Apollo's `reopenWhen` / `retryOnError` are opt-in), and Apollo ends a flow after
+an error response or a server `complete`. After a dropped, completed or silent
+socket the stream therefore stayed dead until the screen gate flipped or the
+active server changed: the Overview cards froze on their last value or stayed on
+the 2 s poll, and the live Docker stats disappeared.
+
+What changed:
+
+- The WebSocket transport moved from the deprecated
+  `com.apollographql.apollo.network.ws` to
+  `com.apollographql.apollo.network.websocket` (Apollo Kotlin 5.2). Apollo's own
+  retry stays off, so every failure reaches the app.
+- One pure loop, `UnraidRepository.resubscribing`, wraps each subscription. Any
+  socket error, close frame, normal completion, or silence longer than 15 s
+  (measured by the arrival of frames, so repeated equal values count as life)
+  becomes a `DomainState.Error`, then a new subscription opens after a backoff of
+  1 s doubling to 30 s, reset by the first data frame. A frame that only carries
+  GraphQL errors becomes an Error but does not end the attempt.
+- The WebSocket OkHttp client sets a 15 s ping interval, so a half-open socket
+  (Wi-Fi switched off, NAT entry expired) fails within about 15 to 30 s instead of
+  staying silent: OkHttp does not apply the 15 s read timeout to an idle WebSocket.
+- `subscriptionOrPoll` routes on Content, NoServer and "degraded" (no frame yet,
+  Error, Loading), so successive Errors during an outage no longer restart the
+  grace window or the running poll. With the grace of 6 s unchanged, a quick
+  reconnect (first retry after 1 s) never shows the poll, a sustained outage moves
+  the card to the poll and, when HTTP fails too, to the error state, and the first
+  frame after recovery returns it to the live stream. Metrics and temperature build
+  the combinator per active server, as the network stream already did.
+- Per-container Docker stats have no poll. During an outage the overlay is cleared
+  and the rows show no live numbers; it refills from the resubscribed stream without
+  leaving the tab.
+
+The Consequences line above is kept for the record. The behaviour is specified in
+code and pinned by `ResubscribingTest`, `SubscriptionOrPollTest` and
+`DockerStatsAccumulationTest`. Whether the Unraid server answers WebSocket pings
+through its proxy is checked on a device (a missing pong would only slow down
+replacing a dead socket; the silence watchdog and the poll still keep the UI right).
