@@ -70,6 +70,12 @@ data class UpdateStatus(
     val latest: UpdateState = UpdateState.Checking,
     /** Message of the most recent check if it failed, null if it succeeded. */
     val failure: String? = null,
+    /**
+     * True while a check runs. The held [latest] stays as it was meanwhile
+     * (the Overview notice keeps showing it); Settings shows its progress
+     * text from this flag.
+     */
+    val checking: Boolean = false,
 ) {
     /**
      * The release the Overview notice offers: the latest known newer release

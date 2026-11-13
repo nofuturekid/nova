@@ -267,9 +267,13 @@ fun SettingsScreen(
                         }
                         val cs = updateStatus.latest
                         SettingRow(label = "Latest available") {
-                            // A failed check keeps the last good result (the
-                            // button below still names it) but the row says so.
-                            if (updateStatus.failure != null) {
+                            // While a check runs the row says so; the held result
+                            // stays in the Overview notice and on the button
+                            // below. A failed check keeps the last good result
+                            // (the button still names it) but the row says so.
+                            if (updateStatus.checking) {
+                                Text("Checking…", color = t.muted, style = MaterialTheme.typography.bodyMedium)
+                            } else if (updateStatus.failure != null) {
                                 Text("Couldn't check", color = t.danger, style = MaterialTheme.typography.bodyMedium)
                             } else when (cs) {
                                 is UpdateState.Checking ->

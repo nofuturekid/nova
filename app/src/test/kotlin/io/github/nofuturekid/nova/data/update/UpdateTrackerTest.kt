@@ -5,10 +5,12 @@ import io.github.nofuturekid.nova.data.model.UpdateState
 import io.github.nofuturekid.nova.data.model.UpdateStatus
 import io.github.nofuturekid.nova.data.update.UpdateRepository.Companion.evaluate
 import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
@@ -47,18 +49,21 @@ class UpdateTrackerTest {
     }
 
     private class Fixture(
+        scope: CoroutineScope,
         val include: MutableStateFlow<Boolean>,
         fetch: suspend (Boolean) -> UpdateState,
     ) {
         var recorded = 0
-        val tracker = UpdateTracker(fetch, include) { recorded++ }
+        var fetches = 0
+        val tracker = UpdateTracker(scope, { inc -> fetches++; fetch(inc) }, include) { recorded++ }
         suspend fun status(): UpdateStatus = tracker.status.first()
     }
 
-    private fun fixture(
+    /** The tracker runs its checks in the application scope; here a scope of the test that outlives the requesters. */
+    private fun TestScope.fixture(
         includePrereleases: Boolean,
         fetch: suspend (Boolean) -> UpdateState,
-    ) = Fixture(MutableStateFlow(includePrereleases), fetch)
+    ) = Fixture(backgroundScope, MutableStateFlow(includePrereleases), fetch)
 
     private fun tagOf(state: UpdateState): String {
         assertTrue("expected Available, was $state", state is UpdateState.Available)
@@ -160,22 +165,25 @@ class UpdateTrackerTest {
     }
 
     /**
-     * WHY: two checks can be in flight (app start and the Settings screen,
-     * or a switch change and "Check now"). The one started later is the one
-     * the user asked for last; a slow older answer arriving afterwards must
-     * not replace it.
+     * WHY: the user turns "Include pre-releases" on while the check made
+     * under the old setting is still in flight. That check is the slow one
+     * and answers last; its result belongs to the old setting and must not
+     * be the one that stays. The check under the new setting is the one the
+     * user is waiting for.
      */
     @Test
-    fun anOlderCheckNeverOverridesANewerFreshOne() = runTest {
+    fun aSettingChangeMidFlightEndsWithTheResultOfTheNewSetting() = runTest {
         val answers = ArrayDeque<CompletableDeferred<UpdateState>>()
-        val f = fixture(includePrereleases = true) { answers.removeFirst().await() }
+        val f = fixture(includePrereleases = false) { answers.removeFirst().await() }
         val slowOld = CompletableDeferred<UpdateState>().also { answers.addLast(it) }
         val fastNew = CompletableDeferred<UpdateState>().also { answers.addLast(it) }
 
         val older = launch { f.tracker.check() }
         runCurrent()
+        f.include.value = true
         val newer = launch { f.tracker.check() }
         runCurrent()
+        assertEquals("a second call under the new setting", 2, f.fetches)
         fastNew.complete(github(true))
         runCurrent()
         assertEquals("v0.1.47-beta1", tagOf(f.status().latest))
@@ -185,7 +193,116 @@ class UpdateTrackerTest {
         older.join()
         newer.join()
 
+        val end = f.status()
+        assertEquals("v0.1.47-beta1", tagOf(end.latest))
+        assertEquals("the newest check is done, the old one must not keep the flag on", false, end.checking)
+    }
+
+    /**
+     * WHY: the app-start check is still in flight when the user opens and
+     * leaves Settings. Everything a screen starts used to be cancelled with
+     * the screen, and the answer was thrown away. Leaving a screen must not
+     * cancel a check: the result is stored although nobody is waiting.
+     */
+    @Test
+    fun aCheckStillStoresItsResultWhenTheRequesterIsCancelledMidFlight() = runTest {
+        val answer = CompletableDeferred<UpdateState>()
+        val f = fixture(includePrereleases = true) { answer.await() }
+
+        val screen = launch { f.tracker.check() }
+        runCurrent()
+        screen.cancel()
+        runCurrent()
+        answer.complete(github(true))
+        runCurrent()
+
         assertEquals("v0.1.47-beta1", tagOf(f.status().latest))
+        assertEquals("v0.1.47-beta1", f.status().notice(null)?.tag)
+        assertEquals(1, f.recorded)
+    }
+
+    /**
+     * WHY: app start and the Settings screen both ask within moments. The
+     * same setting means the same answer: the second request waits for the
+     * running check instead of making a second network call (GitHub's
+     * unauthenticated rate limit is per hour).
+     */
+    @Test
+    fun twoRequestsInARowMakeOneNetworkCall() = runTest {
+        val answer = CompletableDeferred<UpdateState>()
+        val f = fixture(includePrereleases = true) { answer.await() }
+
+        val first = launch { f.tracker.check() }
+        runCurrent()
+        val second = launch { f.tracker.check() }
+        runCurrent()
+        answer.complete(github(true))
+        runCurrent()
+        first.join()
+        second.join()
+
+        assertEquals(1, f.fetches)
+        assertEquals("v0.1.47-beta1", tagOf(f.status().latest))
+    }
+
+    /**
+     * WHY: a tap on "Check now" looked like nothing happened once the row
+     * kept the last result. While a check runs the status says so, with the
+     * held result still in place for the Overview notice; the flag is gone
+     * when the result is in.
+     */
+    @Test
+    fun aRunningCheckIsVisibleWhileTheHeldResultStays() = runTest {
+        val next = ArrayDeque<CompletableDeferred<UpdateState>>()
+        val f = fixture(includePrereleases = true) { next.removeFirst().await() }
+        val first = CompletableDeferred<UpdateState>().also { next.addLast(it) }
+        val second = CompletableDeferred<UpdateState>().also { next.addLast(it) }
+        assertEquals(false, f.status().checking)
+
+        val a = launch { f.tracker.check() }
+        runCurrent()
+        assertEquals(true, f.status().checking)
+        first.complete(github(true))
+        runCurrent()
+        a.join()
+        assertEquals(false, f.status().checking)
+
+        val b = launch { f.tracker.check() }
+        runCurrent()
+        val during = f.status()
+        assertEquals(true, during.checking)
+        assertEquals("v0.1.47-beta1", during.notice(null)?.tag)
+        second.complete(UpdateState.UpToDate)
+        runCurrent()
+        b.join()
+        val after = f.status()
+        assertEquals(false, after.checking)
+        assertEquals(UpdateState.UpToDate, after.latest)
+    }
+
+    /**
+     * WHY: a failed check must end the "Checking…" state (otherwise the row
+     * would say so forever) and still keep the last good result.
+     */
+    @Test
+    fun aFailedCheckEndsTheProgressAndKeepsTheLastGoodResult() = runTest {
+        val next = ArrayDeque<CompletableDeferred<UpdateState>>()
+        val f = fixture(includePrereleases = true) { next.removeFirst().await() }
+        next.addLast(CompletableDeferred(github(true)))
+        f.tracker.check()
+        val failing = CompletableDeferred<UpdateState>().also { next.addLast(it) }
+
+        val b = launch { f.tracker.check() }
+        runCurrent()
+        assertEquals(true, f.status().checking)
+        failing.complete(UpdateState.Error("Network error"))
+        runCurrent()
+        b.join()
+
+        val s = f.status()
+        assertEquals(false, s.checking)
+        assertEquals("Network error", s.failure)
+        assertEquals("v0.1.47-beta1", tagOf(s.latest))
     }
 
     /**
