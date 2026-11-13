@@ -146,8 +146,9 @@ jobs:
           # Newest successful ci.yml run for a head SHA that (a) came from a
           # trusted source — `pull_request` from THIS repo (not a fork) or
           # `workflow_dispatch` — and (b) actually has a live `app-release`
-          # artifact. A fork PR can reuse a head SHA but never produces the
-          # artifact, so it must not shadow the real run (CI review L4).
+          # artifact. Since WP3 a fork PR also uploads `app-release` (debug-signed),
+          # and it can reuse a head SHA, so the head_repository filter is what keeps
+          # it from shadowing the real run (CI review L4).
           # Prints "<run id>" or nothing.
           find_run() {
             local ids id n
