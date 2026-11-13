@@ -25,17 +25,17 @@ import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -64,6 +64,8 @@ import io.github.nofuturekid.nova.ui.util.memUsed
 fun DockerTab(
     state: DomainState<List<Container>>,
     view: LayoutMode,
+    query: String,
+    onQueryChange: (String) -> Unit,
     onAddServer: () -> Unit,
     stats: Map<String, ContainerLiveStats> = emptyMap(),
     onOpenContainer: (Container) -> Unit,
@@ -80,6 +82,8 @@ fun DockerTab(
             containers = state.value,
             serverBaseUrl = state.serverBaseUrl,
             view = view,
+            query = query,
+            onQueryChange = onQueryChange,
             stats = stats,
             onOpenContainer = onOpenContainer,
             onStart = onStart,
@@ -95,6 +99,8 @@ private fun DockerContent(
     containers: List<Container>,
     serverBaseUrl: String,
     view: LayoutMode,
+    query: String,
+    onQueryChange: (String) -> Unit,
     stats: Map<String, ContainerLiveStats> = emptyMap(),
     onOpenContainer: (Container) -> Unit,
     onStart: (Container) -> Unit,
@@ -102,13 +108,9 @@ private fun DockerContent(
     onStop: (Container) -> Unit,
     onUpdateAll: () -> Unit,
 ) {
-    var query by remember { mutableStateOf("") }
-    val filtered = containers.filter { c ->
-        query.isBlank() ||
-            c.name.contains(query, ignoreCase = true) ||
-            c.image.contains(query, ignoreCase = true)
-    }
+    val filtered = filterContainers(containers, query)
     val rows = MainViewModel.joinContainerStats(filtered, stats)
+    val noMatch = filtered.isEmpty() && containers.isNotEmpty()
     val updateCount = containers.count { it.updateStatus.hasUpdate() }
     val d = UnraidTheme.tokens
     when (view) {
@@ -120,7 +122,8 @@ private fun DockerContent(
             verticalArrangement = Arrangement.spacedBy(d.gap),
         ) {
             if (updateCount > 0) item { UpdateAllBanner(updateCount, onUpdateAll) }
-            item { SearchBox(query, { query = it }) }
+            item { SearchBox(query, onQueryChange) }
+            if (noMatch) item { NoMatches(query, containers.size) }
             items(rows, key = { it.first.id }) { (c, live) ->
                 ContainerRow(c, serverBaseUrl, live, onOpenContainer, onStart, onRestart, onStop)
             }
@@ -137,7 +140,8 @@ private fun DockerContent(
             if (updateCount > 0) item(span = { GridItemSpan(maxLineSpan) }) {
                 UpdateAllBanner(updateCount, onUpdateAll)
             }
-            item(span = { GridItemSpan(maxLineSpan) }) { SearchBox(query, { query = it }) }
+            item(span = { GridItemSpan(maxLineSpan) }) { SearchBox(query, onQueryChange) }
+            if (noMatch) item(span = { GridItemSpan(maxLineSpan) }) { NoMatches(query, containers.size) }
             gridItems(filtered, key = { it.id }) { c ->
                 ContainerGridTile(c, serverBaseUrl, onOpenContainer)
             }
@@ -154,7 +158,8 @@ private fun DockerContent(
                 verticalArrangement = Arrangement.spacedBy(d.gap),
             ) {
                 if (updateCount > 0) item { UpdateAllBanner(updateCount, onUpdateAll) }
-                item { SearchBox(query, { query = it }) }
+                item { SearchBox(query, onQueryChange) }
+                if (noMatch) item { NoMatches(query, containers.size) }
                 if (running.isNotEmpty()) {
                     item { SectionLabel("Running · ${running.size}") }
                     items(running, key = { "r-${it.first.id}" }) { (c, live) ->
@@ -171,6 +176,29 @@ private fun DockerContent(
                     item { SectionLabel("Stopped · ${exited.size}") }
                     items(exited, key = { "x-${it.first.id}" }) { (c, live) ->
                         ContainerRow(c, serverBaseUrl, live, onOpenContainer, onStart, onRestart, onStop)
+                    }
+                }
+            }
+        }
+        LayoutMode.Compose -> {
+            val liveById = rows.associate { (c, live) -> c.id to live }
+            val groups = groupByComposeProject(filtered)
+            LazyColumn(
+                modifier = Modifier.fillMaxWidth(),
+                contentPadding = androidx.compose.foundation.layout.PaddingValues(
+                    start = d.screenPad, end = d.screenPad, top = 4.dp, bottom = 24.dp,
+                ),
+                verticalArrangement = Arrangement.spacedBy(d.gap),
+            ) {
+                if (updateCount > 0) item { UpdateAllBanner(updateCount, onUpdateAll) }
+                item { SearchBox(query, onQueryChange) }
+                if (noMatch) item { NoMatches(query, containers.size) }
+                groups.forEach { group ->
+                    item(key = if (group.project == null) "g-none" else "g-p-${group.project}") {
+                        SectionLabel("${group.title} · ${group.containers.size}")
+                    }
+                    items(group.containers, key = { "c-${it.id}" }) { c ->
+                        ContainerRow(c, serverBaseUrl, liveById[c.id], onOpenContainer, onStart, onRestart, onStop)
                     }
                 }
             }
@@ -238,6 +266,38 @@ private fun SearchBox(value: String, onChange: (String) -> Unit) {
                     inner()
                 }
             },
+        )
+        if (value.isNotEmpty()) {
+            Box(
+                modifier = Modifier
+                    .size(24.dp)
+                    .clip(CircleShape)
+                    .semantics { contentDescription = "Clear search" }
+                    .clickable(role = Role.Button) { onChange("") },
+                contentAlignment = Alignment.Center,
+            ) {
+                UC.X(16.dp, t.muted)
+            }
+        }
+    }
+}
+
+@Composable
+private fun NoMatches(query: String, total: Int) {
+    val t = UnraidTheme.colors
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 32.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+    ) {
+        Text("No matching containers", color = t.text, style = MaterialTheme.typography.titleSmall)
+        Spacer(Modifier.height(4.dp))
+        Text(
+            text = "Nothing named or based on \u201C${query.trim()}\u201D among $total containers.",
+            color = t.muted,
+            style = MaterialTheme.typography.bodyMedium,
+            textAlign = TextAlign.Center,
         )
     }
 }

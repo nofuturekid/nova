@@ -89,7 +89,7 @@ fun VmsTab(
                             VmTile(vm, onOpenVm)
                         }
                     }
-                    LayoutMode.Grouped -> {
+                    LayoutMode.Grouped, LayoutMode.Compose -> {
                         val running = vms.filter { it.state == VmState.Running }
                         val paused  = vms.filter { it.state == VmState.Paused }
                         val stopped = vms.filter { it.state == VmState.Stopped }

@@ -227,7 +227,7 @@ fun SettingsScreen(
                     SettingRow(label = "Docker view") {
                         Segmented(
                             value = ui.dockerView,
-                            options = listOf(LayoutMode.List, LayoutMode.Grid, LayoutMode.Grouped),
+                            options = listOf(LayoutMode.List, LayoutMode.Grid, LayoutMode.Grouped, LayoutMode.Compose),
                             label = { it.name },
                             onChange = vm::setDockerView,
                         )

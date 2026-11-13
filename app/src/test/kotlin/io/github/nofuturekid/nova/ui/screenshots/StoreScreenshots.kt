@@ -384,6 +384,7 @@ class StoreScreenshots {
                 DockerTab(
                     state = DomainState.Content(containers, "http://192.0.2.10"),
                     view = LayoutMode.List,
+                    query = "", onQueryChange = {},
                     onAddServer = {},
                     stats = stats,
                     onOpenContainer = {}, onStart = {}, onRestart = {}, onStop = {}, onUpdateAll = {},
@@ -416,7 +417,7 @@ class StoreScreenshots {
             Chrome(MainTab.Docker) {
                 DockerTab(
                     state = DomainState.Content(containers, "http://192.0.2.10"),
-                    view = LayoutMode.List, onAddServer = {}, stats = stats,
+                    view = LayoutMode.List, query = "", onQueryChange = {}, onAddServer = {}, stats = stats,
                     onOpenContainer = {}, onStart = {}, onRestart = {}, onStop = {}, onUpdateAll = {},
                 )
             }

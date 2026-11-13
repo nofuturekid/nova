@@ -309,7 +309,7 @@ private fun ArrayContent(
                     }
                 }
             }
-            LayoutMode.Grouped -> {
+            LayoutMode.Grouped, LayoutMode.Compose -> {
                 val byType = listOf(
                     "Parity" to arr.disks.filter { it.type == DiskType.Parity },
                     "Data"   to arr.disks.filter { it.type == DiskType.Data },

@@ -217,6 +217,7 @@ fun GetDockerContainersQuery.Data.toContainers(): List<Container> =
             updateStatus = deriveUpdateStatus(c.isUpdateAvailable, c.isRebuildReady),
             webUiUrl = c.webUiUrl?.takeIf { it.isNotBlank() },
             networkIp = parseContainerNetworkIp(c.networkSettings),
+            composeProject = parseComposeProject(c.labels),
         )
     }
 
@@ -627,6 +628,22 @@ fun parseContainerNetworkIp(raw: Any?): String? {
         return ip
     }
     return null
+}
+
+/** The Docker label Compose sets on every container it creates. */
+const val COMPOSE_PROJECT_LABEL = "com.docker.compose.project"
+
+/**
+ * Read the Compose project out of the container's labels.
+ *
+ * Apollo's [JsonAnyAdapter] delivers `labels: JSON` as `Any?` — a
+ * `Map<String, Any?>` of label name to value, or null. Returns the
+ * trimmed project name, or null when the label is missing, blank or not
+ * a string, so a container without Compose never gets a made-up project.
+ */
+fun parseComposeProject(raw: Any?): String? {
+    val labels = raw as? Map<*, *> ?: return null
+    return (labels[COMPOSE_PROJECT_LABEL] as? String)?.trim()?.takeIf { it.isNotEmpty() }
 }
 
 /**

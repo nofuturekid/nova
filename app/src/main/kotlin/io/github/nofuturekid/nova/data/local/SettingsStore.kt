@@ -42,8 +42,10 @@ private object Keys {
 
 /** Shared layout mode for the Docker / VMs / Array list views. Each
  *  view persists its own choice; "Grouped" is interpreted per view
- *  (Docker → by status, VMs → by state, Array → by disk type). */
-enum class LayoutMode { List, Grid, Grouped }
+ *  (Docker → by status, VMs → by state, Array → by disk type).
+ *  "Compose" exists for Docker only (grouped by Compose project); the
+ *  VMs and Array settings never offer it and would show it as Grouped. */
+enum class LayoutMode { List, Grid, Grouped, Compose }
 
 /** One consistent read of the stored server selection; see [SettingsStore.serverSnapshot]. */
 data class ServerSnapshot(
@@ -131,6 +133,7 @@ class SettingsStore @Inject constructor(
             when (it[key]) {
                 "Grid"    -> LayoutMode.Grid
                 "Grouped" -> LayoutMode.Grouped
+                "Compose" -> LayoutMode.Compose
                 else      -> LayoutMode.List
             }
         }

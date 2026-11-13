@@ -184,6 +184,10 @@ data class Container(
      *  correct. When non-null, the UI substitutes this for the host
      *  portion of [webUiUrl] before opening the browser. */
     val networkIp: String?,
+    /** Docker Compose project the container belongs to (the label
+     *  `com.docker.compose.project`). Null when the container has no such
+     *  label, or the server did not report labels. */
+    val composeProject: String? = null,
 )
 
 enum class VmState { Running, Paused, Stopped }

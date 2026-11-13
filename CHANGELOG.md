@@ -26,6 +26,13 @@ release version + date and opens a fresh `[Unreleased]`.
   only data NOVA already loads, and it flags only what it knows: a sleeping disk
   or a missing value is never reported as a problem.
 
+- **Search and Compose grouping on the Docker tab** — the search field now has a
+  clear button, says so when nothing matches, and keeps what you typed when you
+  switch tabs or rotate the phone. A new "Compose" option for the Docker view
+  (Settings, Layout) groups containers by their Docker Compose project, with
+  containers that don't belong to one listed under "No Compose project". Updates
+  and the start, restart and stop buttons work in every layout.
+
 ## [0.1.47] - 2026-11-13
 
 NOVA no longer installs updates itself. It still tells you when a new version is out and shows the release notes, the file size and its SHA-256; "Download" now lets your browser download the release file, and you install it by opening the downloaded file. The "Update available" notice and Settings now always show the same latest version. The 0.1.47 betas confirmed this on a real phone: the download and the install from the downloaded file work, and Google Play Protect offered a scan of the new file and then rated it as seeming safe. Play Protect can still offer to scan every new file before it installs; that is expected. If you update from 0.1.46 or older, that one last update still goes through the old installer and can show the old warning once more.

@@ -137,6 +137,10 @@ fun MainScreen(
         openContainer = it
         vm.setDockerSheetOpen(it != null)
     }
+    // The Docker search text lives here, not in DockerTab: the tab leaves the
+    // composition on every tab switch, and rememberSaveable keeps the text
+    // through rotation and process restarts too.
+    var dockerQuery by androidx.compose.runtime.saveable.rememberSaveable { mutableStateOf("") }
     var openVm by remember { mutableStateOf<Vm?>(null) }
     var showNotifications by remember { mutableStateOf(false) }
     var confirm by remember { mutableStateOf<ConfirmRequest?>(null) }
@@ -286,6 +290,8 @@ fun MainScreen(
                     MainTab.Docker   -> DockerTab(
                         state = dockerState,
                         view = ui.dockerView,
+                        query = dockerQuery,
+                        onQueryChange = { dockerQuery = it },
                         onAddServer = onAddServer,
                         stats = dockerLiveStats,
                         onOpenContainer = { setOpenContainer(it) },
