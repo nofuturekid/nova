@@ -226,7 +226,7 @@ Minimum server API: every operation the app sends, except the two network-speed 
 
 ### Local backup
 
-`SECRETS_SUMMARY.md` outside the repo (in the original sandbox session). Lose this AND lose the GitHub secrets and you cannot ship updates that Android will accept as upgrades of existing installs — they'll require uninstall/reinstall.
+A verified backup of the release keystore and its passwords has existed in the maintainer's password manager since 2026-11-12 (certificate SHA-256 as pinned in `.github/scripts/release-verify-apk.sh`). The GitHub Actions secrets above remain the copy the pipeline uses. Lose every copy and you cannot ship updates that Android will accept as upgrades of existing installs — they'll require uninstall/reinstall.
 
 ## Local development
 
