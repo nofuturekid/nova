@@ -140,3 +140,5 @@ Correction to the addendum of 2026-05-20: it says "GitHub continues to redirect 
 ## Amendment 2026-11-12 — repository moved to the hellwand organization
 
 The repository moved from `nofuturekid/nova` to `hellwand/nova` (transfer on 2026-11-12, see issue #260). The site is now served at `https://hellwand.github.io/nova/`. The old address `https://nofuturekid.github.io/nova/` is served by a redirect page in the personal user-site repository, because GitHub does not redirect Pages sites after a transfer (see the correction above).
+
+2026-11-13: Renovate, not Dependabot, bumps the pinned action SHAs and their version comments since the switch (ADR-0025 amendment of 2026-11-13).
