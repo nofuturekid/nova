@@ -142,7 +142,7 @@ fun MainScreen(
     val pullState = rememberPullToRefreshState()
     var refreshing by remember { mutableStateOf(false) }
 
-    val updateState by vm.updateState.collectAsStateWithLifecycle()
+    val updateStatus by vm.updateStatus.collectAsStateWithLifecycle()
     val dismissedTag by vm.dismissedUpdateTag.collectAsStateWithLifecycle()
     var showUpdateDialog by remember { mutableStateOf(false) }
 
@@ -184,12 +184,12 @@ fun MainScreen(
         )
 
         if (BuildConfig.HAS_UPDATER) {
-            val update = updateState
-            if (update is UpdateState.Available && update.info.tag != dismissedTag) {
+            val notice = updateStatus.notice(dismissedTag)
+            if (notice != null) {
                 UpdateBanner(
-                    info = update.info,
+                    info = notice,
                     onTap = { showUpdateDialog = true },
-                    onDismiss = { vm.dismissUpdate(update.info.tag) },
+                    onDismiss = { vm.dismissUpdate(notice.tag) },
                 )
             }
         }
@@ -529,7 +529,7 @@ fun MainScreen(
     }
 
     if (BuildConfig.HAS_UPDATER) {
-        val u = updateState
+        val u = updateStatus.latest
         if (showUpdateDialog && u is UpdateState.Available) {
             UpdateDialog(
                 info = u.info,

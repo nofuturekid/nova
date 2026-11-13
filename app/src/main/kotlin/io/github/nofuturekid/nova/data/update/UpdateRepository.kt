@@ -85,7 +85,8 @@ class UpdateRepository @Inject constructor() {
 
         /**
          * Decides from the Releases API response [body] which release, if
-         * any, is newer than [currentVersion]. Drafts are never offered;
+         * any, is the newest one above [currentVersion], whatever order
+         * GitHub lists them in. Drafts are never offered;
          * pre-releases only when [includePrereleases]. A release without
          * an APK asset is still offered (its link is the release page).
          */
@@ -101,7 +102,8 @@ class UpdateRepository @Inject constructor() {
                 .filter { !it.draft }
                 .filter { includePrereleases || !it.prerelease }
                 .mapNotNull { rel -> parseVersion(rel.tagName)?.let { it to rel } }
-                .firstOrNull { (v, _) -> v > current }
+                .filter { (v, _) -> v > current }
+                .maxByOrNull { (v, _) -> v }
                 ?: return UpdateState.UpToDate
             val apk = rel.assets.firstOrNull { it.name.endsWith(".apk") }
             // Defence in depth: the browser is only sent to this repository's

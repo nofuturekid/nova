@@ -15,16 +15,31 @@ release version + date and opens a fresh `[Unreleased]`.
 
 ## [Unreleased]
 
+### Fixed
+
+- **The "Update available" notice and Settings now always show the same
+  version** — after "Check now" in Settings the Overview notice could still
+  offer an older release (for example the stable v0.1.46 while Settings offered
+  the newer beta v0.1.47-beta1), and reopening Settings could show the older
+  release again. NOVA now keeps one latest-version result that the notice, the
+  update sheet and Settings all show. It follows the "Include pre-releases"
+  switch: turning it off never leaves a beta on screen, and turning it on offers
+  the newest beta again as soon as the check is done. A check that fails keeps
+  the version found before, and Settings says that the check failed. When
+  several releases are newer than yours, the newest one is offered (#331).
+
 ## [0.1.47-beta1] - 2026-11-13
 
 Beta: NOVA no longer installs updates itself. It still tells you when a new version is out and shows the release notes, but "Download" now opens the release file in your browser. Please open the update sheet that opens from the "Update available" notice and look at the "Download" and "Release page" buttons, and tell us whether the download and the install from the downloaded file work for you. This beta itself is still installed by the old installer of 0.1.46, so Google Play Protect may show its warning one last time; from this version on, the next update arrives as a browser download.
 
 ### Added
+
 - **The Play Protect notice is documented** — the README and the website now
   explain what Google Play Protect shows when you install or update NOVA, why, and
   how to check a download (SHA-256 and signing certificate).
 
 ### Changed
+
 - **Updates are now downloaded in your browser instead of being installed inside
   NOVA** — NOVA still tells you when a new version is out and shows its release
   notes, the file size and its SHA-256. "Download" now lets your browser download
@@ -43,6 +58,7 @@ Beta: NOVA no longer installs updates itself. It still tells you when a new vers
 Adding a self-signed server now asks about its certificate only once, and the Overview shows dashes instead of zeros when it has no data. The 0.1.46 beta confirmed this on a real phone: the trust question appears once, the Overview shows dashes while offline, Uptime is a duration and disk rows have no dangling separator.
 
 ### Fixed
+
 - **The Overview shows a dash instead of zeros when it has no data** — after the
   connection to your server dropped, the Array card read "0,0 / 0 TB used" with a
   half-filled bar, and CPU and Memory read "0,0%" and "0,0 GB". Values the app does
@@ -70,6 +86,7 @@ Adding a self-signed server now asks about its certificate only once, and the Ov
 Live values on the Overview and the container numbers now recover by themselves after the connection to your server drops or goes quiet. The 0.1.45 beta confirmed this on a real phone with a real Wi-Fi change.
 
 ### Fixed
+
 - **Live values recover by themselves after a connection drop** — when the
   connection to your server broke or went quiet (Wi-Fi switched off and on, the
   Unraid API restarted), the live cards on the Overview and the container
@@ -82,6 +99,7 @@ Live values on the Overview and the container numbers now recover by themselves 
 Nothing new in the app. The build tools and libraries behind it were brought up to date, and the 0.1.44 beta confirmed that nothing looks or behaves differently.
 
 ### Changed
+
 - **Build tools and libraries updated** — Kotlin 2.4, Android Gradle Plugin 9.5, Jetpack Compose, okhttp 5.5, Apollo 5.2 and Tink 1.24 (among others) are newer. Nothing should look or behave differently.
 
 ## [0.1.43] - 2026-11-12
@@ -89,11 +107,13 @@ Nothing new in the app. The build tools and libraries behind it were brought up 
 The parity card appears on a real server, a server that cannot be reached says so in plain words, and a robustness batch (double-tap Install, missing install-permission screen, VM list without zeros). It is also the first version that looks for updates at the project's new home, github.com/hellwand/nova.
 
 ### Changed
+
 - **The project moved to github.com/hellwand/nova** — the app now looks
   for updates there, and the links in Settings (source code, releases,
   privacy policy) point to the new address (#270).
 
 ### Fixed
+
 - **The parity card now appears while a parity operation runs or is
   paused** — on the Array and Overview screens it used to stay hidden on
   a real server. Because the server reports a parity check, a parity
@@ -125,11 +145,13 @@ certificate and key-storage path, and an icon and screenshots for the
 store listing.
 
 ### Added
+
 - **Icon and screenshots in the store listing** — the F-Droid listing now
   shows the NOVA icon and six screenshots (Overview, Array, Docker, VMs,
   container details and notifications) (#212, thanks @licaon-kter).
 
 ### Changed
+
 - **Container details tabs are accessible** — the Info/Logs/Ports/Volumes
   tabs now use the standard Material tab bar, so screen readers announce
   them as tabs with the selected one marked and the touch targets are at
@@ -161,6 +183,7 @@ store listing.
   permission is no longer listed because the app does not declare it).
 
 ### Fixed
+
 - **Network interfaces screen no longer shows blank hardware fields** —
   vendor, model, link speed and the virtual flag are only available with a
   third-party API plugin; rows without data are now left out instead of
@@ -203,12 +226,14 @@ connection pill keeps showing Local/Remote when the server is unreachable
 (#217).
 
 ### Changed
+
 - **Connection pill keeps the mode when offline** — when the server
   can't be reached, the top-bar pill now reads "Local · Offline" or
   "Remote · Offline" instead of just "Offline", so you can see which
   address the app is using. Tap it to switch.
 
 ### Fixed
+
 - **Error messages name the actual cause** — "Can't reach the server"
   errors now show the underlying reason next to the generic message
   (e.g. "Error while reading JSON response (EOFException: …)"),
@@ -222,6 +247,7 @@ the dashboard and Docker tab, a new temperature card, per-container
 resource stats, and a batch of Array-tab accuracy improvements.
 
 ### Added
+
 - **Live, real-time server metrics** — the dashboard's CPU and Memory
   cards, the Network card's upload/download speed, and per-container
   CPU/memory on the Docker tab now update live in real time via the
@@ -238,11 +264,13 @@ resource stats, and a batch of Array-tab accuracy improvements.
   started).
 
 ### Changed
+
 - **Array tab separates Array from Cache/pool disks** — array disks and
   cache/pool disks now appear in distinct "Array" and "Cache" sections
   in both List and Grid layouts.
 
 ### Fixed
+
 - **Sleeping disks show "Standby"** — spun-down array disks now show a
   moon icon and "Standby" instead of a misleading "0°" temperature.
 - **Disk errors are surfaced** — each disk card now shows its I/O error
@@ -264,6 +292,7 @@ opt-in trust for local servers running HTTPS with a self-signed certificate
 (ADR-0041).
 
 ### Added
+
 - **Add a server by entering just its address and flipping an SSL switch** — the old free-text URL field (where you had to type `http://` or `https://` yourself) is replaced with a host/IP field, an optional port field, and a simple SSL toggle. The app composes the URL for you. Existing saved servers are unaffected — no re-entry needed. You can also paste a full address (with `http://` or `https://`) and the app strips the scheme for you.
 - **Connect to a local server that uses a self-signed HTTPS certificate** — a new "Trust self-signed certificate (local only)" switch appears in the Local connection settings when SSL is on. Enable it, tap **Test Local**, and the app shows you the certificate's SHA-256 fingerprint; tap **Trust** once and the app remembers it. Re-testing a server reuses the stored pin automatically — no re-confirmation needed. If the certificate ever changes (e.g. you regenerated it), the app blocks and asks you to review and re-accept the new fingerprint. A **"Reset certificate"** button in settings forgets the stored pin. This trust is local-endpoint-only — remote connections always require a valid CA-signed certificate.
 
@@ -273,6 +302,7 @@ Stable promotion of the 0.1.38 cycle, maintainer device-accepted. UI
 polish that makes the tap-actionable cards/rows visually obvious.
 
 ### Changed
+
 - **Visible affordance hints on tap-actionable cards/rows** — adds chevron indicators across the app so it's obvious which cards expand or drill in. In-place-expand rows (Settings → Server plugins → Recent operations, Settings → Network interfaces → per-NIC details) gain a chevron-down that rotates to chevron-up when expanded. Drill-in cards (Docker containers in both list and grid layouts; VMs in both list and grid layouts) gain a trailing chevron-right matching the existing Settings convention. For grid tiles, the chevron sits in the bottom-right corner where it doesn't compete with content. No functional change — purely a "tap-here works" visual cue.
 
 ## [0.1.37] - 2026-05-21
@@ -283,6 +313,7 @@ by stripping AGP's "Dependency metadata" extra signing block from the
 published APK. No functional or user-visible change.
 
 ### Changed
+
 - **Build: strip AGP's "Dependency metadata" extra signing block from the APK** — added the `dependenciesInfo { includeInApk = false; includeInBundle = false }` Gradle block (standard F-Droid compatibility shim). No functional impact on either flavor; no user-visible difference. Required because F-Droid's `check apk` rejects extra signing blocks beyond the standard JAR + APK signing schemes. Unblocks the in-flight F-Droid submission ([gitlab.com/fdroid/fdroiddata!38801](https://gitlab.com/fdroid/fdroiddata/-/merge_requests/38801)).
 
 ## [0.1.36] - 2026-05-21
@@ -293,6 +324,7 @@ last GitHub-request paths in the `store` flavor — pre-work for the
 F-Droid metadata submission.
 
 ### Fixed
+
 - **Store flavor truly makes zero GitHub requests at runtime** — the 0.1.35 distribution-flavors split (ADR-0040) guarded only the Settings → Updates UI. `MainViewModel.init` (every app launch via Overview) and `SettingsViewModel.init` (every Settings-open) still called `checkForUpdate()` / `checkNow()` unconditionally, and the Overview's update banner + `UpdateDialog` were rendered unconditionally. All three layers (both ViewModel init blocks + all network-touching methods + Overview banner + dialog) are now guarded by `BuildConfig.HAS_UPDATER`. The store flavor now genuinely contacts only the user's own Unraid server — matching the Privacy Policy and ADR-0040 promises. Defense-in-depth guards on `installUpdate`/`resetInstall`/`launchPermissionIntent` in both ViewModels. No behaviour change in the `direct` flavor.
 
 ## [0.1.35] - 2026-05-21
@@ -302,6 +334,7 @@ release opens the F-Droid + Play distribution path (per ADR-0040) and
 ships a formal Privacy Policy referenced from both app and stores.
 
 ### Added
+
 - **Distribution flavors** — the app now builds in two product flavors: **`direct`** (status quo — GitHub Releases with the in-app updater intact) and **`store`** (F-Droid + future Play distribution, with the in-app updater UI hidden and `REQUEST_INSTALL_PACKAGES` excluded from the manifest). Same app from the user's perspective — same `applicationId`, same UI minus the Updates section in store builds. Per ADR-0040.
 - **Privacy Policy** — formal policy at [`docs/privacy/POLICY.md`](https://github.com/nofuturekid/nova/blob/main/docs/privacy/POLICY.md), linked from Settings → About (new "Privacy Policy ›" row between "Releases" and "Open-source licenses"); README "Privacy & data handling" section gains a link to the full policy. No behavioural change — formalises the existing data-handling model (API-key on-device-encrypted, no telemetry, no third-party services in either flavor).
 
@@ -315,10 +348,12 @@ repo-rename housekeeping that closes out the 0.1.33 cycle's NOVA
 brand transition.
 
 ### Added
+
 - **Settings → Server plugins** — read-only inventory of installed `.plg` files (top section), Unraid API modules with name/version/module flags (middle section), and the install-operation history with status pills and expandable per-operation output log (bottom section). Powered by the upstream `installedUnraidPlugins`, `plugins`, and `pluginInstallOperations` GraphQL queries.
 - **Settings → Network interfaces** — read-only NIC inventory with IPv4 + IPv6 addressing (address, netmask, gateway, DHCP-state), hardware info (MAC, vendor, model, link speed, virtual-flag), and a marker for the primary management interface. Live RX/TX byte counters are not included — Unraid's GraphQL API doesn't expose those yet (tracked upstream).
 
 ### Changed
+
 - **Settings → About** — regrouped the two GitHub links ("Source code" and the new "Releases") as paired SettingRow entries directly above "Open-source licenses"; the trademark disclaimer moved to the bottom of the card as footer text.
 - **Repo rename housekeeping** — `nofuturekid/UnraidControl → nofuturekid/nova` (the final step of ADR-0039). README badge URLs, Live Interactive Preview URL, ADR-0033 reference URLs, in-app About URLs, and the `UpdateRepository.REPO` constant all flip to the new repo path.
 
@@ -331,9 +366,11 @@ Renamed from `UnraidControl` to **NOVA** for compliance with the Lime Technology
 The Android `applicationId` changed from `net.unraidcontrol.app` to `io.github.nofuturekid.nova`. From Android's view, NOVA is a new app — your old UnraidControl install stays on `0.1.33-beta2` and no longer receives updates. **Install NOVA fresh from the [Releases page](https://github.com/nofuturekid/nova/releases)**, re-enter your server's API key, and uninstall the old app. Server entries and theme preferences live in per-app DataStore and don't migrate — this is a one-time clean break.
 
 ### Added
+
 - **Settings → About** — app name + version, GPL v3 + source-code link, full Unraid® trademark attribution paragraph (per ADR-0038 / §6), and an open-source license list (powered by AboutLibraries).
 
 ### Changed
+
 - **Renamed to NOVA — NAS Operations Viewer Anywhere.** Brand mark, `applicationId`, Kotlin package, AGP namespace, Apollo generated package, `app_name`, Application class (`NovaApp`), splash/Material theme (`Theme.Nova`), launcher icon (sparkle 4-pointed-star placeholder), local APK download filename, release-asset name (`NOVA-vX.Y.Z.apk`), and README / HANDOFF prose all flip to NOVA. Repo URL stays at `nofuturekid/UnraidControl` for this Stable — the repo rename follows in a separate post-Stable step (Step 4 of the ADR-0039 plan).
 - **Deprecation banner** shipped one cycle ago in `0.1.33-beta2` so existing users were warned about the non-auto-updating applicationId change before it landed.
 
@@ -345,10 +382,12 @@ accessibility batch, resilient action launchers, and an install
 double-tap guard.
 
 ### Changed
+
 - Notifications Unread/Archived tabs now use the non-deprecated Material 3
   tab row; the selected-tab indicator follows the accent colour.
 
 ### Fixed
+
 - The Settings screen now scrolls on short screens (and in landscape), so
   no content is clipped on small devices.
 - On-accent text and icons now use the semantic Material 3 colour token,
@@ -363,6 +402,7 @@ double-tap guard.
   ignored (triage #22).
 
 ### Accessibility
+
 - The Settings toggles now use the Material 3 Switch, so screen readers
   announce them with the correct switch role and on/off state.
 
@@ -373,18 +413,21 @@ This release delivers actionable notifications, a security-hardening pass
 for app updates and data-at-rest, and a batch of code-review fixes.
 
 ### Added
+
 - The notifications sheet now has Unread and Archived tabs showing all
   notifications (including info-level ones). You can mark notifications
   as read or archived, restore archived ones, delete them individually,
   archive all unread at once, or delete all archived at once.
 
 ### Changed
+
 - The notifications indicator in the top bar now shows a bell icon
   instead of an information (ⓘ) symbol, and its badge counts every
   unread notification (info-level ones are no longer omitted, so the
   number matches the list).
 
 ### Security
+
 - App updates are now verified before install: the downloaded APK must
   match both the expected byte size and a constant-time SHA-256 of the
   GitHub release asset, the download URL must be HTTPS, and a mismatch
@@ -400,6 +443,7 @@ for app updates and data-at-rest, and a batch of code-review fixes.
   instead of a misleading "Missing API key". (ADR-0035, amends ADR-0024)
 
 ### Fixed
+
 - Switching servers no longer briefly shows the previous server's data
   under the new server's name.
 - The notifications list now loads correctly against real Unraid servers
@@ -430,6 +474,7 @@ now built on standard Material 3 components throughout, with an
 accessibility and visual-consistency pass.
 
 ### Fixed
+
 - App update started from the Settings screen no longer interferes with
   the update state shown on the main screen.
 - Overview sparklines no longer show a spurious dip roughly once a minute.
@@ -438,6 +483,7 @@ accessibility and visual-consistency pass.
   — they are now correctly tinted (accent when selected, muted otherwise).
 
 ### Changed
+
 - Cards, icon-only buttons, progress bars, buttons, dialogs and text
   fields across the app are now rebuilt on the standard Material 3
   components instead of custom ones. This is an internal modernisation

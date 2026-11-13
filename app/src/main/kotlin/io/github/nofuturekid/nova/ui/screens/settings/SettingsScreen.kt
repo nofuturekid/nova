@@ -54,8 +54,9 @@ import io.github.nofuturekid.nova.BuildConfig
 import io.github.nofuturekid.nova.data.local.LayoutMode
 import io.github.nofuturekid.nova.data.model.AppSettings
 import io.github.nofuturekid.nova.data.model.UpdateState
+import io.github.nofuturekid.nova.data.model.UpdateStatus
 import io.github.nofuturekid.nova.data.repository.SettingsRepository
-import io.github.nofuturekid.nova.data.update.UpdateRepository
+import io.github.nofuturekid.nova.data.update.UpdateTracker
 import io.github.nofuturekid.nova.ui.components.BtnVariant
 import io.github.nofuturekid.nova.ui.components.Pill
 import io.github.nofuturekid.nova.ui.components.SectionLabel
@@ -65,8 +66,6 @@ import io.github.nofuturekid.nova.ui.components.UnraidButton
 import io.github.nofuturekid.nova.ui.components.UnraidCard
 import io.github.nofuturekid.nova.ui.components.UnraidIconButton
 import io.github.nofuturekid.nova.ui.components.unraidSwitchColors
-import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.asStateFlow
 import io.github.nofuturekid.nova.ui.screens.update.UpdateDialog
 import io.github.nofuturekid.nova.ui.theme.AccentSwatches
 import io.github.nofuturekid.nova.ui.theme.Density
@@ -87,7 +86,7 @@ data class SettingsUi(
 @HiltViewModel
 class SettingsViewModel @Inject constructor(
     private val repo: SettingsRepository,
-    private val updates: UpdateRepository,
+    private val updateTracker: UpdateTracker,
 ) : ViewModel() {
     private val layouts = combine(
         repo.dockerView, repo.vmsView, repo.arrayView,
@@ -108,8 +107,9 @@ class SettingsViewModel @Inject constructor(
             ),
         )
 
-    private val _checkState = MutableStateFlow<UpdateState>(UpdateState.Checking)
-    val checkState: StateFlow<UpdateState> = _checkState.asStateFlow()
+    /** The one shared update result, the same one the Overview notice shows. */
+    val updateStatus: StateFlow<UpdateStatus> = updateTracker.status
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), UpdateStatus())
 
     init {
         // Refresh the snapshot when the user opens Settings so they see the
@@ -133,9 +133,7 @@ class SettingsViewModel @Inject constructor(
 
     fun checkNow() = viewModelScope.launch {
         if (!BuildConfig.HAS_UPDATER) return@launch
-        _checkState.value = UpdateState.Checking
-        _checkState.value = updates.check(state.value.includePrereleases)
-        repo.setLastUpdateCheck(System.currentTimeMillis())
+        updateTracker.check()
     }
 }
 
@@ -149,7 +147,7 @@ fun SettingsScreen(
 ) {
     val t = UnraidTheme.colors
     val ui by vm.state.collectAsState()
-    val checkState by vm.checkState.collectAsState()
+    val updateStatus by vm.updateStatus.collectAsState()
     var showUpdateDialog by remember { mutableStateOf(false) }
 
     Column(
@@ -267,9 +265,13 @@ fun SettingsScreen(
                                 style = MaterialTheme.typography.labelLarge,
                             )
                         }
-                        val cs = checkState
+                        val cs = updateStatus.latest
                         SettingRow(label = "Latest available") {
-                            when (cs) {
+                            // A failed check keeps the last good result (the
+                            // button below still names it) but the row says so.
+                            if (updateStatus.failure != null) {
+                                Text("Couldn't check", color = t.danger, style = MaterialTheme.typography.bodyMedium)
+                            } else when (cs) {
                                 is UpdateState.Checking ->
                                     Text("Checking…", color = t.muted, style = MaterialTheme.typography.bodyMedium)
                                 is UpdateState.UpToDate ->
@@ -454,7 +456,7 @@ fun SettingsScreen(
         }
     }
 
-    val cs2 = checkState
+    val cs2 = updateStatus.latest
     if (showUpdateDialog && cs2 is UpdateState.Available) {
         UpdateDialog(
             info = cs2.info,

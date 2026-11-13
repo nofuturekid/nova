@@ -102,6 +102,20 @@ class UpdateRepositoryTest {
     }
 
     /**
+     * WHY: "Latest available" must be the newest release, not the first one
+     * GitHub happens to list (the list is ordered by creation date, so a
+     * patch for an older line can come before the newest release).
+     */
+    @Test
+    fun theNewestReleaseWinsWhateverOrderGitHubListsThem() {
+        val patchFirst = json(release("v0.1.46"), release("v0.1.47"))
+        assertEquals("0.1.47", available(evaluate(patchFirst, false, "0.1.45")).version)
+
+        val betaFirst = json(release("v0.1.47-beta1", prerelease = true), release("v0.1.47"))
+        assertEquals("0.1.47", available(evaluate(betaFirst, true, "0.1.46")).version)
+    }
+
+    /**
      * WHY: ADR-0034 #1 fail-closed. A link rewritten to plain HTTP must not
      * reach the browser, whether it is the APK or the release page.
      */

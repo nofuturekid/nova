@@ -54,3 +54,27 @@ sealed interface UpdateState {
     /** Check failed (network, parse, rate-limit). */
     data class Error(val message: String) : UpdateState
 }
+
+/**
+ * What the app knows about the latest release, for the CURRENT "Include
+ * pre-releases" setting. The Overview notice, its sheet and every line and
+ * button of the Settings update section render from this one value.
+ */
+data class UpdateStatus(
+    /**
+     * Last good outcome of a check made under the current setting:
+     * [UpdateState.UpToDate] or [UpdateState.Available]. [UpdateState.Checking]
+     * means nothing is known yet for this setting. Never [UpdateState.Error]:
+     * a failed check does not replace the last good result, see [failure].
+     */
+    val latest: UpdateState = UpdateState.Checking,
+    /** Message of the most recent check if it failed, null if it succeeded. */
+    val failure: String? = null,
+) {
+    /**
+     * The release the Overview notice offers: the latest known newer release
+     * unless the user dismissed exactly this tag; null means no notice.
+     */
+    fun notice(dismissedTag: String?): UpdateInfo? =
+        (latest as? UpdateState.Available)?.info?.takeIf { it.tag != dismissedTag }
+}

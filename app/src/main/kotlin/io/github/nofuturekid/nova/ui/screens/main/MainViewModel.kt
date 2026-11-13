@@ -17,7 +17,6 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.emptyFlow
-import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
@@ -38,14 +37,14 @@ import io.github.nofuturekid.nova.data.model.Notifications
 import io.github.nofuturekid.nova.data.model.Server
 import io.github.nofuturekid.nova.data.model.ServerInfo
 import io.github.nofuturekid.nova.data.model.Temperature
-import io.github.nofuturekid.nova.data.model.UpdateState
+import io.github.nofuturekid.nova.data.model.UpdateStatus
 import io.github.nofuturekid.nova.data.model.Vm
 import io.github.nofuturekid.nova.data.repository.ActionFailedException
 import io.github.nofuturekid.nova.data.repository.DomainState
 import io.github.nofuturekid.nova.data.repository.ServerRepository
 import io.github.nofuturekid.nova.data.repository.SettingsRepository
 import io.github.nofuturekid.nova.data.repository.UnraidRepository
-import io.github.nofuturekid.nova.data.update.UpdateRepository
+import io.github.nofuturekid.nova.data.update.UpdateTracker
 import javax.inject.Inject
 
 data class MainUi(
@@ -63,7 +62,7 @@ class MainViewModel @Inject constructor(
     private val servers: ServerRepository,
     private val unraid: UnraidRepository,
     private val settings: SettingsRepository,
-    private val updates: UpdateRepository,
+    private val updateTracker: UpdateTracker,
 ) : ViewModel() {
 
     // ── Resilient action seam (triage #19, ADR-0037) ──────────────────
@@ -272,8 +271,8 @@ class MainViewModel @Inject constructor(
     // ── Update check (the app only reports; the user downloads and
     //    installs the file in the browser, ADR-0046) ───────────────────
 
-    private val _updateState = MutableStateFlow<UpdateState>(UpdateState.Checking)
-    val updateState: StateFlow<UpdateState> = _updateState.asStateFlow()
+    val updateStatus: StateFlow<UpdateStatus> = updateTracker.status
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), UpdateStatus())
 
     val dismissedUpdateTag: StateFlow<String?> = settings.dismissedUpdateTag
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
@@ -321,10 +320,7 @@ class MainViewModel @Inject constructor(
 
     fun checkForUpdate() = viewModelScope.launch {
         if (!BuildConfig.HAS_UPDATER) return@launch
-        _updateState.value = UpdateState.Checking
-        val include = settings.includePrereleases.first()
-        _updateState.value = updates.check(include)
-        settings.setLastUpdateCheck(System.currentTimeMillis())
+        updateTracker.check()
     }
 
     fun dismissUpdate(tag: String) = viewModelScope.launch {
