@@ -1,4 +1,5 @@
 package io.github.nofuturekid.nova
+// probe: comment-only change for the CI gate negative test (issue 295), never merged.
 
 import android.os.Bundle
 import androidx.activity.ComponentActivity
