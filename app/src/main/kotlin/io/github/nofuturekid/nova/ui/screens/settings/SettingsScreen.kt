@@ -127,8 +127,8 @@ class SettingsViewModel @Inject constructor(
         repo.setIncludePrereleases(value)
         // Reset dismissal so a previously-hidden update becomes visible again.
         repo.setDismissedUpdateTag(null)
-        // Re-check immediately so the user sees the right answer for the new toggle.
-        checkNow()
+        // No check here: the UpdateTracker follows the setting itself, so the
+        // answer for the new toggle also arrives when Settings is left now.
     }
 
     fun checkNow() = viewModelScope.launch {

@@ -7,10 +7,14 @@ import io.github.nofuturekid.nova.data.update.UpdateRepository.Companion.evaluat
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.TestScope
+import kotlinx.coroutines.test.advanceTimeBy
 import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
@@ -18,6 +22,7 @@ import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import java.io.IOException
 
 /**
  * Since 0.1.47 the update notice and its sheet are the only way users learn
@@ -52,18 +57,24 @@ class UpdateTrackerTest {
         scope: CoroutineScope,
         val include: MutableStateFlow<Boolean>,
         fetch: suspend (Boolean) -> UpdateState,
+        followsTheSetting: Boolean,
     ) {
         var recorded = 0
         var fetches = 0
-        val tracker = UpdateTracker(scope, { inc -> fetches++; fetch(inc) }, include) { recorded++ }
+        var recordFails: Exception? = null
+        val tracker = UpdateTracker(
+            scope, { inc -> fetches++; fetch(inc) }, include,
+            { recordFails?.let { throw it }; recorded++ }, followsTheSetting,
+        )
         suspend fun status(): UpdateStatus = tracker.status.first()
     }
 
     /** The tracker runs its checks in the application scope; here a scope of the test that outlives the requesters. */
     private fun TestScope.fixture(
         includePrereleases: Boolean,
+        followsTheSetting: Boolean = false,
         fetch: suspend (Boolean) -> UpdateState,
-    ) = Fixture(backgroundScope, MutableStateFlow(includePrereleases), fetch)
+    ) = Fixture(backgroundScope, MutableStateFlow(includePrereleases), fetch, followsTheSetting)
 
     private fun tagOf(state: UpdateState): String {
         assertTrue("expected Available, was $state", state is UpdateState.Available)
@@ -72,20 +83,22 @@ class UpdateTrackerTest {
 
     /**
      * WHY: the bug. Settings showed the fresh result and the notice kept an
-     * older one. After a check, whoever asks next (the notice, the Settings
-     * line, a Settings screen opened again) must get the same release.
+     * older one. Two separate consumers (standing in for the two view models
+     * that collect the status) are already listening when ONE of them asks
+     * for a check; both must then see that check's release.
      */
     @Test
     fun aCheckStoresOneResultThatEverySurfaceReads() = runTest {
         val f = fixture(includePrereleases = true, fetch = github)
+        val notice = f.tracker.status.stateIn(backgroundScope, SharingStarted.Eagerly, UpdateStatus())
+        val settingsLine = f.tracker.status.stateIn(backgroundScope, SharingStarted.Eagerly, UpdateStatus())
 
-        f.tracker.check()
+        f.tracker.check() // asked from the Settings side only
+        runCurrent()
 
-        val settingsLine = f.status()
-        val noticeAfterReopening = f.status()
-        assertEquals("v0.1.47-beta1", tagOf(settingsLine.latest))
-        assertEquals(settingsLine, noticeAfterReopening)
-        assertEquals("v0.1.47-beta1", settingsLine.notice(dismissedTag = null)?.tag)
+        assertEquals("v0.1.47-beta1", tagOf(settingsLine.value.latest))
+        assertEquals(settingsLine.value, notice.value)
+        assertEquals("v0.1.47-beta1", notice.value.notice(dismissedTag = null)?.tag)
     }
 
     /**
@@ -196,6 +209,82 @@ class UpdateTrackerTest {
         val end = f.status()
         assertEquals("v0.1.47-beta1", tagOf(end.latest))
         assertEquals("the newest check is done, the old one must not keep the flag on", false, end.checking)
+    }
+
+    /**
+     * WHY: the opposite order of the test above. The superseded check ends
+     * FIRST while the check under the new setting still runs. Its end must
+     * not clear the in-progress flag of the newer check (the row would stop
+     * saying "Checking…" too early) and its result must not be stored.
+     */
+    @Test
+    fun aSupersededCheckThatEndsFirstDoesNotClearTheFlagOfTheCheckStillRunning() = runTest {
+        val answers = ArrayDeque<CompletableDeferred<UpdateState>>()
+        val f = fixture(includePrereleases = false) { answers.removeFirst().await() }
+        val slowOld = CompletableDeferred<UpdateState>().also { answers.addLast(it) }
+        val fastNew = CompletableDeferred<UpdateState>().also { answers.addLast(it) }
+
+        val older = launch { f.tracker.check() }
+        runCurrent()
+        f.include.value = true
+        val newer = launch { f.tracker.check() }
+        runCurrent()
+        slowOld.complete(github(false))
+        runCurrent()
+        older.join()
+
+        val whileNewIsRunning = f.status()
+        assertEquals("the newer check is still running", true, whileNewIsRunning.checking)
+        assertEquals("the old setting's result is not stored", UpdateState.Checking, whileNewIsRunning.latest)
+
+        fastNew.complete(github(true))
+        runCurrent()
+        newer.join()
+
+        val end = f.status()
+        assertEquals(false, end.checking)
+        assertEquals("v0.1.47-beta1", tagOf(end.latest))
+    }
+
+    /**
+     * WHY: if the check itself breaks (not a clean "Error" answer but an
+     * exception, e.g. the write of the check time fails), the row used to
+     * stay on "Checking…" forever and the exception reached every screen
+     * that waited, which crashes the app. The requester returns normally,
+     * the progress ends, the failure is shown and the last good result stays.
+     */
+    @Test
+    fun aCheckThatThrowsEndsTheProgressKeepsTheResultAndDoesNotReachTheRequester() = runTest {
+        var broken = false
+        val f = fixture(includePrereleases = true) { include ->
+            if (broken) throw IOException("connection reset") else github(include)
+        }
+        f.tracker.check()
+
+        broken = true
+        f.tracker.check() // must return normally
+
+        val failed = f.status()
+        assertEquals(false, failed.checking)
+        assertEquals("connection reset", failed.failure)
+        assertEquals("v0.1.47-beta1", tagOf(failed.latest))
+
+        broken = false
+        f.tracker.check()
+        assertNull(f.status().failure)
+    }
+
+    /** WHY: same as above for the other step of a check, and for an exception without a message. */
+    @Test
+    fun aFailingWriteOfTheCheckTimeDoesNotLeaveTheRowOnChecking() = runTest {
+        val f = fixture(includePrereleases = true, fetch = github)
+        f.recordFails = IllegalStateException()
+
+        f.tracker.check() // must return normally
+
+        val s = f.status()
+        assertEquals(false, s.checking)
+        assertEquals("Network error", s.failure)
     }
 
     /**
@@ -370,6 +459,99 @@ class UpdateTrackerTest {
         f.tracker.check()
 
         assertEquals(2, f.recorded)
+    }
+
+    /**
+     * WHY: the user flips "Include pre-releases" and leaves Settings at
+     * once. Nobody asks for a check any more, yet the Overview notice must
+     * get the answer for the new setting: the tracker checks by itself, once
+     * the user has stopped flipping.
+     */
+    @Test
+    fun aChangeOfTheSettingStartsACheckWithoutAnyRequester() = runTest {
+        val f = fixture(includePrereleases = false, followsTheSetting = true, fetch = github)
+        f.tracker.check()
+        assertEquals("v0.1.46", tagOf(f.status().latest))
+
+        f.include.value = true
+        runCurrent()
+        advanceTimeBy(UpdateTracker.SETTING_DEBOUNCE_MS - 1)
+        runCurrent()
+        assertEquals("not before the user has stopped flipping", 1, f.fetches)
+        advanceTimeBy(1)
+        runCurrent()
+
+        assertEquals(2, f.fetches)
+        assertEquals("v0.1.47-beta1", tagOf(f.status().latest))
+        assertEquals("v0.1.47-beta1", f.status().notice(null)?.tag)
+    }
+
+    /**
+     * WHY: every call counts against GitHub's unauthenticated rate limit.
+     * Flipping the switch several times in a row makes ONE call, for the
+     * position the user stopped on.
+     */
+    @Test
+    fun flippingTheSettingQuicklyMakesOneNetworkCall() = runTest {
+        val asked = mutableListOf<Boolean>()
+        val f = fixture(includePrereleases = false, followsTheSetting = true) { include ->
+            asked += include
+            github(include)
+        }
+        runCurrent()
+
+        for (position in listOf(true, false, true)) {
+            f.include.value = position
+            advanceTimeBy(UpdateTracker.SETTING_DEBOUNCE_MS / 3)
+            runCurrent()
+        }
+        advanceTimeBy(UpdateTracker.SETTING_DEBOUNCE_MS)
+        runCurrent()
+
+        assertEquals(listOf(true), asked)
+        assertEquals("v0.1.47-beta1", tagOf(f.status().latest))
+    }
+
+    /**
+     * WHY: no check without a real change. The value the setting starts
+     * with is not a change, and the store re-emits the setting whenever ANY
+     * setting is written (for example the dismissed tag that the switch
+     * itself resets).
+     */
+    @Test
+    fun noCheckIsStartedWithoutAChangeOfTheSetting() = runTest {
+        val store = MutableSharedFlow<Boolean>(replay = 1).also { it.tryEmit(false) }
+        var fetches = 0
+        UpdateTracker(
+            backgroundScope, { fetches++; UpdateState.UpToDate }, store, {}, followsTheSetting = true,
+        )
+        runCurrent()
+        advanceTimeBy(10 * UpdateTracker.SETTING_DEBOUNCE_MS)
+        runCurrent()
+        assertEquals("the starting value is no change", 0, fetches)
+
+        store.emit(false) // another key was written, the setting is as before
+        advanceTimeBy(10 * UpdateTracker.SETTING_DEBOUNCE_MS)
+        runCurrent()
+        assertEquals("a write that leaves the setting alone is no change", 0, fetches)
+
+        store.emit(true)
+        advanceTimeBy(UpdateTracker.SETTING_DEBOUNCE_MS)
+        runCurrent()
+        assertEquals("a real change is", 1, fetches)
+    }
+
+    /** WHY: the store flavor has no updater and must make no update calls, not even after a switch change. */
+    @Test
+    fun withoutAnUpdaterAChangeOfTheSettingMakesNoCall() = runTest {
+        val f = fixture(includePrereleases = false, followsTheSetting = false, fetch = github)
+        runCurrent()
+
+        f.include.value = true
+        advanceTimeBy(10 * UpdateTracker.SETTING_DEBOUNCE_MS)
+        runCurrent()
+
+        assertEquals(0, f.fetches)
     }
 
     /**

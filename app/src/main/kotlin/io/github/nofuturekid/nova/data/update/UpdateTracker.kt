@@ -1,19 +1,26 @@
 package io.github.nofuturekid.nova.data.update
 
+import io.github.nofuturekid.nova.BuildConfig
 import io.github.nofuturekid.nova.data.model.UpdateState
 import io.github.nofuturekid.nova.data.model.UpdateStatus
 import io.github.nofuturekid.nova.data.repository.SettingsRepository
 import io.github.nofuturekid.nova.di.ApplicationScope
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Deferred
+import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.async
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.debounce
 import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.drop
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.flow.updateAndGet
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import javax.inject.Inject
@@ -31,6 +38,11 @@ import javax.inject.Singleton
  * asked: leaving Settings while the check from app start is still in flight
  * must not lose its answer. A requester that goes away only stops waiting.
  *
+ * The tracker also follows the "Include pre-releases" switch itself: when the
+ * setting changes it checks again, so the answer for the new setting arrives
+ * even if the user leaves Settings right after flipping the switch. Rapid
+ * flipping makes one check, not one per flip (see [SETTING_DEBOUNCE_MS]).
+ *
  * In memory only, on purpose: a stored result would have to be thrown away
  * on every app update and every switch change, and the check at app start
  * refreshes it anyway.
@@ -41,6 +53,7 @@ class UpdateTracker internal constructor(
     private val fetch: suspend (includePrereleases: Boolean) -> UpdateState,
     private val includePrereleases: Flow<Boolean>,
     private val recordCheck: suspend () -> Unit,
+    followsTheSetting: Boolean,
 ) {
     @Inject
     constructor(
@@ -52,6 +65,7 @@ class UpdateTracker internal constructor(
         fetch = updates::check,
         includePrereleases = settings.includePrereleases,
         recordCheck = { settings.setLastUpdateCheck(System.currentTimeMillis()) },
+        followsTheSetting = BuildConfig.HAS_UPDATER, // the store flavor makes no update calls
     )
 
     /** A good result and the pre-release setting it was computed under. */
@@ -90,6 +104,11 @@ class UpdateTracker internal constructor(
         )
     }.distinctUntilChanged()
 
+    // Last in the property list: the launched job reads every property above.
+    init {
+        if (followsTheSetting) scope.launch { checkWhenTheSettingChanges() }
+    }
+
     /**
      * Asks for a check and returns when it has stored its answer. The check
      * itself runs in the application scope: cancelling the caller only stops
@@ -118,6 +137,19 @@ class UpdateTracker internal constructor(
         return Run(number, include, scope.async { execute(number, include) })
     }
 
+    /**
+     * A change of the setting (not the value it starts with, and not another
+     * write to the store that leaves it as it was) asks for a check. The
+     * debounce is what bounds the network calls: only the value the user stops
+     * on is checked. (collectLatest alone would not bound them, a check keeps
+     * running when the one waiting for it is replaced; it is here so a slow
+     * check under the old setting does not delay the one for the new setting.)
+     */
+    @OptIn(FlowPreview::class)
+    private suspend fun checkWhenTheSettingChanges() {
+        includePrereleases.distinctUntilChanged().drop(1).debounce(SETTING_DEBOUNCE_MS).collectLatest { check() }
+    }
+
     private suspend fun execute(run: Int, include: Boolean) {
         try {
             val result = fetch(include)
@@ -129,9 +161,20 @@ class UpdateTracker internal constructor(
                 }
             }
             recordCheck()
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            // Never leave the row on "Checking…" or crash the awaiting screens.
+            // The held result stays; only the newest check may report.
+            snapshot.update { if (it.run == run) it.copy(failure = e.message ?: "Network error") else it }
         } finally {
             // Also on cancellation or an exception: the flag must not stay on.
             snapshot.update { if (it.run == run) it.copy(checking = false) else it }
         }
+    }
+
+    internal companion object {
+        /** Quiet time after the last flip of the switch before the check starts. */
+        const val SETTING_DEBOUNCE_MS = 300L
     }
 }
