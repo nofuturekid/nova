@@ -9,6 +9,7 @@ import androidx.work.WorkInfo
 import androidx.work.WorkManager
 import androidx.work.impl.WorkManagerImpl
 import androidx.work.testing.WorkManagerTestInitHelper
+import io.github.nofuturekid.nova.data.demo.DemoFixtures
 import io.github.nofuturekid.nova.data.local.SettingsStore
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
@@ -195,6 +196,25 @@ class AlertSchedulerTest {
         settings.setServers(emptyList())
         scheduler.onServerRemoved(tower.id)
         assertTrue("no server, no job", active().isEmpty())
+        assertTrue("the switch keeps its value", settings.alertSettings.first().enabled)
+    }
+
+    @Test fun a_list_with_only_the_demo_server_schedules_nothing_and_a_real_server_next_to_it_does() = runBlocking {
+        // WHY: the demo entry is fictional, so "only the demo server is left" means "no server":
+        // a job that could check nothing would wake the phone for nothing.
+        settings.setServers(listOf(DemoFixtures.server))
+        val scheduler = scheduler()
+
+        assertTrue(scheduler.enable())
+        assertTrue("only the demo entry: nothing to schedule", active().isEmpty())
+
+        settings.setServers(listOf(DemoFixtures.server, tower))
+        scheduler.reconcile()
+        assertEquals("a real server next to the demo is checked", 1, active().size)
+
+        settings.setServers(listOf(DemoFixtures.server))
+        scheduler.onServerRemoved(tower.id)
+        assertTrue("removing the last real server leaves only the demo: the job goes", active().isEmpty())
         assertTrue("the switch keeps its value", settings.alertSettings.first().enabled)
     }
 

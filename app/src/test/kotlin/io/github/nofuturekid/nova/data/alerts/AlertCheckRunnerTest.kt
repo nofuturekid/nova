@@ -7,6 +7,7 @@ import android.content.Context
 import android.service.notification.StatusBarNotification
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
+import io.github.nofuturekid.nova.data.demo.DemoFixtures
 import io.github.nofuturekid.nova.data.local.SettingsStore
 import io.github.nofuturekid.nova.data.model.ArrayState
 import io.github.nofuturekid.nova.data.model.AttentionTarget
@@ -324,5 +325,28 @@ class AlertCheckRunnerTest {
 
         assertEquals(emptyList<String>(), probe.probed.map { it.first })
         assertEquals(1, workCancelled)
+    }
+
+    @Test fun the_demo_server_is_never_asked_and_a_real_server_next_to_it_still_is() {
+        // WHY: the demo entry has no address and no key; a check that touched it would count a
+        // phantom server and spend a request on nothing. The probe fails the test if it is asked.
+        runBlocking { settings.setServers(listOf(DemoFixtures.server, tower)) }
+        val failingOnDemo = ScriptedProbe { server ->
+            if (server.isDemo) throw AssertionError("the demo server must never be probed")
+            okResult(listOf(unraidNotification("n1")))
+        }
+
+        val checks = check(failingOnDemo)
+
+        assertEquals("only the real server is counted", listOf(tower.id), checks.map { it.server.id })
+    }
+
+    @Test fun a_list_with_only_the_demo_server_makes_no_request() {
+        runBlocking { settings.setServers(listOf(DemoFixtures.server)) }
+
+        val checks = check()
+
+        assertEquals(emptyList<String>(), probe.probed.map { it.first })
+        assertEquals(emptyList<ServerCheck>(), checks)
     }
 }
