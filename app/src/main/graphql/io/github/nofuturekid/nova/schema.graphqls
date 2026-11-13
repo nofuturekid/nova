@@ -40,6 +40,7 @@ type Query {
     plugins: [Plugin!]!
     pluginInstallOperations: [PluginInstallOperation!]!
     display: InfoDisplay
+    me: UserAccount!
 }
 
 # ── Display (global temperature thresholds) ──────────────────────────
@@ -265,6 +266,7 @@ type InfoVersions {
 
 type CoreVersions {
     unraid: String
+    api: String
     kernel: String
 }
 
@@ -564,4 +566,69 @@ type DockerContainerStats {
     memPercent: Float!
     netIO: String!
     blockIO: String!
+}
+
+# ── API key access (capability detection, ADR-0047) ──────────────────
+# Subset of the live Unraid `me` query. `me` describes the API key, not a
+# signed-in user. Enum values are the Unraid 4.37.11 schema; a value a newer
+# server adds arrives as an unknown enum value and keeps its raw name.
+
+type UserAccount {
+    roles: [Role!]!
+    permissions: [Permission!]
+}
+
+type Permission {
+    resource: Resource!
+    actions: [AuthAction!]!
+}
+
+enum Role {
+    ADMIN
+    CONNECT
+    GUEST
+    VIEWER
+}
+
+enum AuthAction {
+    CREATE_ANY
+    CREATE_OWN
+    READ_ANY
+    READ_OWN
+    UPDATE_ANY
+    UPDATE_OWN
+    DELETE_ANY
+    DELETE_OWN
+}
+
+enum Resource {
+    ACTIVATION_CODE
+    API_KEY
+    ARRAY
+    CLOUD
+    CONFIG
+    CONNECT
+    CONNECT__REMOTE_ACCESS
+    CUSTOMIZATIONS
+    DASHBOARD
+    DISK
+    DISPLAY
+    DOCKER
+    FLASH
+    INFO
+    LOGS
+    ME
+    NETWORK
+    NOTIFICATIONS
+    ONLINE
+    OS
+    OWNER
+    PERMISSION
+    REGISTRATION
+    SERVERS
+    SERVICES
+    SHARE
+    VARS
+    VMS
+    WELCOME
 }

@@ -35,11 +35,13 @@ import io.github.nofuturekid.nova.data.model.LiveMetrics
 import io.github.nofuturekid.nova.data.model.NetworkThroughput
 import io.github.nofuturekid.nova.data.model.Notifications
 import io.github.nofuturekid.nova.data.model.Server
+import io.github.nofuturekid.nova.data.model.ServerCapabilities
 import io.github.nofuturekid.nova.data.model.ServerInfo
 import io.github.nofuturekid.nova.data.model.Temperature
 import io.github.nofuturekid.nova.data.model.UpdateStatus
 import io.github.nofuturekid.nova.data.model.Vm
 import io.github.nofuturekid.nova.data.repository.ActionFailedException
+import io.github.nofuturekid.nova.data.repository.CapabilityRepository
 import io.github.nofuturekid.nova.data.repository.DomainState
 import io.github.nofuturekid.nova.data.repository.ServerRepository
 import io.github.nofuturekid.nova.data.repository.SettingsRepository
@@ -63,6 +65,7 @@ class MainViewModel @Inject constructor(
     private val unraid: UnraidRepository,
     private val settings: SettingsRepository,
     private val updateTracker: UpdateTracker,
+    private val caps: CapabilityRepository,
 ) : ViewModel() {
 
     // ── Resilient action seam (triage #19, ADR-0037) ──────────────────
@@ -163,7 +166,19 @@ class MainViewModel @Inject constructor(
     fun setDockerSheetOpen(open: Boolean) { _dockerSheetOpen.value = open }
 
     private val _appVisible = MutableStateFlow(true)
-    fun setAppVisible(visible: Boolean) { _appVisible.value = visible }
+    fun setAppVisible(visible: Boolean) {
+        // Returning to the foreground (not the first start, which detects by itself): the user may
+        // have changed the key's permissions in the Unraid web UI while NOVA was away (ADR-0047).
+        if (visible && !_appVisible.value) caps.refresh()
+        _appVisible.value = visible
+    }
+
+    /**
+     * The API version of the active server and what its API key may do (ADR-0047). Unknown until
+     * detected, and unknown is never "denied". Nothing reads it yet; the screens take it up in
+     * follow-up changes.
+     */
+    val capabilities: StateFlow<ServerCapabilities> = caps.capabilities
 
     // ── Per-domain polling state (gated, lifecycle-aware) ─────────────
     //
@@ -336,6 +351,7 @@ class MainViewModel @Inject constructor(
     /** Pull-to-refresh: nudges every active stream to refetch now and
      *  returns when the refreshed data has arrived (or failed). */
     suspend fun refresh() {
+        caps.refresh()
         unraid.refreshAll()
     }
 

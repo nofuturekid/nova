@@ -204,3 +204,26 @@ query GetNetworkInterfaces {
         }
     }
 }
+
+# Capability detection (ADR-0047). Two operations on purpose: `me` is non-null, so for a key without
+# ME:READ_ANY a FORBIDDEN on `me` would null the whole response and lose the version as well.
+query GetApiVersion {
+  info {
+    versions {
+      core {
+        unraid
+        api
+      }
+    }
+  }
+}
+
+query GetKeyAccess {
+  me {
+    roles
+    permissions {
+      resource
+      actions
+    }
+  }
+}

@@ -52,6 +52,7 @@ import io.github.nofuturekid.nova.data.api.toServerInfo
 import io.github.nofuturekid.nova.data.api.toVms
 import io.github.nofuturekid.nova.data.api.toIfaceSamples
 import io.github.nofuturekid.nova.data.model.ArrayInfo
+import io.github.nofuturekid.nova.data.model.CapabilityTarget
 import io.github.nofuturekid.nova.data.model.ConnectionMode
 import io.github.nofuturekid.nova.data.model.Container
 import io.github.nofuturekid.nova.data.model.ContainerLiveStats
@@ -1103,6 +1104,16 @@ class UnraidRepository @Inject constructor(
         val generation = refreshNudge.fire()
         withTimeoutOrNull(REFRESH_MAX_WAIT_MS) { refreshNudge.awaitCompleted(generation) }
     }
+
+    /**
+     * The server address and key that capabilities are detected for (ADR-0047), or null without a
+     * usable key. Equal targets mean the same detection result is still valid.
+     */
+    fun capabilityTarget(active: ActiveServer?): CapabilityTarget? =
+        active?.takeIf { it.apiKey.isNotBlank() }?.let { CapabilityTarget(it.server.id, activeUrl(it), it.apiKey) }
+
+    /** The two detection queries for [active], classified (ADR-0047). Read-only. */
+    suspend fun probeCapabilities(active: ActiveServer): ProbeOutcome = probeCapabilities(buildClient(active))
 
     private fun activeUrl(active: ActiveServer): String = when (active.mode) {
         ConnectionMode.Local  -> active.server.localUrl
