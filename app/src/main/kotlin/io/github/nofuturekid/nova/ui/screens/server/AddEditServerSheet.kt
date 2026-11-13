@@ -26,6 +26,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
@@ -46,6 +47,7 @@ import io.github.nofuturekid.nova.data.repository.UnraidRepository
 import io.github.nofuturekid.nova.ui.components.BtnVariant
 import io.github.nofuturekid.nova.ui.components.ConfirmDialog
 import io.github.nofuturekid.nova.ui.components.ConfirmRequest
+import io.github.nofuturekid.nova.ui.components.PERMISSIONS_HELP_URL
 import io.github.nofuturekid.nova.ui.components.Tone
 import io.github.nofuturekid.nova.ui.components.UC
 import io.github.nofuturekid.nova.ui.components.UnraidButton
@@ -70,8 +72,11 @@ data class AddEditUiState(
     val showKey: Boolean = false,
     val localTest: TestState = TestState.Idle,
     val localTestMsg: String? = null,
+    // The first line of a successful test ("Connected · Unraid 7.4.0 · API 4.37.11"); the second is the message.
+    val localTestTitle: String? = null,
     val remoteTest: TestState = TestState.Idle,
     val remoteTestMsg: String? = null,
+    val remoteTestTitle: String? = null,
     // Fingerprint captured at Test, pinned on save (null until confirmed).
     val pendingLocalCertSha256: String? = null,
     // When non-null, the sheet shows the cert-trust confirm dialog.
@@ -150,7 +155,9 @@ class AddEditServerViewModel @Inject constructor(
         viewModelScope.launch {
             val allowSelfSigned = s.localSsl && s.trustSelfSignedLocal
             when (val out = unraid.testConnection(url, s.apiKey, allowSelfSigned, s.pendingLocalCertSha256)) {
-                TestOutcome.Ok -> _state.value = _state.value.copy(localTest = TestState.Ok, localTestMsg = null)
+                is TestOutcome.Ok -> _state.value = _state.value.copy(
+                    localTest = TestState.Ok, localTestTitle = out.title, localTestMsg = out.detail,
+                )
                 is TestOutcome.Failed -> _state.value = _state.value.copy(localTest = TestState.Fail, localTestMsg = out.message)
                 is TestOutcome.CertUntrusted -> _state.value = _state.value.copy(
                     localTest = TestState.Idle, certDialogSha256 = out.sha256, certDialogPrevious = null,
@@ -175,7 +182,9 @@ class AddEditServerViewModel @Inject constructor(
             // Remote always uses full CA validation (allowSelfSigned = false). A
             // self-signed remote cert therefore comes back as Failed, never a prompt.
             when (val out = unraid.testConnection(url, s.apiKey, allowSelfSigned = false)) {
-                TestOutcome.Ok -> _state.value = _state.value.copy(remoteTest = TestState.Ok, remoteTestMsg = null)
+                is TestOutcome.Ok -> _state.value = _state.value.copy(
+                    remoteTest = TestState.Ok, remoteTestTitle = out.title, remoteTestMsg = out.detail,
+                )
                 is TestOutcome.Failed -> _state.value = _state.value.copy(remoteTest = TestState.Fail, remoteTestMsg = out.message)
                 is TestOutcome.CertUntrusted -> _state.value = _state.value.copy(remoteTest = TestState.Fail, remoteTestMsg = "Certificate not trusted (remote requires a valid certificate)")
                 is TestOutcome.CertChanged -> _state.value = _state.value.copy(remoteTest = TestState.Fail, remoteTestMsg = "Certificate changed")
@@ -431,6 +440,14 @@ fun AddEditServerSheet(
                         contentDescription = if (state.showKey) "Hide API key" else "Show API key",
                     )
                 },
+                helper = "A key with the VIEWER role is enough to see everything. Controls need more permissions.",
+            )
+            val uriHandler = LocalUriHandler.current
+            UnraidButton(
+                onClick = { runCatching { uriHandler.openUri(PERMISSIONS_HELP_URL) } },
+                label = "Which permissions?",
+                variant = BtnVariant.Text,
+                tone = Tone.Accent,
             )
 
             if (state.localHost.isNotBlank()) {
@@ -439,6 +456,7 @@ fun AddEditServerSheet(
                     state = state.localTest,
                     onTest = vm::testLocal,
                     message = state.localTestMsg,
+                    okTitle = state.localTestTitle,
                 )
                 Spacer(Modifier.height(8.dp))
             }
@@ -448,6 +466,7 @@ fun AddEditServerSheet(
                     state = state.remoteTest,
                     onTest = vm::testRemote,
                     message = state.remoteTestMsg,
+                    okTitle = state.remoteTestTitle,
                 )
             }
 
@@ -561,7 +580,14 @@ fun AddEditServerSheet(
 }
 
 @Composable
-private fun TestConnectionPanel(title: String, state: TestState, onTest: () -> Unit, message: String?) {
+private fun TestConnectionPanel(
+    title: String,
+    state: TestState,
+    onTest: () -> Unit,
+    message: String?,
+    /** First line after a successful test: the server's version. */
+    okTitle: String? = null,
+) {
     val t = UnraidTheme.colors
     val bg = when (state) {
         TestState.Ok   -> t.accent.copy(alpha = UnraidAlpha.softFill)
@@ -587,7 +613,7 @@ private fun TestConnectionPanel(title: String, state: TestState, onTest: () -> U
                 text = when (state) {
                     TestState.Idle    -> title
                     TestState.Testing -> "Connecting…"
-                    TestState.Ok      -> "Connected"
+                    TestState.Ok      -> okTitle ?: "Connected"
                     TestState.Fail    -> "Failed to connect"
                 },
                 color = t.text,
@@ -598,7 +624,7 @@ private fun TestConnectionPanel(title: String, state: TestState, onTest: () -> U
                 text = when (state) {
                     TestState.Idle    -> "Verify URL + API key before saving"
                     TestState.Testing -> "Talking to GraphQL endpoint…"
-                    TestState.Ok      -> "Server responded · ready to save"
+                    TestState.Ok      -> message ?: "Server responded · ready to save"
                     TestState.Fail    -> message ?: "Check URL and API key"
                 },
                 color = t.muted,

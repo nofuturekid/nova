@@ -54,6 +54,7 @@ import io.github.nofuturekid.nova.BuildConfig
 import io.github.nofuturekid.nova.data.model.ArrayState
 import io.github.nofuturekid.nova.data.model.AttentionTarget
 import io.github.nofuturekid.nova.data.model.Container
+import io.github.nofuturekid.nova.data.model.KeyAction
 import io.github.nofuturekid.nova.data.model.ConnectionMode
 import io.github.nofuturekid.nova.data.model.NotifType
 import io.github.nofuturekid.nova.data.model.Server
@@ -112,6 +113,12 @@ fun MainScreen(
     val vmsState by vm.vmsState.collectAsStateWithLifecycle()
     val notificationsState by vm.notificationsState.collectAsStateWithLifecycle()
     val displayThresholds by vm.displayThresholds.collectAsStateWithLifecycle()
+    // What the API key may do. Every surface below gets one Access value and hides its controls
+    // only for Denied; unknown access keeps them, as before (ADR-0047, #315).
+    val capabilities by vm.capabilities.collectAsStateWithLifecycle()
+    val dockerAccess = capabilities.access(KeyAction.ControlDocker)
+    val vmsAccess = capabilities.access(KeyAction.ControlVms)
+    val arrayAccess = capabilities.access(KeyAction.ControlArray)
     val scope = rememberCoroutineScope()
 
     // Pause polling when app is backgrounded (ADR-0017). Bound to the
@@ -298,6 +305,7 @@ fun MainScreen(
                         },
                         globalDiskWarnC = displayThresholds?.diskWarnC,
                         globalDiskCritC = displayThresholds?.diskCritC,
+                        control = arrayAccess,
                     )
                     MainTab.Docker   -> DockerTab(
                         state = dockerState,
@@ -342,6 +350,7 @@ fun MainScreen(
                                 onConfirm = { vm.updateAllContainers(); confirm = null },
                             )
                         },
+                        control = dockerAccess,
                     )
                     MainTab.Vms      -> VmsTab(
                         state = vmsState,
@@ -351,6 +360,7 @@ fun MainScreen(
                         onResume = { v -> vm.resumeVm(v.id) },
                         onPause  = { v -> vm.pauseVm(v.id) },
                         onOpenVm = { openVm = it },
+                        control = vmsAccess,
                     )
                 }
             }
@@ -413,6 +423,7 @@ fun MainScreen(
                     onConfirm = { vm.updateContainer(c.id); confirm = null },
                 )
             },
+            control = dockerAccess,
         )
     }
 
@@ -463,6 +474,7 @@ fun MainScreen(
                     onConfirm = { vm.resetVm(v.id); confirm = null; openVm = null },
                 )
             },
+            control = vmsAccess,
         )
     }
 
@@ -491,6 +503,8 @@ fun MainScreen(
                     onConfirm = { vm.deleteNotification(n.id, n.type ?: NotifType.Unread); confirm = null },
                 )
             },
+            update = capabilities.access(KeyAction.UpdateNotifications),
+            delete = capabilities.access(KeyAction.DeleteNotifications),
         )
     }
 

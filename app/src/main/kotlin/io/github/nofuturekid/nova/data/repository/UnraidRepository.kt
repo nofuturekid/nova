@@ -97,7 +97,6 @@ import io.github.nofuturekid.nova.graphql.GetVmsQuery
 import io.github.nofuturekid.nova.graphql.PauseContainerMutation
 import io.github.nofuturekid.nova.graphql.PauseParityCheckMutation
 import io.github.nofuturekid.nova.graphql.PauseVmMutation
-import io.github.nofuturekid.nova.graphql.PingQuery
 import io.github.nofuturekid.nova.graphql.RebootVmMutation
 import io.github.nofuturekid.nova.graphql.ResetVmMutation
 import io.github.nofuturekid.nova.graphql.RestartContainerMutation
@@ -1271,6 +1270,10 @@ class UnraidRepository @Inject constructor(
      * the already-confirmed [pinnedSha256] (null on the first probe): the first
      * probe surfaces [TestOutcome.CertUntrusted] so the sheet can show the
      * fingerprint dialog; after the user confirms, a re-probe with the pin matches.
+     *
+     * The probe is the capability detection (ADR-0047: version and `me`), not `Ping`: the server
+     * answers a bare `__typename` for any key, so Ping passed with a wrong key (#315). Here a
+     * rejected key fails the test, and an accepted one reports what it can do.
      */
     suspend fun testConnection(
         baseUrl: String,
@@ -1283,27 +1286,9 @@ class UnraidRepository @Inject constructor(
         } else {
             TlsTrust.Default
         }
-        val resp = apolloFactory.build(baseUrl, apiKey, trust).query(PingQuery()).execute()
-        when (val c = classifyResponse(
-            exception = resp.exception,
-            hasErrors = resp.hasErrors(),
-            errorMessage = resp.errors?.firstOrNull()?.message,
-            dataIsNull = resp.data == null,
-        )) {
-            is RespClass.Cert -> when (val i = c.issue) {
-                is CertIssue.Untrusted -> TestOutcome.CertUntrusted(i.sha256)
-                is CertIssue.Changed -> TestOutcome.CertChanged(i.pinned, i.presented)
-            }
-            is RespClass.Failed -> TestOutcome.Failed(c.message)
-            RespClass.Empty -> TestOutcome.Failed("No response from server")
-            RespClass.Ok -> TestOutcome.Ok
-        }
-    } catch (e: ApolloException) {
-        when (val i = e.certIssue()) {
-            is CertIssue.Untrusted -> TestOutcome.CertUntrusted(i.sha256)
-            is CertIssue.Changed -> TestOutcome.CertChanged(i.pinned, i.presented)
-            null -> TestOutcome.Failed(e.failureMessage("Network error"))
-        }
+        testOutcomeOf(probeCapabilities(apolloFactory.build(baseUrl, apiKey, trust)))
+    } catch (e: CancellationException) {
+        throw e
     } catch (e: Exception) {
         TestOutcome.Failed(e.message ?: "Unknown error")
     }

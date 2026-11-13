@@ -102,20 +102,16 @@ fun OverviewTab(
 
     // Nothing yet → either Loading or surface the first Error.
     if (info == null && metrics == null && array == null && containers == null && vms == null) {
-        val err = listOfNotNull(
-            infoState as? DomainState.Error,
-            metricsState as? DomainState.Error,
-            arrayState as? DomainState.Error,
-            dockerState as? DomainState.Error,
-            vmsState as? DomainState.Error,
-        ).firstOrNull()
-        if (err != null) ErrorState(err.message, detail = err.detail) else LoadingState()
+        val err = overviewFailure(infoState, metricsState, arrayState, dockerState, vmsState)
+        // The reason picks the same title and next step as the tabs do (#247, #217).
+        if (err != null) ErrorState(err.message, detail = err.detail, reason = err.reason) else LoadingState()
         return
     }
 
-    // Same rule as the top bar's Offline pill: an Error on any of these streams
-    // means the server is not reachable, so there is nothing trustworthy to flag.
-    val offline = listOf(infoState, arrayState, dockerState, vmsState).any { it is DomainState.Error }
+    // Same rule as the top bar's Offline pill: only an Error that says the server cannot be used
+    // means there is nothing trustworthy to flag. Docker or VMs being switched off, or a key that
+    // may not read one domain, leaves the server reachable and the card in place (#217).
+    val offline = isOffline(infoState, arrayState, dockerState, vmsState)
     val attention = remember(array, notifications, displayThresholds, offline) {
         if (offline) emptyList()
         else attentionItems(AttentionSnapshot(array, notifications, displayThresholds))
@@ -126,6 +122,20 @@ fun OverviewTab(
         attention, onOpenAttention,
     )
 }
+
+/**
+ * The error the Overview shows when no domain has loaded: a connection problem (server
+ * unreachable, key rejected) wins over any other reason, because it is the cause of the rest;
+ * otherwise the first error in the order given. Null when nothing failed.
+ */
+internal fun overviewFailure(vararg states: DomainState<*>): DomainState.Error? {
+    val errors = states.filterIsInstance<DomainState.Error>()
+    return errors.firstOrNull { it.reason.isConnectionProblem } ?: errors.firstOrNull()
+}
+
+/** True when any state is an Error that says the server itself cannot be used ([ErrorReason.isConnectionProblem]). */
+internal fun isOffline(vararg states: DomainState<*>): Boolean =
+    states.any { it is DomainState.Error && it.reason.isConnectionProblem }
 
 @Composable
 private fun OverviewContent(

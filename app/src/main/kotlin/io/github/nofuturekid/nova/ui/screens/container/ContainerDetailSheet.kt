@@ -47,6 +47,7 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.platform.LocalContext
 import android.content.Intent
 import androidx.core.net.toUri
+import io.github.nofuturekid.nova.data.model.Access
 import io.github.nofuturekid.nova.data.model.Container
 import io.github.nofuturekid.nova.data.model.ContainerLiveStats
 import io.github.nofuturekid.nova.data.model.ContainerStatus
@@ -59,6 +60,8 @@ import io.github.nofuturekid.nova.ui.components.UC
 import io.github.nofuturekid.nova.ui.components.UnraidButton
 import io.github.nofuturekid.nova.ui.components.UnraidCard
 import io.github.nofuturekid.nova.ui.components.UnraidIconButton
+import io.github.nofuturekid.nova.ui.components.ViewOnly
+import io.github.nofuturekid.nova.ui.components.ViewOnlyNote
 import io.github.nofuturekid.nova.ui.components.onTone
 import io.github.nofuturekid.nova.ui.theme.JetBrainsMono
 import io.github.nofuturekid.nova.ui.theme.UnraidAlpha
@@ -89,6 +92,8 @@ fun ContainerDetailSheet(
     onRestart: (Container) -> Unit,
     onStop: (Container) -> Unit,
     onUpdate: (Container) -> Unit,
+    /** May the key start, stop, restart and update containers? Only [Access.Denied] hides the buttons (#315). */
+    control: Access = Access.Unknown,
 ) {
     val t = UnraidTheme.colors
     val scope = rememberCoroutineScope()
@@ -223,6 +228,9 @@ fun ContainerDetailSheet(
                         style = MaterialTheme.typography.labelLarge,
                     )
                 }
+            } else if (control == Access.Denied) {
+                // Logs and the other tabs below are reads and stay; only the actions go.
+                ViewOnlyNote(ViewOnly.Containers)
             } else {
                 if (container.updateStatus.hasUpdate()) {
                     UnraidButton(

@@ -39,6 +39,23 @@ release version + date and opens a fresh `[Unreleased]`.
   demo entry exists, and removing it (the bin icon in the server list) throws
   everything away. Adding a real server while in the demo switches to it.
 
+- **NOVA hides the buttons your API key cannot use** — with a read-only key (the
+  VIEWER role), the Docker, VMs and Array tabs and the container, VM and
+  notification sheets no longer show Start, Stop, Restart, Update, parity check,
+  Archive or Delete buttons. One note in their place says "View only" and which
+  permission the key would need, for example DOCKER:UPDATE_ANY, with a link to
+  the list of permissions. A key with only some permissions keeps exactly the
+  buttons it may use. If NOVA cannot find out what the key may do, it shows the
+  buttons as before. And if the server still refuses an action, the message now
+  names the missing permission instead of "Forbidden resource" (#315, #316).
+
+- **"Test" in the Add server sheet now checks the key** — it used to report
+  "Connected" for any key, even a wrong one. Now a key the server does not accept
+  fails the test, and a working key shows the Unraid and API version and whether it
+  is "View only" or can control Docker, VMs and so on. The API Key field has a
+  hint and a "Which permissions?" link to the table of what each feature needs
+  (#315, #316).
+
 ### Changed
 
 - **Restarting a container is one step on newer servers** — on Unraid API 4.36.0
@@ -80,6 +97,12 @@ release version + date and opens a fresh `[Unreleased]`.
   and you enter that address in the server's settings. This is what Unraid does
   when you type an `http` address while its SSL setting is Yes or Strict: it
   points to the `https` address, which is the one to enter (#354).
+
+- **The Overview explains why it could not load and keeps its attention card** —
+  when every part of the Overview failed, it always said "Can't reach the server".
+  It now gives the same reason as the tabs, for example that the server did not
+  accept the key. And with Docker or VMs switched off, the "Needs attention" card
+  stays, because the server itself is still reachable (#217).
 
 ## [0.1.48] - 2026-11-13
 

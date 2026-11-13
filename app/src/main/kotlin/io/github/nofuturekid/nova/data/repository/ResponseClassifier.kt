@@ -8,6 +8,11 @@ import com.apollographql.apollo.exception.ApolloHttpException
 import com.apollographql.apollo.exception.ApolloNetworkException
 import io.github.nofuturekid.nova.data.api.CertIssue
 import io.github.nofuturekid.nova.data.api.certIssue
+import io.github.nofuturekid.nova.data.model.Access
+import io.github.nofuturekid.nova.data.model.ApiVersion
+import io.github.nofuturekid.nova.data.model.KeyAction
+import io.github.nofuturekid.nova.data.model.Detection
+import io.github.nofuturekid.nova.data.model.ServerCapabilities
 import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
 import java.io.InterruptedIOException
 import java.net.SocketException
@@ -185,7 +190,31 @@ fun Throwable.toQueryError(fallback: String): DomainState.Error {
  * is the honest, cause-carrying text ([failureMessage] for transport errors,
  * the joined GraphQL error messages otherwise) and is what the user sees.
  */
-class ActionFailedException(message: String, cause: Throwable? = null) : Exception(message, cause)
+class ActionFailedException(
+    message: String,
+    cause: Throwable? = null,
+    /** The server's own wording when [message] replaces it with plain words (a refused permission); else null. */
+    val detail: String? = null,
+) : Exception(message, cause)
+
+/**
+ * The plain sentence for an action the server refused because of the key (#315, ADR-0047), or
+ * null for any other failure. `FORBIDDEN` names the permission the control needs when
+ * [operationName] is one of NOVA's mutations ([KeyAction.forOperation]); `UNAUTHENTICATED` says
+ * the key was not accepted. This is the fallback path: while the key's access is unknown the
+ * buttons are shown, and the server's refusal is explained here instead of "Forbidden resource".
+ */
+fun actionRefusalMessage(errors: List<Error>?, operationName: String?): String? {
+    val list = errors.orEmpty()
+    return when {
+        list.any { it.code() == "UNAUTHENTICATED" } -> "the server didn't accept the API key"
+        list.any { it.code() == "FORBIDDEN" } -> {
+            val needs = operationName?.let { KeyAction.forOperation(it) }?.permission
+            "your API key isn't allowed to do this" + (needs?.let { " (it needs $it)" } ?: "")
+        }
+        else -> null
+    }
+}
 
 /**
  * Throws [ActionFailedException] for a failed action response, using the same
@@ -193,33 +222,145 @@ class ActionFailedException(message: String, cause: Throwable? = null) : Excepti
  * `execute()` never throws for transport or GraphQL errors, so a caller that
  * does not look at the response sees every failure as success (ADR-0037).
  */
-fun checkActionResponse(exception: ApolloException?, hasErrors: Boolean, errorMessage: String?) {
+fun checkActionResponse(
+    exception: ApolloException?,
+    hasErrors: Boolean,
+    errorMessage: String?,
+    errors: List<Error>? = null,
+    operationName: String? = null,
+) {
     when (val c = classifyResponse(exception, hasErrors, errorMessage, dataIsNull = false)) {
         is RespClass.Cert -> throw ActionFailedException(exception!!.failureMessage("Network error"), exception)
-        is RespClass.Failed -> throw ActionFailedException(
-            when (exception) {
-                // Plain wording for the snackbar; the technical cause stays on the exception.
-                is ApolloHttpException -> exception.redirectMessage()?.replaceFirstChar { it.lowercase() }
-                    ?: "the server answered HTTP ${exception.statusCode}"
-                is ApolloNetworkException -> "can't reach the server"
-                else -> c.message
-            },
-            exception,
-        )
+        is RespClass.Failed -> {
+            val refusal = if (exception == null) actionRefusalMessage(errors, operationName) else null
+            throw ActionFailedException(
+                refusal ?: when (exception) {
+                    // Plain wording for the snackbar; the technical cause stays on the exception.
+                    is ApolloHttpException -> exception.redirectMessage()?.replaceFirstChar { it.lowercase() }
+                        ?: "the server answered HTTP ${exception.statusCode}"
+                    is ApolloNetworkException -> "can't reach the server"
+                    else -> c.message
+                },
+                exception,
+                detail = if (refusal != null) c.message else null,
+            )
+        }
         RespClass.Empty, RespClass.Ok -> Unit
     }
 }
 
 /** Returns this response, or throws [ActionFailedException] if it carries a transport or GraphQL error. */
 fun <D : Operation.Data> ApolloResponse<D>.orThrow(): ApolloResponse<D> {
-    checkActionResponse(exception, hasErrors(), errors?.joinToString { it.message })
+    checkActionResponse(exception, hasErrors(), errors?.joinToString { it.message }, errors, operation.name())
     return this
+}
+
+/** What the tested key may do, in the words of the Add server sheet. [text] is null when it is not known. */
+sealed interface TestControl {
+    val text: String?
+
+    data object Unknown : TestControl { override val text: String? = null }
+
+    data object ViewOnly : TestControl { override val text = "View only key: NOVA will hide controls" }
+
+    data object Full : TestControl { override val text = "Full control" }
+
+    /** Some controls: [areas] are the ones the key may use, e.g. "Docker", "VMs". */
+    data class Some(val areas: List<String>) : TestControl {
+        override val text = "Can control: ${areas.joinToString(", ")}"
+    }
+
+    companion object {
+        /**
+         * The summary of [caps]. Unknown as soon as one control's access is unknown: a half-known
+         * key is not described, because a wrong "view only" would be worse than saying nothing.
+         */
+        fun of(caps: ServerCapabilities): TestControl {
+            val all = KeyAction.entries.associateWith { caps.access(it) }
+            return when {
+                all.values.any { it == Access.Unknown } -> Unknown
+                all.values.all { it == Access.Denied } -> ViewOnly
+                all.values.all { it == Access.Allowed } -> Full
+                else -> {
+                    fun ok(a: KeyAction) = all[a] == Access.Allowed
+                    Some(
+                        listOfNotNull(
+                            "Array".takeIf { ok(KeyAction.ControlArray) },
+                            "Docker".takeIf { ok(KeyAction.ControlDocker) },
+                            "VMs".takeIf { ok(KeyAction.ControlVms) },
+                            when {
+                                ok(KeyAction.UpdateNotifications) && ok(KeyAction.DeleteNotifications) -> "Notifications"
+                                ok(KeyAction.UpdateNotifications) -> "Archive notifications"
+                                ok(KeyAction.DeleteNotifications) -> "Delete notifications"
+                                else -> null
+                            },
+                        ),
+                    )
+                }
+            }
+        }
+    }
 }
 
 /** Structured result of a connection test (consumed by the Add/Edit sheet). */
 sealed interface TestOutcome {
-    data object Ok : TestOutcome
+    /**
+     * The server answered and accepted the key (or could not say it did not). Carries what the
+     * capability probe learned, so the Add server sheet can say what the key can do (#315).
+     */
+    data class Ok(
+        val unraidVersion: String? = null,
+        val apiVersionText: String? = null,
+        val apiTooOld: Boolean = false,
+        val control: TestControl = TestControl.Unknown,
+    ) : TestOutcome {
+        /** "Connected · Unraid 7.4.0 · API 4.37.11"; the parts that are not known are left out. */
+        val title: String
+            get() = listOfNotNull(
+                "Connected",
+                unraidVersion?.takeIf { it.isNotBlank() }?.let { "Unraid $it" },
+                apiVersionText?.takeIf { it.isNotBlank() }?.let { "API ${ApiVersion.parse(it) ?: it}" },
+            ).joinToString(" · ")
+
+        /** The second line: the API warning if the server is too old, else what the key can do, else a plain "ready". */
+        val detail: String
+            get() = when {
+                apiTooOld ->
+                    "Connected, but this server's Unraid API is too old. NOVA needs 4.30.0 or newer (Unraid 7.2.5 or newer)."
+                else -> control.text ?: "Server responded · ready to save"
+            }
+    }
     data class Failed(val message: String) : TestOutcome
     data class CertUntrusted(val sha256: String) : TestOutcome
     data class CertChanged(val pinned: String, val presented: String) : TestOutcome
+}
+
+/**
+ * The connection-test result for a capability probe (ADR-0047). A rejected key fails the test with
+ * the server's own wording; a transport failure keeps its certificate handling (an untrusted or
+ * changed certificate opens the trust dialog, anything else is the exception's message); a server
+ * that answered with an error NOVA does not classify shows that error's text.
+ */
+internal fun testOutcomeOf(probe: ProbeOutcome): TestOutcome = when (probe.detection) {
+    Detection.KeyRejected -> TestOutcome.Failed("The server didn't accept this API key")
+    Detection.Failed -> {
+        val cause = probe.cause
+        when (val issue = cause?.certIssue()) {
+            is CertIssue.Untrusted -> TestOutcome.CertUntrusted(issue.sha256)
+            is CertIssue.Changed -> TestOutcome.CertChanged(issue.pinned, issue.presented)
+            null -> TestOutcome.Failed(
+                cause?.failureMessage("Network error") ?: probe.failureText ?: "No response from server",
+            )
+        }
+    }
+    // Idle and Detecting are never returned by a probe; treat them as an answer without information.
+    Detection.Done, Detection.Idle, Detection.Detecting -> {
+        val caps = probe.toCapabilities(target = null)
+        TestOutcome.Ok(
+            unraidVersion = probe.unraidVersion,
+            apiVersionText = probe.apiVersionText,
+            apiTooOld = caps.apiTooOld,
+            control = TestControl.of(caps),
+        )
+    }
 }

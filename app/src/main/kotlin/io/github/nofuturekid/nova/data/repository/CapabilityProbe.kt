@@ -30,6 +30,10 @@ data class ProbeOutcome(
     /** The version query failed validation: the API is older than 4.15.0. */
     val versionFieldMissing: Boolean = false,
     val access: KeyAccess = KeyAccess.Unknown,
+    /** Set with [Detection.Failed]: the transport exception (a certificate problem is told apart by the caller). */
+    val cause: Throwable? = null,
+    /** Set with [Detection.Failed] when the server answered with an error NOVA does not classify: its own text. */
+    val failureText: String? = null,
 ) {
     fun toCapabilities(target: CapabilityTarget?) = ServerCapabilities(
         target = target,
@@ -54,21 +58,21 @@ internal fun classifyErrors(errors: List<Error>): ErrorClass = when {
     else -> ErrorClass.Other
 }
 
-private fun Error.code(): Any? = extensions?.get("code")
+internal fun Error.code(): Any? = extensions?.get("code")
 
 private sealed interface VersionStep {
     data class Got(val unraid: String?, val apiText: String?) : VersionStep
     data object Missing : VersionStep
     data object Unknown : VersionStep
     data object Rejected : VersionStep
-    data object Failed : VersionStep
+    data class Failed(val cause: Throwable? = null, val text: String? = null) : VersionStep
 }
 
 private sealed interface AccessStep {
     data class Got(val access: KeyAccess.Known) : AccessStep
     data object Unknown : AccessStep
     data object Rejected : AccessStep
-    data object TransportFailed : AccessStep
+    data class TransportFailed(val cause: Throwable? = null) : AccessStep
 }
 
 /**
@@ -80,7 +84,7 @@ internal suspend fun probeCapabilities(client: ApolloClient): ProbeOutcome {
     val version = probeVersion(client)
     when (version) {
         VersionStep.Rejected -> return ProbeOutcome(Detection.KeyRejected)
-        VersionStep.Failed -> return ProbeOutcome(Detection.Failed)
+        is VersionStep.Failed -> return ProbeOutcome(Detection.Failed, cause = version.cause, failureText = version.text)
         else -> Unit
     }
     val versionKnown = version is VersionStep.Got || version == VersionStep.Missing
@@ -98,7 +102,8 @@ internal suspend fun probeCapabilities(client: ApolloClient): ProbeOutcome {
         is AccessStep.Got -> base.copy(access = access.access)
         AccessStep.Unknown -> base
         AccessStep.Rejected -> ProbeOutcome(Detection.KeyRejected)
-        AccessStep.TransportFailed -> if (versionKnown) base else ProbeOutcome(Detection.Failed)
+        is AccessStep.TransportFailed ->
+            if (versionKnown) base else ProbeOutcome(Detection.Failed, cause = access.cause)
     }
 }
 
@@ -112,15 +117,15 @@ private suspend fun probeVersion(client: ApolloClient): VersionStep = try {
             ErrorClass.KeyRejected -> VersionStep.Rejected
             ErrorClass.ValidationFailed -> VersionStep.Missing
             ErrorClass.Forbidden -> VersionStep.Unknown
-            ErrorClass.Other -> VersionStep.Failed
+            ErrorClass.Other -> VersionStep.Failed(text = errors.first().message)
         }
         // Transport failure, or a body without data and without errors.
-        else -> VersionStep.Failed
+        else -> VersionStep.Failed(cause = resp.exception)
     }
 } catch (e: CancellationException) {
     throw e
 } catch (e: Exception) {
-    VersionStep.Failed
+    VersionStep.Failed(cause = e)
 }
 
 private suspend fun probeAccess(client: ApolloClient): AccessStep = try {
@@ -141,10 +146,10 @@ private suspend fun probeAccess(client: ApolloClient): AccessStep = try {
             // FORBIDDEN (a key without ME:READ_ANY), validation and any other error: fail open.
             else -> AccessStep.Unknown
         }
-        else -> AccessStep.TransportFailed
+        else -> AccessStep.TransportFailed(resp.exception)
     }
 } catch (e: CancellationException) {
     throw e
 } catch (e: Exception) {
-    AccessStep.TransportFailed
+    AccessStep.TransportFailed(e)
 }

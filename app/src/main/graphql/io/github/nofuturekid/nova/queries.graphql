@@ -1,7 +1,3 @@
-query Ping {
-    __typename
-}
-
 query FetchContainerLogs($id: PrefixedID!, $tail: Int) {
     docker {
         logs(id: $id, tail: $tail) {

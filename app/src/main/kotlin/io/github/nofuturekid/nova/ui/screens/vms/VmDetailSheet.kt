@@ -23,6 +23,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.unit.dp
+import io.github.nofuturekid.nova.data.model.Access
 import io.github.nofuturekid.nova.data.model.Vm
 import io.github.nofuturekid.nova.data.model.VmState
 import io.github.nofuturekid.nova.ui.components.BtnVariant
@@ -31,6 +32,8 @@ import io.github.nofuturekid.nova.ui.components.Tone
 import io.github.nofuturekid.nova.ui.components.UC
 import io.github.nofuturekid.nova.ui.components.UnraidButton
 import io.github.nofuturekid.nova.ui.components.UnraidIconButton
+import io.github.nofuturekid.nova.ui.components.ViewOnly
+import io.github.nofuturekid.nova.ui.components.ViewOnlyNote
 import io.github.nofuturekid.nova.ui.components.onTone
 import io.github.nofuturekid.nova.ui.theme.UnraidAlpha
 import io.github.nofuturekid.nova.ui.theme.UnraidTheme
@@ -56,6 +59,8 @@ fun VmDetailSheet(
     onForceStop: (Vm) -> Unit = {},
     onReboot: (Vm) -> Unit,
     onReset: (Vm) -> Unit,
+    /** May the key start, stop and otherwise control VMs? Only [Access.Denied] hides the buttons (#315). */
+    control: Access = Access.Unknown,
 ) {
     val t = UnraidTheme.colors
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
@@ -102,7 +107,9 @@ fun VmDetailSheet(
                 Spacer(Modifier.height(18.dp))
             }
 
-            Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+            if (control == Access.Denied) {
+                ViewOnlyNote(ViewOnly.Vms)
+            } else Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                 when (vm.state) {
                     VmState.Running -> {
                         UnraidButton(
@@ -155,7 +162,7 @@ fun VmDetailSheet(
                     }
                 }
             }
-            if (vm.state == VmState.Running) {
+            if (control != Access.Denied && vm.state == VmState.Running) {
                 Spacer(Modifier.height(6.dp))
                 Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                     UnraidButton(
@@ -177,7 +184,7 @@ fun VmDetailSheet(
                     )
                 }
             }
-            if (vm.state != VmState.Stopped) {
+            if (control != Access.Denied && vm.state != VmState.Stopped) {
                 Spacer(Modifier.height(6.dp))
                 UnraidButton(
                     onClick = { onForceStop(vm) },

@@ -111,7 +111,7 @@ _Toolchain raised in the 0.1.28 cycle — see ADR-0023 (AGP-9) / ADR-0024
 app/src/main/
 ├── graphql/io/github/nofuturekid/nova/
 │   ├── schema.graphqls        hand-written subset of the unraid/api generated-schema.graphql
-│   ├── queries.graphql        Ping, GetServerInfo/Metrics/NetworkThroughput/Display/Array/DockerContainers/Vms,
+│   ├── queries.graphql        GetServerInfo/Metrics/NetworkThroughput/Display/Array/DockerContainers/Vms,
 │   │                          notifications (overview + list), plugins, plugin ops, installed .plg, NetworkInterfaces, FetchContainerLogs
 │   ├── mutations.graphql      Array, Docker (start/stop/pause/unpause/update/updateAll), Vm (start/stop/pause/resume/
 │   │                          forceStop/reboot/reset), parityCheck, notification actions

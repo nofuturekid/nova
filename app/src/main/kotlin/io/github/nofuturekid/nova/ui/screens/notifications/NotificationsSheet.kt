@@ -33,6 +33,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import io.github.nofuturekid.nova.data.model.Access
 import io.github.nofuturekid.nova.data.model.NotifImportance
 import io.github.nofuturekid.nova.data.model.NotifType
 import io.github.nofuturekid.nova.data.model.Notifications
@@ -43,6 +44,8 @@ import io.github.nofuturekid.nova.ui.components.Tone
 import io.github.nofuturekid.nova.ui.components.UC
 import io.github.nofuturekid.nova.ui.components.UnraidButton
 import io.github.nofuturekid.nova.ui.components.UnraidIconButton
+import io.github.nofuturekid.nova.ui.components.ViewOnly
+import io.github.nofuturekid.nova.ui.components.ViewOnlyNote
 import io.github.nofuturekid.nova.ui.theme.UnraidAlpha
 import io.github.nofuturekid.nova.ui.theme.UnraidTheme
 import io.github.nofuturekid.nova.ui.util.notificationSummary
@@ -73,8 +76,14 @@ fun NotificationsSheet(
     onArchiveAll: () -> Unit,
     onDeleteAllArchivedRequest: () -> Unit,
     onDeleteRequest: (UnraidNotification) -> Unit,
+    /** May the key archive and unarchive? Only [Access.Denied] hides those buttons (#315). */
+    update: Access = Access.Unknown,
+    /** May the key delete? Only [Access.Denied] hides the delete buttons (#315). */
+    delete: Access = Access.Unknown,
 ) {
     val t = UnraidTheme.colors
+    val canUpdate = update != Access.Denied
+    val canDelete = delete != Access.Denied
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     val data = (state as? DomainState.Content)?.value
     var tabIndex by remember { mutableIntStateOf(0) }
@@ -144,6 +153,10 @@ fun NotificationsSheet(
                 )
             }
             Spacer(Modifier.height(12.dp))
+            ViewOnly.notifications(update, delete)?.let {
+                ViewOnlyNote(it)
+                Spacer(Modifier.height(12.dp))
+            }
 
             when {
                 state is DomainState.Loading -> CenterMsg("Loading notifications…", loading = true)
@@ -152,7 +165,7 @@ fun NotificationsSheet(
                 state is DomainState.NoServer -> CenterMsg("No server selected.")
                 else -> {
                     val list = if (tabIndex == 0) unread else archived
-                    if (tabIndex == 0 && unread.isNotEmpty()) {
+                    if (canUpdate && tabIndex == 0 && unread.isNotEmpty()) {
                         Row(
                             modifier = Modifier.fillMaxWidth(),
                             horizontalArrangement = Arrangement.End,
@@ -167,7 +180,7 @@ fun NotificationsSheet(
                         }
                         Spacer(Modifier.height(6.dp))
                     }
-                    if (tabIndex == 1 && archived.isNotEmpty()) {
+                    if (canDelete && tabIndex == 1 && archived.isNotEmpty()) {
                         Row(
                             modifier = Modifier.fillMaxWidth(),
                             horizontalArrangement = Arrangement.End,
@@ -199,6 +212,8 @@ fun NotificationsSheet(
                                     onArchive = { onArchive(n.id) },
                                     onUnread = { onUnread(n.id) },
                                     onDelete = { onDeleteRequest(n) },
+                                    canUpdate = canUpdate,
+                                    canDelete = canDelete,
                                 )
                             }
                         }
@@ -235,6 +250,8 @@ private fun NotificationRow(
     onArchive: () -> Unit,
     onUnread: () -> Unit,
     onDelete: () -> Unit,
+    canUpdate: Boolean = true,
+    canDelete: Boolean = true,
 ) {
     val t = UnraidTheme.colors
     val accent = when (n.importance) {
@@ -279,25 +296,25 @@ private fun NotificationRow(
                 }
             }
         }
-        Spacer(Modifier.height(8.dp))
-        Row(
+        if (canUpdate || canDelete) Spacer(Modifier.height(8.dp))
+        if (canUpdate || canDelete) Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.End,
         ) {
-            if (archivedTab) {
+            if (canUpdate && archivedTab) {
                 UnraidIconButton(
                     icon = { UC.Restart(20.dp, t.text) },
                     onClick = onUnread,
                     contentDescription = "Unarchive (restore to unread)",
                 )
-            } else {
+            } else if (canUpdate) {
                 UnraidIconButton(
                     icon = { UC.Check(20.dp, t.text) },
                     onClick = onArchive,
                     contentDescription = "Archive (mark read)",
                 )
             }
-            UnraidIconButton(
+            if (canDelete) UnraidIconButton(
                 icon = { UC.Trash(20.dp, t.danger) },
                 onClick = onDelete,
                 contentDescription = "Delete notification",

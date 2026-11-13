@@ -43,6 +43,7 @@ import androidx.compose.ui.unit.sp
 import io.github.nofuturekid.nova.data.local.LayoutMode
 import io.github.nofuturekid.nova.data.model.Container
 import io.github.nofuturekid.nova.data.model.ContainerLiveStats
+import io.github.nofuturekid.nova.data.model.Access
 import io.github.nofuturekid.nova.data.model.ContainerStatus
 import io.github.nofuturekid.nova.data.model.hasUpdate
 import io.github.nofuturekid.nova.data.repository.DomainState
@@ -53,6 +54,8 @@ import io.github.nofuturekid.nova.ui.components.Tone
 import io.github.nofuturekid.nova.ui.components.UC
 import io.github.nofuturekid.nova.ui.components.UnraidCard
 import io.github.nofuturekid.nova.ui.components.UnraidIconButton
+import io.github.nofuturekid.nova.ui.components.ViewOnly
+import io.github.nofuturekid.nova.ui.components.ViewOnlyNote
 import io.github.nofuturekid.nova.ui.screens.ErrorState
 import io.github.nofuturekid.nova.ui.screens.ErrorSubject
 import io.github.nofuturekid.nova.ui.screens.LoadingState
@@ -75,6 +78,8 @@ fun DockerTab(
     onRestart: (Container) -> Unit,
     onStop: (Container) -> Unit,
     onUpdateAll: () -> Unit,
+    /** May the key start, stop, restart and update containers? Only [Access.Denied] hides the controls (#315). */
+    control: Access = Access.Unknown,
 ) {
     when (state) {
         DomainState.Loading    -> LoadingState()
@@ -94,6 +99,7 @@ fun DockerTab(
             onRestart = onRestart,
             onStop = onStop,
             onUpdateAll = onUpdateAll,
+            control = control,
         )
     }
 }
@@ -135,7 +141,9 @@ private fun DockerContent(
     onRestart: (Container) -> Unit,
     onStop: (Container) -> Unit,
     onUpdateAll: () -> Unit,
+    control: Access = Access.Unknown,
 ) {
+    val canControl = control != Access.Denied
     val filtered = filterContainers(containers, query)
     val rows = MainViewModel.joinContainerStats(filtered, stats)
     val noMatch = filtered.isEmpty() && containers.isNotEmpty()
@@ -149,11 +157,12 @@ private fun DockerContent(
             ),
             verticalArrangement = Arrangement.spacedBy(d.gap),
         ) {
-            if (updateCount > 0) item { UpdateAllBanner(updateCount, onUpdateAll) }
+            if (!canControl) item { ViewOnlyNote(ViewOnly.Containers) }
+            if (updateCount > 0) item { UpdateAllBanner(updateCount, onUpdateAll, canControl) }
             item { SearchBox(query, onQueryChange) }
             if (noMatch) item { NoMatches(query, containers.size) }
             items(rows, key = { it.first.id }) { (c, live) ->
-                ContainerRow(c, serverBaseUrl, live, onOpenContainer, onStart, onRestart, onStop)
+                ContainerRow(c, serverBaseUrl, live, onOpenContainer, onStart, onRestart, onStop, canControl)
             }
         }
         LayoutMode.Grid -> LazyVerticalGrid(
@@ -165,8 +174,9 @@ private fun DockerContent(
             horizontalArrangement = Arrangement.spacedBy(d.gap),
             verticalArrangement = Arrangement.spacedBy(d.gap),
         ) {
+            if (!canControl) item(span = { GridItemSpan(maxLineSpan) }) { ViewOnlyNote(ViewOnly.Containers) }
             if (updateCount > 0) item(span = { GridItemSpan(maxLineSpan) }) {
-                UpdateAllBanner(updateCount, onUpdateAll)
+                UpdateAllBanner(updateCount, onUpdateAll, canControl)
             }
             item(span = { GridItemSpan(maxLineSpan) }) { SearchBox(query, onQueryChange) }
             if (noMatch) item(span = { GridItemSpan(maxLineSpan) }) { NoMatches(query, containers.size) }
@@ -185,25 +195,26 @@ private fun DockerContent(
                 ),
                 verticalArrangement = Arrangement.spacedBy(d.gap),
             ) {
-                if (updateCount > 0) item { UpdateAllBanner(updateCount, onUpdateAll) }
+                if (!canControl) item { ViewOnlyNote(ViewOnly.Containers) }
+                if (updateCount > 0) item { UpdateAllBanner(updateCount, onUpdateAll, canControl) }
                 item { SearchBox(query, onQueryChange) }
                 if (noMatch) item { NoMatches(query, containers.size) }
                 if (running.isNotEmpty()) {
                     item { SectionLabel("Running · ${running.size}") }
                     items(running, key = { "r-${it.first.id}" }) { (c, live) ->
-                        ContainerRow(c, serverBaseUrl, live, onOpenContainer, onStart, onRestart, onStop)
+                        ContainerRow(c, serverBaseUrl, live, onOpenContainer, onStart, onRestart, onStop, canControl)
                     }
                 }
                 if (paused.isNotEmpty()) {
                     item { SectionLabel("Paused · ${paused.size}") }
                     items(paused, key = { "p-${it.first.id}" }) { (c, live) ->
-                        ContainerRow(c, serverBaseUrl, live, onOpenContainer, onStart, onRestart, onStop)
+                        ContainerRow(c, serverBaseUrl, live, onOpenContainer, onStart, onRestart, onStop, canControl)
                     }
                 }
                 if (exited.isNotEmpty()) {
                     item { SectionLabel("Stopped · ${exited.size}") }
                     items(exited, key = { "x-${it.first.id}" }) { (c, live) ->
-                        ContainerRow(c, serverBaseUrl, live, onOpenContainer, onStart, onRestart, onStop)
+                        ContainerRow(c, serverBaseUrl, live, onOpenContainer, onStart, onRestart, onStop, canControl)
                     }
                 }
             }
@@ -218,7 +229,8 @@ private fun DockerContent(
                 ),
                 verticalArrangement = Arrangement.spacedBy(d.gap),
             ) {
-                if (updateCount > 0) item { UpdateAllBanner(updateCount, onUpdateAll) }
+                if (!canControl) item { ViewOnlyNote(ViewOnly.Containers) }
+                if (updateCount > 0) item { UpdateAllBanner(updateCount, onUpdateAll, canControl) }
                 item { SearchBox(query, onQueryChange) }
                 if (noMatch) item { NoMatches(query, containers.size) }
                 groups.forEach { group ->
@@ -226,7 +238,7 @@ private fun DockerContent(
                         SectionLabel("${group.title} · ${group.containers.size}")
                     }
                     items(group.containers, key = { "c-${it.id}" }) { c ->
-                        ContainerRow(c, serverBaseUrl, liveById[c.id], onOpenContainer, onStart, onRestart, onStop)
+                        ContainerRow(c, serverBaseUrl, liveById[c.id], onOpenContainer, onStart, onRestart, onStop, canControl)
                     }
                 }
             }
@@ -235,7 +247,7 @@ private fun DockerContent(
 }
 
 @Composable
-private fun UpdateAllBanner(count: Int, onTap: () -> Unit) {
+private fun UpdateAllBanner(count: Int, onTap: () -> Unit, canUpdate: Boolean = true) {
     val t = UnraidTheme.colors
     Row(
         modifier = Modifier
@@ -243,7 +255,7 @@ private fun UpdateAllBanner(count: Int, onTap: () -> Unit) {
             .clip(RoundedCornerShape(12.dp))
             .background(t.info.copy(alpha = UnraidAlpha.softFill))
             .border(1.dp, t.info.copy(alpha = UnraidAlpha.softBorder), RoundedCornerShape(12.dp))
-            .clickable(onClick = onTap)
+            .then(if (canUpdate) Modifier.clickable(onClick = onTap) else Modifier)
             .padding(horizontal = 14.dp, vertical = 12.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(10.dp),
@@ -255,13 +267,15 @@ private fun UpdateAllBanner(count: Int, onTap: () -> Unit) {
                 color = t.info,
                 style = MaterialTheme.typography.labelLarge,
             )
-            Text(
-                text = "Tap to update all",
-                color = t.info.copy(alpha = 0.75f),
-                style = MaterialTheme.typography.labelSmall,
-            )
+            if (canUpdate) {
+                Text(
+                    text = "Tap to update all",
+                    color = t.info.copy(alpha = 0.75f),
+                    style = MaterialTheme.typography.labelSmall,
+                )
+            }
         }
-        UC.ChevR(16.dp, t.info)
+        if (canUpdate) UC.ChevR(16.dp, t.info)
     }
 }
 
@@ -339,6 +353,7 @@ private fun ContainerRow(
     onStart: (Container) -> Unit,
     onRestart: (Container) -> Unit,
     onStop: (Container) -> Unit,
+    canControl: Boolean = true,
 ) {
     val t = UnraidTheme.colors
     val tone = when (c.status) {
@@ -389,7 +404,7 @@ private fun ContainerRow(
                     }
                 }
             }
-            Row {
+            if (canControl) Row {
                 when (c.status) {
                     ContainerStatus.Running -> {
                         UnraidIconButton(icon = { UC.Restart(16.dp, t.text) }, onClick = { onRestart(c) }, size = 34.dp, contentDescription = "Restart ${c.name}")

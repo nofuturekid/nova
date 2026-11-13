@@ -25,6 +25,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import io.github.nofuturekid.nova.data.local.LayoutMode
+import io.github.nofuturekid.nova.data.model.Access
 import io.github.nofuturekid.nova.data.model.ArrayInfo
 import io.github.nofuturekid.nova.data.model.ArrayState
 import io.github.nofuturekid.nova.data.model.Disk
@@ -40,6 +41,8 @@ import io.github.nofuturekid.nova.ui.components.UC
 import io.github.nofuturekid.nova.ui.components.UnraidButton
 import io.github.nofuturekid.nova.ui.components.UnraidCard
 import io.github.nofuturekid.nova.ui.components.UnraidProgress
+import io.github.nofuturekid.nova.ui.components.ViewOnly
+import io.github.nofuturekid.nova.ui.components.ViewOnlyNote
 import io.github.nofuturekid.nova.ui.components.onTone
 import io.github.nofuturekid.nova.ui.screens.ErrorState
 import io.github.nofuturekid.nova.ui.screens.ErrorSubject
@@ -64,6 +67,8 @@ fun ArrayTab(
     onCancelParity: () -> Unit,
     globalDiskWarnC: Int? = null,
     globalDiskCritC: Int? = null,
+    /** May the key start and stop the array and run parity checks? Only [Access.Denied] hides the buttons (#315). */
+    control: Access = Access.Unknown,
 ) {
     when (state) {
         DomainState.Loading    -> LoadingState()
@@ -75,6 +80,7 @@ fun ArrayTab(
             state.value, view, onStartArray, onStopArray,
             onStartParity, onPauseParity, onResumeParity, onCancelParity,
             globalDiskWarnC, globalDiskCritC,
+            canControl = control != Access.Denied,
         )
     }
 }
@@ -116,6 +122,7 @@ private fun ArrayContent(
     onCancelParity: () -> Unit,
     globalDiskWarnC: Int? = null,
     globalDiskCritC: Int? = null,
+    canControl: Boolean = true,
 ) {
     val t = UnraidTheme.colors
     val arrayOn = arr.state != ArrayState.Stopped && arr.state != ArrayState.Offline
@@ -135,6 +142,8 @@ private fun ArrayContent(
         verticalArrangement = Arrangement.spacedBy(d.gap),
     ) {
         if (!hasArray) item { NoArrayCard() }
+        // Without an array there is nothing to control, so the note only belongs to a real array.
+        if (hasArray && !canControl) item { ViewOnlyNote(ViewOnly.Array) }
         if (hasArray) item {
             UnraidCard(padding = UnraidTheme.tokens.padHero) {
                 Column {
@@ -162,7 +171,7 @@ private fun ArrayContent(
                                 style = MaterialTheme.typography.bodySmall,
                             )
                         }
-                        if (arrayOn) {
+                        if (canControl && arrayOn) {
                             UnraidButton(
                                 onClick = onStop,
                                 label = "Stop",
@@ -170,7 +179,7 @@ private fun ArrayContent(
                                 tone = Tone.Danger,
                                 leadingIcon = { UC.Stop(14.dp, t.danger) },
                             )
-                        } else {
+                        } else if (canControl) {
                             UnraidButton(
                                 onClick = onStart,
                                 label = "Start",
@@ -212,8 +221,8 @@ private fun ArrayContent(
                                     style = MaterialTheme.typography.labelSmall,
                                 )
                             }
-                            Spacer(Modifier.height(10.dp))
-                            Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                            if (canControl) Spacer(Modifier.height(10.dp))
+                            if (canControl) Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                                 if (pc.paused) {
                                     UnraidButton(
                                         onClick = onResumeParity,
@@ -245,7 +254,7 @@ private fun ArrayContent(
                                 )
                             }
                         }
-                    } else if (arrayOn && !parity) {
+                    } else if (canControl && arrayOn && !parity) {
                         Spacer(Modifier.height(12.dp))
                         UnraidButton(
                             onClick = onStartParity,

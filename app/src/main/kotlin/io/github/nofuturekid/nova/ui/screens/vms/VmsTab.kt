@@ -29,6 +29,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import io.github.nofuturekid.nova.data.local.LayoutMode
+import io.github.nofuturekid.nova.data.model.Access
 import io.github.nofuturekid.nova.data.model.Vm
 import io.github.nofuturekid.nova.data.model.VmState
 import io.github.nofuturekid.nova.data.repository.DomainState
@@ -38,6 +39,8 @@ import io.github.nofuturekid.nova.ui.components.SectionLabel
 import io.github.nofuturekid.nova.ui.components.Tone
 import io.github.nofuturekid.nova.ui.components.UC
 import io.github.nofuturekid.nova.ui.components.UnraidCard
+import io.github.nofuturekid.nova.ui.components.ViewOnly
+import io.github.nofuturekid.nova.ui.components.ViewOnlyNote
 import io.github.nofuturekid.nova.ui.components.onTone
 import io.github.nofuturekid.nova.ui.screens.ErrorState
 import io.github.nofuturekid.nova.ui.screens.ErrorSubject
@@ -55,7 +58,10 @@ fun VmsTab(
     onResume: (Vm) -> Unit,
     onPause: (Vm) -> Unit,
     onOpenVm: (Vm) -> Unit,
+    /** May the key start, stop and pause VMs? Only [Access.Denied] hides the buttons (#315). */
+    control: Access = Access.Unknown,
 ) {
+    val canControl = control != Access.Denied
     when (state) {
         DomainState.Loading    -> LoadingState()
         DomainState.NoServer   -> NoServerState(onAdd = onAddServer)
@@ -77,8 +83,9 @@ fun VmsTab(
                         contentPadding = pad,
                         verticalArrangement = Arrangement.spacedBy(d.gap),
                     ) {
+                        if (!canControl) item { ViewOnlyNote(ViewOnly.Vms) }
                         items(vms, key = { it.id }) { vm ->
-                            VmCard(vm, onOpenVm, onStart, onResume, onPause)
+                            VmCard(vm, onOpenVm, onStart, onResume, onPause, canControl)
                         }
                     }
                     LayoutMode.Grid -> LazyVerticalGrid(
@@ -88,6 +95,9 @@ fun VmsTab(
                         horizontalArrangement = Arrangement.spacedBy(d.gap),
                         verticalArrangement = Arrangement.spacedBy(d.gap),
                     ) {
+                        if (!canControl) item(span = { androidx.compose.foundation.lazy.grid.GridItemSpan(maxLineSpan) }) {
+                            ViewOnlyNote(ViewOnly.Vms)
+                        }
                         gridItems(vms, key = { it.id }) { vm ->
                             VmTile(vm, onOpenVm)
                         }
@@ -101,22 +111,23 @@ fun VmsTab(
                             contentPadding = pad,
                             verticalArrangement = Arrangement.spacedBy(d.gap),
                         ) {
+                            if (!canControl) item { ViewOnlyNote(ViewOnly.Vms) }
                             if (running.isNotEmpty()) {
                                 item { SectionLabel("Running · ${running.size}") }
                                 items(running, key = { "r-${it.id}" }) { vm ->
-                                    VmCard(vm, onOpenVm, onStart, onResume, onPause)
+                                    VmCard(vm, onOpenVm, onStart, onResume, onPause, canControl)
                                 }
                             }
                             if (paused.isNotEmpty()) {
                                 item { SectionLabel("Paused · ${paused.size}") }
                                 items(paused, key = { "p-${it.id}" }) { vm ->
-                                    VmCard(vm, onOpenVm, onStart, onResume, onPause)
+                                    VmCard(vm, onOpenVm, onStart, onResume, onPause, canControl)
                                 }
                             }
                             if (stopped.isNotEmpty()) {
                                 item { SectionLabel("Stopped · ${stopped.size}") }
                                 items(stopped, key = { "s-${it.id}" }) { vm ->
-                                    VmCard(vm, onOpenVm, onStart, onResume, onPause)
+                                    VmCard(vm, onOpenVm, onStart, onResume, onPause, canControl)
                                 }
                             }
                         }
@@ -205,6 +216,7 @@ private fun VmCard(
     onStart: (Vm) -> Unit,
     onResume: (Vm) -> Unit,
     onPause: (Vm) -> Unit,
+    canControl: Boolean = true,
 ) {
     val t = UnraidTheme.colors
     val tone = when (vm.state) {
@@ -246,7 +258,7 @@ private fun VmCard(
                     }
                 }
             }
-            when (vm.state) {
+            if (canControl) when (vm.state) {
                 VmState.Running -> UnraidIconButton(
                     icon = { UC.Pause(16.dp, t.warn) },
                     onClick = { onPause(vm) },

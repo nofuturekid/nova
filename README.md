@@ -109,7 +109,7 @@ Requires an Unraid 7.x server with the API/Connect plugin enabled. All app featu
 
 NOVA talks to your server with one API key per server. **NOVA never needs the ADMIN role or any permission to manage API keys.** Pick whichever of these suits you:
 
-- **Simplest, read-only: a key with the VIEWER role.** It can see everything NOVA shows and cannot change anything, except that servers older than Unraid API 4.37.4 let every key archive and delete notifications [^4]. Buttons that need more rights are refused by the server.
+- **Simplest, read-only: a key with the VIEWER role.** It can see everything NOVA shows and cannot change anything, except that servers older than Unraid API 4.37.4 let every key archive and delete notifications [^4]. NOVA hides the buttons that need more rights.
 - **Simplest, full control: a key with the ADMIN role.** It can do everything NOVA offers. It can also do much more, which NOVA never uses.
 - **Least privilege: the VIEWER role plus only the controls you want.** See the table below.
 
@@ -155,7 +155,7 @@ The command shape, with the VIEWER role and `DOCKER:UPDATE_ANY`, was run live an
 
 ### When a permission is missing
 
-The server decides, not NOVA. An action the key may not do is refused with the message **"Forbidden resource"** and nothing changes on the server (confirmed live for container actions with a VIEWER key). A read the key may not do is refused the same way, so that screen fails to load. A key the server does not accept at all is answered with "API key validation failed". A later version of NOVA will hide the controls a key cannot use instead of showing buttons that are refused.
+The server decides, not NOVA. An action the key may not do is refused with the message **"Forbidden resource"** and nothing changes on the server (confirmed live for container actions with a VIEWER key). A read the key may not do is refused the same way, so that screen fails to load. A key the server does not accept at all is answered with "API key validation failed". NOVA asks the server what the key may do and hides the controls it cannot use, with one "View only" note in their place that names the permission. If NOVA cannot find that out, it shows the buttons, and a refused action then says which permission is missing.
 
 ### Which Unraid API version you need
 
