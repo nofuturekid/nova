@@ -407,8 +407,9 @@ executed as a blocking CI gate (ADR-0036), resilient action launchers
   non-committal (their own ADR if ever pursued; GPL-v3-vs-App-Store-ToS is a
   real concern).
 - VM vCPU/RAM/GPU stay placeholder zeros — `VmDomain` doesn't expose them.
-- Container auto-start toggle read-only; Restart = stop+start (no atomic
-  mutation in schema).
+- Container auto-start toggle read-only; Restart = the server's own
+  `docker.restart` (one request) when the API version is known to be 4.36.0 or newer
+  (`ApiFeature.DockerRestart`), stop + start otherwise (older or unknown version).
 
 ## Useful gh commands
 

@@ -461,6 +461,7 @@ type ArrayMutations {
 type DockerMutations {
     start(id: PrefixedID!): DockerContainer
     stop(id: PrefixedID!): DockerContainer
+    restart(id: PrefixedID!): DockerContainer
     pause(id: PrefixedID!): DockerContainer
     unpause(id: PrefixedID!): DockerContainer
     updateContainer(id: PrefixedID!): DockerContainer

@@ -24,6 +24,7 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import io.github.nofuturekid.nova.BuildConfig
 import io.github.nofuturekid.nova.data.local.LayoutMode
+import io.github.nofuturekid.nova.data.model.ApiFeature
 import io.github.nofuturekid.nova.data.model.AppSettings
 import io.github.nofuturekid.nova.data.model.ArrayInfo
 import io.github.nofuturekid.nova.data.model.ConnectionMode
@@ -37,6 +38,7 @@ import io.github.nofuturekid.nova.data.model.Notifications
 import io.github.nofuturekid.nova.data.model.Server
 import io.github.nofuturekid.nova.data.model.ServerCapabilities
 import io.github.nofuturekid.nova.data.model.ServerInfo
+import io.github.nofuturekid.nova.data.model.Support
 import io.github.nofuturekid.nova.data.model.Temperature
 import io.github.nofuturekid.nova.data.model.UpdateStatus
 import io.github.nofuturekid.nova.data.model.Vm
@@ -361,7 +363,10 @@ class MainViewModel @Inject constructor(
 
     fun startContainer(id: String)   = launchAction { unraid.startContainer(id) }
     fun stopContainer(id: String)    = launchAction { unraid.stopContainer(id) }
-    fun restartContainer(id: String) = launchAction { unraid.restartContainer(id) }
+    fun restartContainer(id: String) = launchAction {
+        // Unknown API version stays on stop + start: only a known 4.36.0+ server gets `docker.restart`.
+        unraid.restartContainer(id, atomic = capabilities.value.supports(ApiFeature.DockerRestart) == Support.Yes)
+    }
     fun pauseContainer(id: String)   = launchAction { unraid.pauseContainer(id) }
 
     fun updateContainer(id: String) {

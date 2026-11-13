@@ -15,6 +15,15 @@ release version + date and opens a fresh `[Unreleased]`.
 
 ## [Unreleased]
 
+### Changed
+
+- **Restarting a container is one step on newer servers** — on Unraid API 4.36.0
+  and newer, Restart now asks the server to restart the container in a single
+  request instead of stopping it and starting it again. If the server refuses,
+  NOVA shows the server's own message. Older servers, and
+  servers whose version NOVA could not read, keep the stop-then-start restart
+  they have today.
+
 ## [0.1.48] - 2026-11-13
 
 The Overview now tells you when something on your server needs you, and the Docker tab can search and group containers by Compose project. A new "Needs attention" card at the top of the Overview lists what needs you, most urgent first; on a healthy server it is not there, so a quiet Overview is normal. The Docker tab has a search field with a clear button, and a new "Compose" option for the Docker view (Settings, Layout) groups containers by their Compose project. The 0.1.48 beta confirmed the search, the Compose option and the quiet Overview on a real phone. Some groundwork in this release has no visible change yet (detecting the server's API version and what the API key may do, and the rules for later opt-in alerts). As in 0.1.47, NOVA does not install updates itself: "Download" opens the release file in your browser.

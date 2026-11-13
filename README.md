@@ -134,7 +134,7 @@ Do not build a key from read permissions only. The server's command line tool ca
 
 [^1]: Checked on 2026-11-13 against a server running Unraid 7.4.0 with Unraid API 4.37.11: a key with only the VIEWER role got HTTP 200 with data on every screen's query; the logs query was checked only as far as the permission (it was sent with an unknown container id).
 
-[^3]: Checked live on the same server: a VIEWER key was refused when it started, stopped, paused, unpaused or updated a container, and a VIEWER key with `DOCKER:UPDATE_ANY` got past the permission check (tried with an id that does not exist, so nothing could change). NOVA restarts a container as a stop followed by a start, so a restart needs the same `DOCKER:UPDATE_ANY`.
+[^3]: Checked live on the same server: a VIEWER key was refused when it started, stopped, paused, unpaused or updated a container, and a VIEWER key with `DOCKER:UPDATE_ANY` got past the permission check (tried with an id that does not exist, so nothing could change). On Unraid API 4.36.0 and newer NOVA restarts a container with the server's own one-step restart, and as a stop followed by a start on older servers or when the version is not known, so a restart needs the same `DOCKER:UPDATE_ANY` either way.
 
 [^4]: Servers before API 4.37.4 do not check these two permissions at all (read from the source of 4.37.3 and 4.37.4), so every key can archive and delete notifications there. On 4.37.11 the refusal of a VIEWER key was seen live for archive, mark as unread and delete.
 

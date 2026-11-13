@@ -3,6 +3,9 @@ mutation StopArray  { array { setState(input: { desiredState: STOP  }) { state }
 
 mutation StartContainer(  $id: PrefixedID!) { docker { start(  id: $id) { id state } } }
 mutation StopContainer(   $id: PrefixedID!) { docker { stop(   id: $id) { id state } } }
+# One-step restart, API 4.36.0 and newer only. Sent only when the server is KNOWN to have it
+# (ApiFeature.DockerRestart); older or unknown servers get StopContainer then StartContainer.
+mutation RestartContainer($id: PrefixedID!) { docker { restart(id: $id) { id state } } }
 mutation PauseContainer(  $id: PrefixedID!) { docker { pause(  id: $id) { id state } } }
 mutation UnpauseContainer($id: PrefixedID!) { docker { unpause(id: $id) { id state } } }
 # Long-running: image pull + recreate can take minutes. Routed via the

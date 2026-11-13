@@ -57,6 +57,7 @@ class ActionResponseTest {
     private val forbidden = json("""{"errors":[{"message":"Forbidden: API key lacks DOCKER:UPDATE_ANY"}],"data":null}""")
     private val stopped = json("""{"data":{"docker":{"stop":{"id":"c1","state":"EXITED"}}}}""")
     private val started = json("""{"data":{"docker":{"start":{"id":"c1","state":"RUNNING"}}}}""")
+    private val restarted = json("""{"data":{"docker":{"restart":{"id":"c1","state":"RUNNING"}}}}""")
 
     private fun client(engine: HttpEngine) =
         ApolloClient.Builder().serverUrl("http://unraid.test/graphql").httpEngine(engine).build()
@@ -98,7 +99,7 @@ class ActionResponseTest {
     // server) is the wrong action; only ONE request may go out.
     @Test fun restart_afterFailedStop_doesNotSendStart() = runTest {
         val engine = ScriptedEngine(listOf(forbidden, started))
-        val e = failureOf { UnraidRepository.restartContainer(client(engine), "c1") }
+        val e = failureOf { UnraidRepository.restartContainer(client(engine), "c1", atomic = false) }
         assertNotNull(e)
         assertEquals("start must not be sent after a failed stop", 1, engine.requests.size)
     }
@@ -106,7 +107,7 @@ class ActionResponseTest {
     // WHY: stop succeeded but start failed leaves the container down; the user must be told that.
     @Test fun restart_stopOkStartFailed_saysContainerIsStopped() = runTest {
         val engine = ScriptedEngine(listOf(stopped, forbidden))
-        val e = failureOf { UnraidRepository.restartContainer(client(engine), "c1") }
+        val e = failureOf { UnraidRepository.restartContainer(client(engine), "c1", atomic = false) }
         assertTrue(e?.message, e!!.message!!.contains("stopped but could not be started"))
     }
 
@@ -122,8 +123,43 @@ class ActionResponseTest {
 
     @Test fun restart_onSuccess_sendsStopThenStart() = runTest {
         val engine = ScriptedEngine(listOf(stopped, started))
-        UnraidRepository.restartContainer(client(engine), "c1")
+        UnraidRepository.restartContainer(client(engine), "c1", atomic = false)
         assertEquals(2, engine.requests.size)
+        assertEquals(listOf("StopContainer", "StartContainer"), engine.operationNames())
+    }
+
+    private fun ScriptedEngine.operationNames(): List<String> =
+        requests.map { r ->
+            val b = Buffer().also { r.body?.writeTo(it) }.readUtf8()
+            Regex(""""operationName"\s*:\s*"([A-Za-z]+)"""").find(b)?.groupValues?.get(1).orEmpty()
+        }
+
+    // WHY: #317 — on a server known to have docker.restart a restart is ONE atomic request, so a
+    // failed start is never left half-done (stop done, start refused).
+    @Test fun restart_atomic_sendsOneRestart() = runTest {
+        val engine = ScriptedEngine(listOf(restarted, started))
+        UnraidRepository.restartContainer(client(engine), "c1", atomic = true)
+        assertEquals("exactly one request", 1, engine.requests.size)
+        assertEquals(listOf("RestartContainer"), engine.operationNames())
+    }
+
+    // WHY: sending `restart` to a server without it fails validation; the older path (stop, then
+    // start) is the one that works everywhere, so the non-atomic path must never send RestartContainer.
+    @Test fun restart_unknownOrOldApi_sendsStopThenStart() = runTest {
+        val engine = ScriptedEngine(listOf(stopped, started))
+        UnraidRepository.restartContainer(client(engine), "c1", atomic = false)
+        assertEquals(listOf("StopContainer", "StartContainer"), engine.operationNames())
+    }
+
+    // WHY: with one request nothing was stopped on its own, so the "stopped but could not be
+    // started" wording would be false. The user must see what the server said.
+    @Test fun restart_atomic_failure_reportsServerText() = runTest {
+        val engine = ScriptedEngine(listOf(forbidden))
+        val e = failureOf { UnraidRepository.restartContainer(client(engine), "c1", atomic = true) }
+        assertNotNull("a refused restart must fail the action", e)
+        assertTrue(e!!.message, e.message!!.contains("API key lacks DOCKER:UPDATE_ANY"))
+        assertFalse(e.message, e.message!!.contains("stopped but could not be started"))
+        assertEquals("a failed restart is not retried as stop + start", 1, engine.requests.size)
     }
 
     // WHY: the documented contract of the notification flow — a failed mutation skips the

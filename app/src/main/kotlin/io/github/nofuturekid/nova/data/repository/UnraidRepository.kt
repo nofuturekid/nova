@@ -100,6 +100,7 @@ import io.github.nofuturekid.nova.graphql.PauseVmMutation
 import io.github.nofuturekid.nova.graphql.PingQuery
 import io.github.nofuturekid.nova.graphql.RebootVmMutation
 import io.github.nofuturekid.nova.graphql.ResetVmMutation
+import io.github.nofuturekid.nova.graphql.RestartContainerMutation
 import io.github.nofuturekid.nova.graphql.ResumeParityCheckMutation
 import io.github.nofuturekid.nova.graphql.ResumeVmMutation
 import io.github.nofuturekid.nova.graphql.StartArrayMutation
@@ -268,8 +269,16 @@ class UnraidRepository @Inject constructor(
         internal suspend fun <D : Mutation.Data> ApolloClient.runAction(m: Mutation<D>): ApolloResponse<D> =
             mutation(m).execute().orThrow()
 
-        /** stop, then start — a failed stop aborts before `start` is sent. */
-        internal suspend fun restartContainer(client: ApolloClient, id: String) {
+        /**
+         * Restarts a container. [atomic] = the server is KNOWN to have `docker.restart` (API 4.36.0
+         * and newer): one request, and a failure is reported with the server's own text. Otherwise
+         * (older or unknown API version) stop, then start — a failed stop aborts before `start` is sent.
+         */
+        internal suspend fun restartContainer(client: ApolloClient, id: String, atomic: Boolean) {
+            if (atomic) {
+                client.runAction(RestartContainerMutation(id))
+                return
+            }
             client.runAction(StopContainerMutation(id))
             try {
                 client.runAction(StartContainerMutation(id))
@@ -1151,9 +1160,9 @@ class UnraidRepository @Inject constructor(
 
     suspend fun startContainer(id: String)   { activeClient()?.runAction(StartContainerMutation(id)) }
     suspend fun stopContainer(id: String)    { activeClient()?.runAction(StopContainerMutation(id)) }
-    /** Unraid 7's docker mutations have no atomic `restart` — emulate as stop+start. */
-    suspend fun restartContainer(id: String) {
-        activeClient()?.let { restartContainer(it, id) }
+    /** [atomic]: use the server's own `docker.restart` (API 4.36.0+), else stop + start. */
+    suspend fun restartContainer(id: String, atomic: Boolean) {
+        activeClient()?.let { restartContainer(it, id, atomic) }
     }
     suspend fun pauseContainer(id: String)   { activeClient()?.runAction(PauseContainerMutation(id)) }
 
