@@ -11,10 +11,14 @@ import io.github.nofuturekid.nova.data.demo.DemoState
 import io.github.nofuturekid.nova.data.demo.DemoUnraid
 import io.github.nofuturekid.nova.data.local.ApiKeyStore
 import io.github.nofuturekid.nova.data.local.SettingsStore
+import io.github.nofuturekid.nova.data.model.ArrayState
 import io.github.nofuturekid.nova.data.model.ContainerStatus
+import io.github.nofuturekid.nova.data.model.ContainerUpdateStatus
 import io.github.nofuturekid.nova.data.model.Detection
 import io.github.nofuturekid.nova.data.model.NotifType
+import io.github.nofuturekid.nova.data.model.ParityOutcome
 import io.github.nofuturekid.nova.data.model.Server
+import io.github.nofuturekid.nova.data.model.VmState
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.cancel
@@ -91,7 +95,8 @@ class UnraidGatewayTest {
         return s as DomainState.Content<*>
     }
 
-    // WHY: every screen and every action of the demo, with a factory that fails on any client request.
+    // WHY: every screen and every action of the demo is answered by DemoUnraid (checked through its state),
+    // and no client is ever requested.
     @Test fun demoAnswersEveryScreenAndActionWithoutAClient() = runBlocking {
         servers.enterDemo()
 
@@ -105,16 +110,59 @@ class UnraidGatewayTest {
         streams.forEach { assertEquals(DemoFixtures.BASE_URL, contentOf(it).serverBaseUrl) }
         assertEquals(DemoFixtures.BASE_URL, withTimeout(10_000) { gateway.activeBaseUrl.first() })
 
-        gateway.startArray(); gateway.stopArray(); gateway.startArray()
-        gateway.startContainer("jellyfin"); gateway.stopContainer("plex"); gateway.restartContainer("plex", atomic = true)
-        gateway.pauseContainer("plex"); gateway.updateContainer("grafana"); gateway.updateAllContainers()
-        gateway.startVm("v5"); gateway.stopVm("v5", force = true); gateway.pauseVm("v1"); gateway.resumeVm("v1")
-        gateway.rebootVm("v1"); gateway.resetVm("v1")
-        gateway.startParityCheck(correct = false); gateway.pauseParityCheck(); gateway.resumeParityCheck()
+        // Every action is checked through the demo's state: an action sent to the real repository
+        // (no key, so a silent no-op) would leave the state unchanged and fail here.
+        fun container(id: String) = demo.current.containers.first { it.id == id }
+        fun vm(id: String) = demo.current.vms.first { it.id == id }
+
+        gateway.stopContainer("plex"); assertEquals(ContainerStatus.Exited, container("plex").status)
+        gateway.startContainer("plex"); assertEquals(ContainerStatus.Running, container("plex").status)
+        // The demo restarts the container in its model whichever way the real server would be asked.
+        gateway.stopContainer("plex"); gateway.restartContainer("plex", atomic = true)
+        assertEquals(ContainerStatus.Running, container("plex").status)
+        gateway.stopContainer("plex"); gateway.restartContainer("plex", atomic = false)
+        assertEquals(ContainerStatus.Running, container("plex").status)
+        gateway.pauseContainer("plex"); assertEquals(ContainerStatus.Paused, container("plex").status)
+        gateway.startContainer("jellyfin"); assertEquals(ContainerStatus.Running, container("jellyfin").status)
+        gateway.updateContainer("grafana")
+        assertEquals(ContainerUpdateStatus.UpToDate, container("grafana").updateStatus)
+        assertEquals(ContainerUpdateStatus.UpdateAvailable, container("nextcloud").updateStatus)
+        gateway.updateAllContainers()
+        assertEquals(ContainerUpdateStatus.UpToDate, container("nextcloud").updateStatus)
+
+        gateway.startVm("v5"); assertEquals(VmState.Running, vm("v5").state)
+        gateway.stopVm("v5", force = true); assertEquals(VmState.Stopped, vm("v5").state)
+        gateway.pauseVm("v1"); assertEquals(VmState.Paused, vm("v1").state)
+        gateway.resumeVm("v1"); assertEquals(VmState.Running, vm("v1").state)
+        assertEquals(VmState.Paused, vm("v4").state)
+        gateway.rebootVm("v4"); assertEquals(VmState.Running, vm("v4").state)
+        gateway.pauseVm("v4"); assertEquals(VmState.Paused, vm("v4").state)
+        gateway.resetVm("v4"); assertEquals(VmState.Running, vm("v4").state)
+
+        gateway.startParityCheck(correct = false)
+        assertNotNull(demo.current.parity); assertFalse(demo.current.parity!!.paused)
+        gateway.pauseParityCheck(); assertTrue(demo.current.parity!!.paused)
+        gateway.resumeParityCheck(); assertFalse(demo.current.parity!!.paused)
         gateway.cancelParityCheck()
-        gateway.archiveNotification("n1"); gateway.unreadNotification("n1")
-        gateway.deleteNotification("n2", NotifType.Unread); gateway.archiveAllNotifications()
-        gateway.deleteArchivedNotifications()
+        assertNull(demo.current.parity)
+        assertEquals(ParityOutcome.Cancelled, demo.current.parityLastRun!!.outcome)
+
+        gateway.archiveNotification("n1")
+        assertTrue(demo.current.unread.none { it.id == "n1" } && demo.current.archived.any { it.id == "n1" })
+        gateway.unreadNotification("n1")
+        assertTrue(demo.current.unread.any { it.id == "n1" } && demo.current.archived.none { it.id == "n1" })
+        gateway.deleteNotification("n2", NotifType.Unread)
+        assertTrue(demo.current.unread.none { it.id == "n2" })
+        gateway.archiveAllNotifications()
+        assertTrue(demo.current.unread.isEmpty() && demo.current.archived.any { it.id == "n1" })
+        gateway.deleteArchivedNotifications(); assertTrue(demo.current.archived.isEmpty())
+
+        gateway.stopArray()
+        assertEquals(ArrayState.Stopped, demo.current.arrayState)
+        assertEquals(ContainerStatus.Exited, container("plex").status)
+        gateway.startArray()
+        assertEquals(ArrayState.Started, demo.current.arrayState)
+        assertEquals(ContainerStatus.Running, container("plex").status)
         gateway.refreshAll()
         assertTrue(gateway.containerLogs("sonarr")!!.isNotEmpty())
 

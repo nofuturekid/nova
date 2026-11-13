@@ -20,7 +20,7 @@ To use every screen with sample data:
 2. NOVA now shows a fictional server called "Tower". A "Demo" marker is at the top right, and the Overview says that the data is fictional. The demo is fully offline: it makes no network request and needs no account or API key.
 3. Browse the four tabs at the bottom (Overview, Array, Docker, VMs). The Overview shows live-looking CPU, memory, network and temperature figures. Tap the bell for notifications (unread and archived). Tap the gear for Settings; "Server plugins" and "Network interfaces" there show sample data too.
 4. Everything can be tried and works against sample data kept in memory: start, stop, restart and pause containers and VMs; open a container (details and logs) and update it; start and stop the array; start, pause, resume and cancel a parity check; archive, restore and delete notifications. Changes are lost when the app is closed.
-5. To leave the demo: tap the server name at the top left, then the bin icon next to "Tower" and "Remove demo". "Add server" in the same list adds a real server next to it.
+5. To leave the demo: tap the server name at the top left, then the bin icon next to "Tower" and "Remove demo". Tap "Add another server" in the same list to add a real server next to it.
 
 Real use needs the user's own Unraid server (version 7.x) with the Unraid API (Connect plugin) enabled and an API key; the app then connects only to that server. The demo makes no network request.
 ```
@@ -29,4 +29,4 @@ Real use needs the user's own Unraid server (version 7.x) with the Unraid API (C
 
 1. Check each step above on the build that goes to Play (labels: "Try the demo", "Demo", "Remove demo").
 2. Add one sentence naming the demo mode to `docs/store/play-listing/full_description.txt` (not done in the pull request that built the mode).
-3. Keep the "Data safety" answer true: the demo mode must make no network request (`DemoUnraid` has no network client; `UnraidGatewayTest` proves it with a factory that fails on any client request).
+3. Keep the "Data safety" answer true: the demo mode must make no network request (`DemoUnraid` has no network client; `UnraidGatewayTest` checks that every demo screen and action is answered by `DemoUnraid` and that no network client is requested).
