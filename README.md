@@ -132,7 +132,7 @@ A least-privilege key is the VIEWER role plus the explicit permissions for the a
 
 Do not build a key from read permissions only. The server's command line tool cannot create a key without a role (it requires one), and we did not check whether the web interface can. As background, from the server's source and not verified with such a key: reading everything without the VIEWER role would need `READ_ANY` on `INFO`, `DISPLAY`, `ARRAY`, `DOCKER`, `VMS`, `NOTIFICATIONS`, `CONFIG` and `ME`.
 
-[^1]: Checked on 2026-11-13 against a server running Unraid 7.4.0 with Unraid API 4.37.11: a VIEWER key loaded every query NOVA sends with HTTP 200 and data.
+[^1]: Checked on 2026-11-13 against a server running Unraid 7.4.0 with Unraid API 4.37.11: a key with only the VIEWER role got HTTP 200 with data on every screen's query; the logs query was checked only as far as the permission (it was sent with an unknown container id).
 
 [^3]: Checked live on the same server: a VIEWER key was refused when it started, stopped, paused, unpaused or updated a container, and a VIEWER key with `DOCKER:UPDATE_ANY` got past the permission check (tried with an id that does not exist, so nothing could change). NOVA restarts a container as a stop followed by a start, so a restart needs the same `DOCKER:UPDATE_ANY`.
 
