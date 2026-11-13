@@ -1,0 +1,2 @@
+Nothing changes for the F-Droid version in this release: F-Droid keeps NOVA up to date for you, as before.
+The version from GitHub no longer installs its own updates. It shows the new version with its release notes, size and SHA-256, and Download lets your browser download the file. Its update notice and Settings now always show the same latest version.

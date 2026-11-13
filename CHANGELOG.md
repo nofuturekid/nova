@@ -15,26 +15,9 @@ release version + date and opens a fresh `[Unreleased]`.
 
 ## [Unreleased]
 
-## [0.1.47-beta2] - 2026-11-13
+## [0.1.47] - 2026-11-13
 
-Beta: the second beta of the 0.1.47 cycle. The "Update available" notice on the Overview and the update line in Settings now always show the same latest version, and Settings shows the progress of a check again. Please press "Check now" in Settings and look at whether the notice and Settings agree, then open the update sheet from the notice and check that the "Release page" row, "Later" and "Download" work. As in 0.1.47-beta1, NOVA no longer installs updates itself and "Download" opens the release file in your browser; if you run 0.1.47-beta1, this beta reaches you as a browser download.
-
-### Fixed
-
-- **The "Update available" notice and Settings now always show the same
-  version** — after "Check now" in Settings the Overview notice could still
-  offer an older release (for example the stable v0.1.46 while Settings offered
-  the newer beta v0.1.47-beta1), and reopening Settings could show the older
-  release again. NOVA now keeps one latest-version result that the notice, the
-  update sheet and Settings all show. It follows the "Include pre-releases"
-  switch: turning it off never leaves a beta on screen, and turning it on offers
-  the newest beta again as soon as the check is done. A check that fails keeps
-  the version found before, and Settings says that the check failed. When
-  several releases are newer than yours, the newest one is offered (#331).
-
-## [0.1.47-beta1] - 2026-11-13
-
-Beta: NOVA no longer installs updates itself. It still tells you when a new version is out and shows the release notes, but "Download" now opens the release file in your browser. Please open the update sheet that opens from the "Update available" notice and look at the "Download" and "Release page" buttons, and tell us whether the download and the install from the downloaded file work for you. This beta itself is still installed by the old installer of 0.1.46, so Google Play Protect may show its warning one last time; from this version on, the next update arrives as a browser download.
+NOVA no longer installs updates itself. It still tells you when a new version is out and shows the release notes, the file size and its SHA-256; "Download" now lets your browser download the release file, and you install it by opening the downloaded file. The "Update available" notice and Settings now always show the same latest version. The 0.1.47 betas confirmed this on a real phone: the download and the install from the downloaded file work, and Google Play Protect offered a scan of the new file and then rated it as seeming safe. Play Protect can still offer to scan every new file before it installs; that is expected. If you update from 0.1.46 or older, that one last update still goes through the old installer and can show the old warning once more.
 
 ### Added
 
@@ -50,12 +33,26 @@ Beta: NOVA no longer installs updates itself. It still tells you when a new vers
   the new APK; you install it by opening the downloaded file, and Android may ask
   you once to allow your browser or file manager to install apps. NOVA no longer
   asks for, or holds, the permission to install apps itself. Why: on a real phone
-  Google Play Protect stopped every current NOVA build with "Harmful app blocked"
+  Google Play Protect stopped every earlier NOVA build with "Harmful app blocked"
   (you could only continue through "More details > Install anyway"), while a build
   of this version without that permission was rated "This app seems safe". Play
   Protect may still offer to scan each new version before it installs; that is
   expected. Versions up to 0.1.46 still install updates themselves, so the update
   to this version can show the warning one last time (#306, #307).
+
+### Fixed
+
+- **The "Update available" notice and Settings now always show the same
+  version** — after "Check now" in Settings the Overview notice could still
+  offer an older release (for example the stable v0.1.46 while Settings offered
+  a newer pre-release), and reopening Settings could show the older release
+  again. NOVA now keeps one latest-version result that the notice, the update
+  sheet and Settings all show. It follows the "Include pre-releases" switch:
+  turning it off never leaves a beta on screen, and turning it on offers the
+  newest beta again as soon as the check is done. A check that fails keeps the
+  version found before, and Settings says that the check failed. Settings shows
+  the progress of a check again. When several releases are newer than yours, the
+  newest one is offered (#331).
 
 ## [0.1.46] - 2026-11-13
 

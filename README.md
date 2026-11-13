@@ -99,7 +99,7 @@ This is Google's rating of the file, not a finding about what NOVA does; Google 
 - **SHA-256 of the file:** the release page lists it next to the APK; compare it with `sha256sum NOVA-v….apk`.
 - **Signing certificate:** `apksigner verify --print-certs NOVA-v….apk` should show the SHA-256 digest `9f86baa17c1208004d9284e99597f77276c77301b06340b10075c793152b6824`.
 
-**From the next version on**, NOVA no longer installs updates itself and no longer asks for the permission to install apps. **Download** in the update sheet lets your browser download the file; you open it to install. Android will still ask once to scan each new file ("App scan recommended"), because Play Protect does not know it yet; that is expected. We cannot promise that no warning appears, since Google's rating can change.
+**From version 0.1.47 on**, NOVA no longer installs updates itself and no longer asks for the permission to install apps. **Download** in the update sheet lets your browser download the file; you open it to install. Android will still ask once to scan each new file ("App scan recommended"), because Play Protect does not know it yet; that is expected. We cannot promise that no warning appears, since Google's rating can change.
 
 **F-Droid** is the channel without any such prompt we have seen, but it has stable releases only, gets updates later, and is signed with a different key. Switching between the GitHub APK and F-Droid means uninstalling first, which removes your saved servers and API keys.
 
