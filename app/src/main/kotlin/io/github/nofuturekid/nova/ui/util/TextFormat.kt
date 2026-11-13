@@ -67,3 +67,13 @@ internal fun uptimeLabel(bootTime: String?, clock: Clock = Clock.systemUTC()): S
         else -> "<1m"
     }
 }
+
+/**
+ * Disk row subtitle "sdb · Samsung SSD 870": device and model, only the parts
+ * that are known. The stock API sends no model (it maps to ""), which used to
+ * leave "sdb ·" on screen. Null when neither is known, so the caller can hide the line.
+ */
+internal fun diskSubtitle(device: String?, model: String?): String? =
+    listOfNotNull(device?.trim()?.takeIf { it.isNotEmpty() }, model?.trim()?.takeIf { it.isNotEmpty() })
+        .takeIf { it.isNotEmpty() }
+        ?.joinToString(" · ")

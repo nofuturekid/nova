@@ -28,6 +28,9 @@ release version + date and opens a fresh `[Unreleased]`.
   System card showed a raw timestamp such as "2026-11-12T13:56:22.425Z", which is
   when the server started. It now shows the time since then, for example
   "22h 4m" or "3d 4h", and a dash when the server sends nothing readable (#304).
+- **Disk rows on the Array tab no longer end in a lonely "·"** — a row showed
+  "sdb ·" when the server sends no model for the disk. The second line now
+  lists only what is known ("sdb") and is left out when nothing is (#305).
 - **A new self-signed server asks you to trust its certificate only once** —
   when you added a server with "Trust self-signed certificate", confirmed the
   certificate during Test and then saved, the same "Trust this certificate?"

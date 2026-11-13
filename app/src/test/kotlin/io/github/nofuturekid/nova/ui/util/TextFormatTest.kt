@@ -84,4 +84,25 @@ class TextFormatTest {
     @Test fun a_boot_time_in_the_future_is_unknown_not_a_negative_duration() {
         assertEquals("—", uptimeLabel("2026-11-14T00:00:00Z", clockAt("2026-11-13T12:00:00Z")))
     }
+
+    // #305: the stock API sends no disk model (mapped to ""), so the row read "sdb ·".
+    @Test fun disk_subtitle_with_both_parts_is_joined() {
+        assertEquals("sdb · Samsung SSD 870", diskSubtitle("sdb", "Samsung SSD 870"))
+    }
+
+    @Test fun disk_subtitle_without_a_model_has_no_dangling_separator() {
+        assertEquals("sdb", diskSubtitle("sdb", ""))
+        assertEquals("sdb", diskSubtitle("sdb", null))
+        assertEquals("sdb", diskSubtitle("sdb", "  "))
+    }
+
+    @Test fun disk_subtitle_without_a_device_has_no_leading_separator() {
+        assertEquals("Samsung SSD 870", diskSubtitle("", "Samsung SSD 870"))
+        assertEquals("Samsung SSD 870", diskSubtitle(null, "Samsung SSD 870"))
+    }
+
+    @Test fun disk_subtitle_with_nothing_known_is_absent_so_the_line_can_be_hidden() {
+        assertNull(diskSubtitle("", ""))
+        assertNull(diskSubtitle(null, " "))
+    }
 }

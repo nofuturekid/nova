@@ -48,6 +48,7 @@ import io.github.nofuturekid.nova.ui.theme.JetBrainsMono
 import io.github.nofuturekid.nova.ui.theme.UnraidAlpha
 import io.github.nofuturekid.nova.ui.theme.UnraidTheme
 import io.github.nofuturekid.nova.ui.util.countLabel
+import io.github.nofuturekid.nova.ui.util.diskSubtitle
 
 @Composable
 fun ArrayTab(
@@ -437,13 +438,15 @@ private fun DiskCard(disk: Disk, errored: Boolean, globalDiskWarnC: Int? = null,
                         if (disk.numErrors > 0) Pill("${disk.numErrors} err", tone = Tone.Danger, dot = true)
                         else if (errored) Pill("ERR", tone = Tone.Danger, dot = true)
                     }
-                    Text(
-                        text = "${disk.device} · ${disk.model}",
-                        color = t.muted,
-                        style = MaterialTheme.typography.labelSmall.copy(fontFamily = JetBrainsMono),
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                    )
+                    diskSubtitle(disk.device, disk.model)?.let { subtitle ->
+                        Text(
+                            text = subtitle,
+                            color = t.muted,
+                            style = MaterialTheme.typography.labelSmall.copy(fontFamily = JetBrainsMono),
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                        )
+                    }
                 }
                 if (level == DiskTempLevel.Standby) {
                     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
