@@ -338,7 +338,7 @@ sealed interface TestOutcome {
 /**
  * The connection-test result for a capability probe (ADR-0047). A rejected key fails the test with
  * the server's own wording; a transport failure keeps its certificate handling (an untrusted or
- * changed certificate opens the trust dialog, anything else is the exception's message); a server
+ * changed certificate opens the trust dialog, a redirect names its target, anything else is the exception's message); a server
  * that answered with an error NOVA does not classify shows that error's text.
  */
 internal fun testOutcomeOf(probe: ProbeOutcome): TestOutcome = when (probe.detection) {
@@ -348,8 +348,12 @@ internal fun testOutcomeOf(probe: ProbeOutcome): TestOutcome = when (probe.detec
         when (val issue = cause?.certIssue()) {
             is CertIssue.Untrusted -> TestOutcome.CertUntrusted(issue.sha256)
             is CertIssue.Changed -> TestOutcome.CertChanged(issue.pinned, issue.presented)
+            // A redirect gets its own sentence with the target, the same one the tabs show (ADR-0051).
             null -> TestOutcome.Failed(
-                cause?.failureMessage("Network error") ?: probe.failureText ?: "No response from server",
+                (cause as? ApolloException)?.redirectMessage()
+                    ?: cause?.failureMessage("Network error")
+                    ?: probe.failureText
+                    ?: "No response from server",
             )
         }
     }

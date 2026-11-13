@@ -130,4 +130,32 @@ class TestConnectionOutcomeTest {
     @Test fun testConnectionShowsTheServersOwnErrorText() = runTest {
         assertEquals(TestOutcome.Failed("boom"), test(serverError, serverError))
     }
+
+    private fun redirectTo(location: String): () -> HttpResponse = {
+        HttpResponse.Builder(302).addHeader("Location", location).body(Buffer()).build()
+    }
+
+    // WHY: Unraid answers an http request with a 302 to its https address when SSL is Yes or Strict. A user who
+    // typed such an address must be told the address to enter, in Test exactly as in the tabs, not "Http request
+    // failed with status code 302".
+    @Test fun testConnectionNamesTheRedirectTarget() = runTest {
+        val moved = redirectTo("https://192-168-1-100.abc123.myunraid.net:8443/graphql?x=1")
+        assertEquals(
+            TestOutcome.Failed(
+                "The server redirects to https://192-168-1-100.abc123.myunraid.net:8443. Edit the server and enter that address.",
+            ),
+            test(moved, moved),
+        )
+    }
+
+    // WHY: a redirect without a usable target is still a redirect; Test says so instead of the generic status text.
+    @Test fun testConnectionSaysARedirectWithoutTargetHasNoTarget() = runTest {
+        val moved: () -> HttpResponse = { HttpResponse.Builder(302).body(Buffer()).build() }
+        assertEquals(
+            TestOutcome.Failed(
+                "The server redirects to another address, but doesn't say which. Check the address in this server's settings.",
+            ),
+            test(moved, moved),
+        )
+    }
 }

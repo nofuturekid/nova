@@ -219,8 +219,9 @@ class ResponseClassifierTest {
         assertEquals(ErrorReason.Unreachable, redirect(404, null).toQueryError("Network error").reason)
     }
 
-    // WHY: the Add server sheet's Test shows the classifier's message, so Test and the tabs say the same.
-    @Test fun redirect_isTheTestConnectionMessage() {
+    // WHY: the classifier's redirect text is what the pre-probe Test path showed; the Test button itself now goes
+    // through the capability probe (TestConnectionOutcomeTest.testConnectionNamesTheRedirectTarget covers it).
+    @Test fun redirect_classifiesAsFailedWithTheTarget() {
         val c = classifyResponse(redirect(302, "https://tower.example.net/"), hasErrors = false, errorMessage = null, dataIsNull = true)
         assertEquals(
             RespClass.Failed("The server redirects to https://tower.example.net. Edit the server and enter that address."),
