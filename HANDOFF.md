@@ -248,6 +248,7 @@ JSON-scalar decision rationale (incl. why-not-String): [ADR-0007](docs/adr/0007-
 - **JSON scalar → kotlin.Any via Apollo's `AnyAdapter`** — the Unraid GraphQL `JSON` scalar serialises as inline JSON values (objects/arrays/primitives), not pre-stringified text. Custom `kotlin.String` adapters crash. We map it to `kotlin.Any` with `com.apollographql.apollo.api.AnyAdapter` (public, built-in). Don't try to write your own with `reader.readAny()` — that's `@ApolloInternal`.
 - **Update check** lives under `data/update/`: `UpdateRepository` polls `https://api.github.com/repos/hellwand/nova/releases` (installed versions up to 0.1.42 still carry the old `nofuturekid/nova` name and reach it through GitHub's redirect; no auth, 60 req/h rate limit fine for on-start checks), `UpdateDialog` only sends the browser to the release's APK (or the release page when it has no APK) with `ACTION_VIEW`; the app downloads and installs nothing itself and declares no `REQUEST_INSTALL_PACKAGES` in any flavor (ADR-0046). The check is compiled into both flavors and disabled at runtime when `BuildConfig.HAS_UPDATER` is false (`store`). The Settings screen exposes the "Include pre-releases" toggle + manual "Check now". Banner on MainScreen dismisses per-tag via `dismissedUpdateTag` in DataStore.
 - Cleartext HTTP requires `android:usesCleartextTraffic="true"` in the manifest. LAN access against `http://192.168.x.x` needs this. The base-config in `network_security_config.xml` permits cleartext; the GitHub hosts (`api.github.com`, `github.com`, `objects.githubusercontent.com`) are pinned to HTTPS.
+- **Unraid 7.4 refuses oversized requests** (cost 1,000, depth 20, 100 aliases, 5,000 tokens). `GraphqlRequestLimitsTest` fails CI when an operation passes 70 % of any limit; numbers and sources under "Unraid 7.4 request limits (#320)" below.
 - **CI `test` job (ADR-0036) can transiently fail at Gradle _configuration_** with a plugin-not-resolvable error (e.g. `com.google.devtools.ksp` not found) on a plugin-portal/registry blip — it fetches plugins fresh under PR `cache-read-only`. **Re-run the job; it is not a code defect** (see ADR-0036 "Known consequence — transient plugin-fetch in the `test` job" note; PR #163 2026-05-19).
 
 ### What the Unraid API does NOT expose
@@ -260,6 +261,26 @@ Minimum server API: every operation the app sends, except the two network-speed 
 - NIC vendor/model/link speed/virtual flag only with a third-party API plugin; rows without data are left out (#223).
 - VmDomain has only id/name/state — no vcpu/memGb/gpu fields. UI placeholder zeros (still not exposed).
 - Container icons may come back as **root-relative paths** (`/state/plugins/dynamix.docker.manager/images/foo.png`). We prepend the configured server base URL in `ContainerIcon.resolveIconUrl`.
+
+### Unraid 7.4 request limits (#320)
+
+Unraid 7.4.0 refuses GraphQL requests above fixed limits. Source: `api/src/unraid-api/graph/request-protection.ts` and `graph.module.ts` in unraid/api at commit `8e587fe` (2026-11-04; the API version `4.37.11+8e587fe2` that the 7.4.0 test server reports is built from exactly that commit), `@escape.tech/graphql-armor` 3.2.0, `graphql` 16.11.0, Fastify 5.12.5.
+
+| Measure      | Server limit | How it is counted                                                                                                                                                                    | NOVA's own ceiling (70 %)                                                  |
+| ------------ | ------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | -------------------------------------------------------------------------- |
+| Cost         | 1,000        | every field costs 1 (object and scalar alike, depth factor 1), fragments flattened (a spread adds 1 + 1 + its fields); a `first`/`last` integer literal multiplies; `limit` does not | 700                                                                        |
+| Depth        | 20           | field nesting; fragments and inline fragments add no level                                                                                                                           | 14                                                                         |
+| Aliases      | 100          | every aliased field, no allow-list                                                                                                                                                   | 70                                                                         |
+| Tokens       | 5,000        | graphql-js tokens of the whole document (HTTP and WebSocket subscribe messages); the `connection_init` message is not GraphQL                                                        | 3,500                                                                      |
+| Request body | 1 MiB        | no `bodyLimit` is set, so Fastify's default applies                                                                                                                                  | 734,003 bytes (the test measures the query text only; variables are small) |
+
+Only `__schema` and `__type` (introspection) are blocked; NOVA sends none. A refused request is HTTP 400 with `Syntax Error: Query Cost limit of 1000 exceeded, found N.` (or the alias, depth or token variant).
+
+**Guard:** `GraphqlRequestLimitsTest` (unit test, runs in CI) re-implements these formulas, measures every operation in `app/src/main/graphql` as Apollo sends it (generated documents, `__typename` included) and fails with the operation and the measure when one passes 70 % of a limit. Its own tests pin the formulas to the server's boundaries. If it fails, slim the query down (fewer fields, a second query) rather than raising the margin.
+
+**Measured 2026-11-13 on Unraid 7.4.0 (API 4.37.11):** the largest operation is `GetArray` with cost 59 (6 % of 1,000), depth 4; the deepest is `GetMetrics` with depth 5; most tokens `GetNotificationList` with 78 (2 % of 5,000); at most 2 aliases; largest document 477 bytes. All 15 shipped queries answer HTTP 200 with data. Live control requests (harmless `__typename` and copies of `GetArray` and `GetNotificationList`) were refused at exactly the predicted numbers (cost 1001, 1003 = 17 x 59, 1023 = 31 x 33; 101 aliases; 5,001 tokens) and 1,000 cost / 100 aliases were accepted, so the formulas match the live server. Not measured live: depth 21 (needs a recursive type) and the body limit (no oversized request was sent); both come from the source. The subscriptions were not sent live; their documents use 8 to 20 tokens.
+
+NOVA does not need introspection. The limits come from the server's code on that commit; a later 7.4.x or 7.5 API may change them. Re-read `request-protection.ts` then and update `GraphqlRequestLimits` in the test.
 
 ## Secrets
 
