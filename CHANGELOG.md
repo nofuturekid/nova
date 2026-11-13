@@ -15,9 +15,9 @@ release version + date and opens a fresh `[Unreleased]`.
 
 ## [Unreleased]
 
-## [0.1.45-beta1] - 2026-11-13
+## [0.1.45] - 2026-11-13
 
-Beta: live values on the Overview and the container numbers now recover by themselves after the connection to your server drops or goes quiet. Please switch Wi-Fi off and on, or restart the Unraid API, while watching the Overview, and tell us if the live values do not come back.
+Live values on the Overview and the container numbers now recover by themselves after the connection to your server drops or goes quiet. The 0.1.45 beta confirmed this on a real phone with a real Wi-Fi change.
 
 ### Fixed
 - **Live values recover by themselves after a connection drop** — when the

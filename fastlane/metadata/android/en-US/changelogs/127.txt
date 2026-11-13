@@ -1,0 +1,2 @@
+Live values on the Overview and the container numbers now recover by themselves.
+When the connection to your server drops or goes quiet (Wi-Fi switched off and on, the Unraid API restarted), the cards now show the offline state, reconnect on their own and return to live values without leaving the screen.
