@@ -15,6 +15,15 @@ release version + date and opens a fresh `[Unreleased]`.
 
 ## [Unreleased]
 
+## [0.1.47-beta1] - 2026-11-13
+
+Beta: NOVA no longer installs updates itself. It still tells you when a new version is out and shows the release notes, but "Download" now opens the release file in your browser. Please open the update sheet that opens from the "Update available" notice and look at the "Download" and "Release page" buttons, and tell us whether the download and the install from the downloaded file work for you. This beta itself is still installed by the old installer of 0.1.46, so Google Play Protect may show its warning one last time; from this version on, the next update arrives as a browser download.
+
+### Added
+- **The Play Protect notice is documented** — the README and the website now
+  explain what Google Play Protect shows when you install or update NOVA, why, and
+  how to check a download (SHA-256 and signing certificate).
+
 ### Changed
 - **Updates are now downloaded in your browser instead of being installed inside
   NOVA** — NOVA still tells you when a new version is out and shows its release
@@ -28,11 +37,6 @@ release version + date and opens a fresh `[Unreleased]`.
   Protect may still offer to scan each new version before it installs; that is
   expected. Versions up to 0.1.46 still install updates themselves, so the update
   to this version can show the warning one last time (#306, #307).
-
-### Added
-- **The Play Protect notice is documented** — the README and the website now
-  explain what Google Play Protect shows when you install or update NOVA, why, and
-  how to check a download (SHA-256 and signing certificate).
 
 ## [0.1.46] - 2026-11-13
 
