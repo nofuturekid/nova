@@ -28,8 +28,11 @@
 # $ANDROID_HOME/build-tools/*/, local testing).
 set -euo pipefail
 
+# stderr, not stdout: fail() also runs inside $(...) (build_tools, entry_list),
+# where a stdout message would be captured and never shown. The runner reads
+# workflow commands from stderr as well.
 fail() {
-	echo "::error::APK sign: $*"
+	echo "::error::APK sign: $*" >&2
 	exit 1
 }
 
@@ -107,7 +110,7 @@ sign() { # $1 = in.apk, $2 = out.apk
 		fail "apksigner verify rejected the signed APK."
 	}
 	printf '%s\n' "$out_v" | grep -E 'certificate SHA-256 digest' | sed 's/^/  output /' || true
-	if printf '%s\n' "$out_v" | grep -E 'Verified using v(1|3|3\.1|4) scheme.*: true' >&2; then
+	if printf '%s\n' "$out_v" | grep -E 'Verified using v(1|3(\.[0-9]+)?|4) scheme.*: true' >&2; then
 		fail "the signed APK carries a signature scheme besides v2."
 	fi
 	if printf '%s\n' "$out_v" | grep -E 'Verified using v2 scheme.*: false' >&2; then

@@ -270,7 +270,8 @@ jobs:
             echo "::error::KEYSTORE_B64 is empty — the secret is missing from the environment 'release'. Set it there, then re-run this run: gh run rerun $GITHUB_RUN_ID"
             exit 1
           fi
-          (umask 077; printf '%s' "$KEYSTORE_B64" | base64 -d > "$RUNNER_TEMP/release.keystore")
+          (umask 077; printf '%s' "$KEYSTORE_B64" | base64 -d > "$RUNNER_TEMP/release.keystore") \
+            || { echo "::error::KEYSTORE_B64 in environment 'release' is not valid base64 (a CRLF or a stray character from the paste?). Fix the secret there, then re-run this run: gh run rerun $GITHUB_RUN_ID"; exit 1; }
 
       # Replace the debug signature with the release signature and prove that
       # only the signature changed: apksigner (v2 only), zipalign check, and the

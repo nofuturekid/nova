@@ -199,9 +199,12 @@ jobs:
   # Release build for every run, with no secrets (ADR-0004, amendment
   # 2026-11-13). app/release.keystore does not exist and no signing variable is
   # set, so app/build.gradle.kts signs the release variants with the debug
-  # key. The first step fails if either is ever present, so that the
-  # no-secret property cannot erode unnoticed. release.yml replaces the debug
-  # signature with the release signature at the tag.
+  # key. Two checks keep that true: the first step fails if the keystore file
+  # or a signing variable is present at the start of the job; the step after
+  # the build fails if either release APK carries the pinned release
+  # certificate, however the key got there (a later step, a changed
+  # build.gradle.kts). release.yml replaces the debug signature with the
+  # release signature at the tag.
   build-release:
     needs: setup
     if: needs.setup.outputs.code == 'true'
@@ -263,6 +266,31 @@ jobs:
             fi
             echo "Compiled (debug-signed fallback): $APK"
           done
+
+      # The check that can fail on a key that appeared after the first step:
+      # the APKs just built must not be signed with the release certificate.
+      # The digest is read from release-verify-apk.sh, the one place that pins
+      # it. Only the digest lines are printed, never the APK's other output.
+      - name: Confirm the release APKs are not release-signed
+        run: |
+          set -euo pipefail
+          PINNED=$(grep -oE 'EXPECTED_CERT_SHA256="[0-9a-f]{64}"' .github/scripts/release-verify-apk.sh | grep -oE '[0-9a-f]{64}' || true)
+          [ "$(printf '%s\n' "$PINNED" | grep -c .)" = 1 ] || { echo "::error::Could not read the pinned certificate digest from release-verify-apk.sh."; exit 1; }
+          BT=$(find "$ANDROID_HOME/build-tools" -mindepth 1 -maxdepth 1 -type d | sort -V | tail -1)
+          [ -x "$BT/apksigner" ] || { echo "::error::apksigner not found below ANDROID_HOME/build-tools."; exit 1; }
+          for flavor in direct store; do
+            APK=$(find "app/build/outputs/apk/$flavor/release" -maxdepth 1 -name '*.apk' | sort | head -1)
+            [ -n "$APK" ] || { echo "::error::No release APK for flavor $flavor."; exit 1; }
+            CERTS=$("$BT/apksigner" verify --print-certs "$APK") || { echo "::error::apksigner verify rejected $APK."; exit 1; }
+            DIGESTS=$(printf '%s\n' "$CERTS" | grep 'certificate SHA-256 digest' || true)
+            [ -n "$DIGESTS" ] || { echo "::error::No signer certificate digest in apksigner output for $APK."; exit 1; }
+            if printf '%s\n' "$DIGESTS" | grep -q "$PINNED"; then
+              echo "::error::$APK is signed with the release certificate; the release build must run without the signing key (ADR-0004)."
+              exit 1
+            fi
+            printf '%s\n' "$DIGESTS" | sed "s|^|$flavor: |"
+          done
+          echo "Neither release APK carries the release certificate."
 
       # release.yml downloads this artifact (name `app-release`) and signs it
       # at the tag — only the `direct` flavor APK goes here. It carries the
