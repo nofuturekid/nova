@@ -1,6 +1,7 @@
 package io.github.nofuturekid.nova.data.repository
 
 import com.apollographql.apollo.api.ApolloResponse
+import com.apollographql.apollo.api.Error
 import com.apollographql.apollo.api.Operation
 import com.apollographql.apollo.exception.ApolloException
 import com.apollographql.apollo.exception.ApolloHttpException
@@ -47,6 +48,49 @@ fun classifyResponse(
     dataIsNull -> RespClass.Empty
     else -> RespClass.Ok
 }
+
+/**
+ * Why a domain query failed, by the response it got. The first matching rule wins
+ * (the bodies behind them were recorded from Unraid 7.4.0, API 4.37.11):
+ *  1. a transport exception: [ErrorReason.Unreachable];
+ *  2. `UNAUTHENTICATED`: [ErrorReason.KeyRejected];
+ *  3. `GRAPHQL_VALIDATION_FAILED` or "Cannot query field": [ErrorReason.ApiTooOld];
+ *  4. `FORBIDDEN`: [ErrorReason.Forbidden];
+ *  5. "Docker socket unavailable" or "VMs are not available": [ErrorReason.ServiceOff];
+ *  6. anything else: [ErrorReason.ServerError].
+ * Rules 2 to 4 are [classifyErrors], shared with the capability probe so the two
+ * cannot disagree about what an `errors` array means.
+ */
+fun classifyErrorReason(exception: ApolloException?, errors: List<Error>?): ErrorReason {
+    if (exception != null) return ErrorReason.Unreachable
+    val list = errors.orEmpty()
+    return when (classifyErrors(list)) {
+        ErrorClass.KeyRejected -> ErrorReason.KeyRejected
+        ErrorClass.ValidationFailed -> ErrorReason.ApiTooOld
+        ErrorClass.Forbidden -> ErrorReason.Forbidden
+        ErrorClass.Other ->
+            if (list.any { e -> SERVICE_OFF_MARKERS.any { e.message.contains(it) } }) ErrorReason.ServiceOff
+            else ErrorReason.ServerError
+    }
+}
+
+/**
+ * The [DomainState.Error] for a query the server answered with GraphQL `errors`.
+ * [message] is the joined server text. When the screen replaces it with the
+ * reason's own wording, the server text stays in [DomainState.Error.detail]
+ * ("Show details"); for [ErrorReason.ServerError] it is the screen text itself.
+ */
+fun graphQlError(message: String, errors: List<Error>?): DomainState.Error {
+    val reason = classifyErrorReason(exception = null, errors = errors)
+    return DomainState.Error(
+        message = message,
+        detail = if (reason == ErrorReason.ServerError) null else message,
+        reason = reason,
+    )
+}
+
+/** What Unraid's resolvers throw when the service behind a domain is off (Docker: missing socket; VMs: no hypervisor). */
+private val SERVICE_OFF_MARKERS = listOf("Docker socket unavailable", "VMs are not available")
 
 /**
  * The text to show for a failed request: the exception's own message plus its

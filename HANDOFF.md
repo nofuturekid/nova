@@ -265,7 +265,7 @@ JSON-scalar decision rationale (incl. why-not-String): [ADR-0007](docs/adr/0007-
 
 ### What the Unraid API does NOT expose
 
-Minimum server API: every operation the app sends, except the two network-speed operations (`GetNetworkThroughput`, `SystemMetricsNetwork`), validates against Unraid API **4.30.0** and newer; those two, and with them the live network speed, need **4.35.0** (these are API versions, not Unraid OS versions). Older servers reject the unknown fields. Only the network speed has capability detection; there is no general minimum-version check.
+Minimum server API: every operation the app sends, except the two network-speed operations (`GetNetworkThroughput`, `SystemMetricsNetwork`), validates against Unraid API **4.30.0** and newer; those two, and with them the live network speed, need **4.35.0** (these are API versions, not Unraid OS versions). Older servers reject the unknown fields. There is no up-front minimum-version check: a tab whose query fails GraphQL validation (`GRAPHQL_VALIDATION_FAILED`) shows "This server's Unraid API is too old" (`ErrorReason.ApiTooOld`, #247), and the other failure reasons (`ErrorReason`) get their own titles the same way. The API version that the capability probe reads (ADR-0047) is for controls, not for this hint.
 
 - Network throughput is implemented (PR #222): `metrics.network` / the `systemMetricsNetwork` subscription (`name rxSec txSec`) exist from Unraid API 4.35.0; older servers show no speed (ADR-0042 amendment). Live via subscription with a 2 s poll fallback.
 - Per-container CPU/Mem/Net/Disk I/O exist only as the `dockerContainerStats` subscription (no query path). Implemented and shown on the Docker tab and in the container sheet (ADR-0043/0044); no poll fallback.

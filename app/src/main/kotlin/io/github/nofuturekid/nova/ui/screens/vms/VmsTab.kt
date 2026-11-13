@@ -40,6 +40,7 @@ import io.github.nofuturekid.nova.ui.components.UC
 import io.github.nofuturekid.nova.ui.components.UnraidCard
 import io.github.nofuturekid.nova.ui.components.onTone
 import io.github.nofuturekid.nova.ui.screens.ErrorState
+import io.github.nofuturekid.nova.ui.screens.ErrorSubject
 import io.github.nofuturekid.nova.ui.screens.LoadingState
 import io.github.nofuturekid.nova.ui.screens.NoServerState
 import io.github.nofuturekid.nova.ui.theme.UnraidTheme
@@ -58,7 +59,9 @@ fun VmsTab(
     when (state) {
         DomainState.Loading    -> LoadingState()
         DomainState.NoServer   -> NoServerState(onAdd = onAddServer)
-        is DomainState.Error   -> ErrorState(state.message, detail = state.detail)
+        is DomainState.Error   -> ErrorState(
+            state.message, detail = state.detail, reason = state.reason, subject = ErrorSubject.Vms,
+        )
         is DomainState.Content -> {
             val vms = state.value
             if (vms.isEmpty()) {

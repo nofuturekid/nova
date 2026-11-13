@@ -61,6 +61,7 @@ import io.github.nofuturekid.nova.data.model.UpdateState
 import io.github.nofuturekid.nova.data.model.Vm
 import io.github.nofuturekid.nova.data.model.hasUpdate
 import io.github.nofuturekid.nova.data.repository.DomainState
+import io.github.nofuturekid.nova.data.repository.ErrorReason
 import io.github.nofuturekid.nova.data.repository.UnraidRepository
 import io.github.nofuturekid.nova.ui.components.BtnVariant
 import io.github.nofuturekid.nova.ui.components.ConfirmDialog
@@ -564,28 +565,42 @@ fun MainScreen(
 }
 
 /**
- * Compare a handful of domain states and prefer Error/NoServer over
+ * Compare a handful of domain states and prefer a connection problem over
  * Loading/Content. Used by [TopBar]'s offline-indicator on the Overview tab
  * (which would otherwise need to invent its own meta-state across five
- * separate domain streams).
+ * separate domain streams). Only NoServer and an Error that says the server
+ * cannot be used ([ErrorReason.isConnectionProblem]) win: a domain that is
+ * merely turned off (VMs, Docker) must not make a reachable server look
+ * offline (#217), so such an Error ranks after Content.
  */
-private fun firstErrorOrAny(vararg states: DomainState<*>): DomainState<*> {
+internal fun firstErrorOrAny(vararg states: DomainState<*>): DomainState<*> {
     states.firstOrNull { it is DomainState.NoServer }?.let { return it }
-    states.firstOrNull { it is DomainState.Error }?.let { return it }
+    states.firstOrNull { it.isConnectionError() }?.let { return it }
     states.firstOrNull { it is DomainState.Content<*> }?.let { return it }
+    states.firstOrNull { it is DomainState.Error }?.let { return it }
     return DomainState.Loading
 }
+
+private fun DomainState<*>.isConnectionError(): Boolean =
+    this is DomainState.Error && reason.isConnectionProblem
 
 /**
  * Label of the connection pill. When the server cannot be reached the mode
  * stays visible ("Local · Offline"): the pill is also the Local/Remote
- * switch, and a bare "Offline" hid which address was failing (#217).
+ * switch, and a bare "Offline" hid which address was failing (#217). A
+ * rejected key says so ("Local · Key rejected"); any other failure of one
+ * domain leaves the pill alone, because the server itself answered.
  */
+
 internal fun connectionLabel(state: DomainState<*>, connection: ConnectionMode): String {
     val mode = if (connection == ConnectionMode.Remote) "Remote" else "Local"
     return when (state) {
         is DomainState.NoServer -> "No server"
-        is DomainState.Error -> "$mode · Offline"
+        is DomainState.Error -> when (state.reason) {
+            ErrorReason.Unreachable -> "$mode · Offline"
+            ErrorReason.KeyRejected -> "$mode · Key rejected"
+            else -> mode
+        }
         else -> mode
     }
 }
@@ -602,7 +617,7 @@ internal fun TopBar(
     onOpenNotifications: () -> Unit,
 ) {
     val t = UnraidTheme.colors
-    val offline = state is DomainState.Error || state is DomainState.NoServer
+    val offline = state is DomainState.NoServer || state.isConnectionError()
     val connTone: Tone = when {
         offline -> Tone.Danger
         connection == ConnectionMode.Remote -> Tone.Info

@@ -1083,7 +1083,7 @@ class UnraidRepository @Inject constructor(
             dataIsNull = resp.data == null,
         )) {
             is RespClass.Cert -> throw resp.exception!!   // surface to domainStream (cause chain carries the typed cert exception)
-            is RespClass.Failed -> resp.exception?.toQueryError("Network error") ?: DomainState.Error(c.message)
+            is RespClass.Failed -> resp.exception?.toQueryError("Network error") ?: graphQlError(c.message, resp.errors)
             RespClass.Empty -> DomainState.Error("Empty GraphQL response")
             RespClass.Ok -> DomainState.Content(map(resp.data!!))
         }

@@ -42,6 +42,7 @@ import io.github.nofuturekid.nova.ui.components.UnraidCard
 import io.github.nofuturekid.nova.ui.components.UnraidProgress
 import io.github.nofuturekid.nova.ui.components.onTone
 import io.github.nofuturekid.nova.ui.screens.ErrorState
+import io.github.nofuturekid.nova.ui.screens.ErrorSubject
 import io.github.nofuturekid.nova.ui.screens.LoadingState
 import io.github.nofuturekid.nova.ui.screens.NoServerState
 import io.github.nofuturekid.nova.ui.theme.JetBrainsMono
@@ -67,12 +68,39 @@ fun ArrayTab(
     when (state) {
         DomainState.Loading    -> LoadingState()
         DomainState.NoServer   -> NoServerState(onAdd = onAddServer)
-        is DomainState.Error   -> ErrorState(state.message, detail = state.detail)
+        is DomainState.Error   -> ErrorState(
+            state.message, detail = state.detail, reason = state.reason, subject = ErrorSubject.Array,
+        )
         is DomainState.Content -> ArrayContent(
             state.value, view, onStartArray, onStopArray,
             onStartParity, onPauseParity, onResumeParity, onCancelParity,
             globalDiskWarnC, globalDiskCritC,
         )
+    }
+}
+
+/**
+ * False for a server whose storage is all in pools (#217): no data and no
+ * parity disk, so there is no array to start, stop or check. Decided by the
+ * disks, not by the array state, which such a server reports in a way nobody
+ * has recorded yet.
+ */
+internal fun ArrayInfo.hasArrayDisks(): Boolean =
+    disks.any { it.type == DiskType.Data || it.type == DiskType.Parity }
+
+/** Shown instead of the status card (and its Start, Stop and parity buttons) when there is no array. */
+@Composable
+private fun NoArrayCard() {
+    val t = UnraidTheme.colors
+    UnraidCard(padding = UnraidTheme.tokens.padHero) {
+        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+            UC.Disk(24.dp, t.muted)
+            Column {
+                Text("This server has no array", color = t.text, style = MaterialTheme.typography.titleSmall)
+                Spacer(Modifier.height(2.dp))
+                Text("Its storage is in pools.", color = t.muted, style = MaterialTheme.typography.bodyMedium)
+            }
+        }
     }
 }
 
@@ -93,6 +121,7 @@ private fun ArrayContent(
     val arrayOn = arr.state != ArrayState.Stopped && arr.state != ArrayState.Offline
     val parity  = arr.state == ArrayState.Parity
     val errored = arr.state == ArrayState.Error
+    val hasArray = arr.hasArrayDisks()
     val dataDisks = arr.disks.filter { it.type == DiskType.Data }
     val totalUsedTb = dataDisks.sumOf { it.usedTb }
     val totalSizeTb = dataDisks.sumOf { it.sizeTb }
@@ -105,7 +134,8 @@ private fun ArrayContent(
         ),
         verticalArrangement = Arrangement.spacedBy(d.gap),
     ) {
-        item {
+        if (!hasArray) item { NoArrayCard() }
+        if (hasArray) item {
             UnraidCard(padding = UnraidTheme.tokens.padHero) {
                 Column {
                     Row(verticalAlignment = Alignment.CenterVertically) {

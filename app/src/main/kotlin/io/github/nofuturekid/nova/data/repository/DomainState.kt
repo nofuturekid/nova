@@ -30,7 +30,44 @@ sealed interface DomainState<out T> {
      * [message] is what the user reads. [detail] is the raw technical text
      * (exception message plus root cause) kept for diagnosis when [message]
      * is a plain-language replacement; null when [message] already is the
-     * honest, specific text.
+     * honest, specific text. [reason] says why the poll failed so the screen
+     * can name the real cause instead of always "Can't reach the server"; the
+     * default keeps the meaning every producer had before it existed. For a
+     * reason whose screen text replaces the server's wording (everything but
+     * [ErrorReason.Unreachable] and [ErrorReason.ServerError]) the raw server
+     * text is kept in [detail].
      */
-    data class Error(val message: String, val detail: String? = null) : DomainState<Nothing>
+    data class Error(
+        val message: String,
+        val detail: String? = null,
+        val reason: ErrorReason = ErrorReason.Unreachable,
+    ) : DomainState<Nothing>
+}
+
+/**
+ * Why a domain query failed (#247, #217). Classified from the response by
+ * [classifyErrorReason]; the screens show a matching title and next step.
+ */
+enum class ErrorReason {
+    /** Transport, certificate or non-GraphQL HTTP failure: the server did not answer properly. */
+    Unreachable,
+
+    /** The server answered UNAUTHENTICATED: it did not accept the API key. */
+    KeyRejected,
+
+    /** The server answered FORBIDDEN: the key may not read this domain. */
+    Forbidden,
+
+    /** The query failed GraphQL validation: the server's Unraid API is older than this screen needs. */
+    ApiTooOld,
+
+    /** The server is fine but the service behind this domain (Docker, VM manager) is turned off. */
+    ServiceOff,
+
+    /** Any other error the server reported; its own text is shown. */
+    ServerError,
+    ;
+
+    /** True when the server itself cannot be used: the top bar shows it, other reasons leave the pill alone. */
+    val isConnectionProblem: Boolean get() = this == Unreachable || this == KeyRejected
 }

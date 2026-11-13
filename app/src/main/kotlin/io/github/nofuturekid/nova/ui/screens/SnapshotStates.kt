@@ -20,6 +20,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import io.github.nofuturekid.nova.data.repository.ErrorReason
 import io.github.nofuturekid.nova.ui.components.BtnVariant
 import io.github.nofuturekid.nova.ui.components.Tone
 import io.github.nofuturekid.nova.ui.components.UC
@@ -42,6 +43,55 @@ fun LoadingState(modifier: Modifier = Modifier) {
     }
 }
 
+/**
+ * What a tab shows, for the error texts that name it: the noun in "can't read
+ * {noun}" and the permission resource the server checks for it.
+ */
+enum class ErrorSubject(val noun: String, val resource: String) {
+    Array("the array", "ARRAY"),
+    Docker("containers", "DOCKER"),
+    Vms("virtual machines", "VMS"),
+}
+
+/** The title and the explaining text of an error screen. */
+data class ErrorTexts(val title: String, val body: String)
+
+/**
+ * The texts for [reason]. Pure, so a test can pin every wording. [message] is the
+ * server's own text and the body only for [ErrorReason.Unreachable] and
+ * [ErrorReason.ServerError]; the other reasons explain what to do instead.
+ * [subject] is null where a screen has none (generic wording).
+ */
+fun errorTexts(reason: ErrorReason, subject: ErrorSubject?, message: String): ErrorTexts = when (reason) {
+    ErrorReason.Unreachable -> ErrorTexts("Can't reach the server", message)
+    ErrorReason.KeyRejected -> ErrorTexts(
+        "The server didn't accept the API key",
+        "Check the key in this server's settings in NOVA, or create a new key in the Unraid web UI.",
+    )
+    ErrorReason.Forbidden -> ErrorTexts(
+        "This API key can't read ${subject?.noun ?: "this"}",
+        (if (subject != null) "It needs the permission ${subject.resource}:READ_ANY. " else "") +
+            "A key with the VIEWER role can read everything NOVA shows.",
+    )
+    ErrorReason.ApiTooOld -> ErrorTexts(
+        "This server's Unraid API is too old",
+        "This screen needs Unraid API 4.30.0 or newer. Update the server to Unraid 7.2.5 or newer.",
+    )
+    ErrorReason.ServiceOff -> when (subject) {
+        ErrorSubject.Docker -> ErrorTexts(
+            "Docker is turned off",
+            "Turn it on in the Unraid web UI under Settings → Docker.",
+        )
+        ErrorSubject.Vms -> ErrorTexts(
+            "Virtual machines are turned off",
+            "Turn them on in the Unraid web UI under Settings → VM Manager.",
+        )
+        // Only Docker and VMs can be switched off; anything else is the server's own error.
+        else -> ErrorTexts("The server couldn't load ${subject?.noun ?: "this"}", message)
+    }
+    ErrorReason.ServerError -> ErrorTexts("The server couldn't load ${subject?.noun ?: "this"}", message)
+}
+
 @Composable
 fun ErrorState(
     message: String,
@@ -49,8 +99,13 @@ fun ErrorState(
     modifier: Modifier = Modifier,
     /** Raw technical text behind a "Show details" toggle; null when [message] is already the whole story. */
     detail: String? = null,
+    /** Why the load failed; the default is the original "Can't reach the server" screen. */
+    reason: ErrorReason = ErrorReason.Unreachable,
+    /** What the tab shows; names it in the texts of the reasons that need it. */
+    subject: ErrorSubject? = null,
 ) {
     val t = UnraidTheme.colors
+    val texts = errorTexts(reason, subject, message)
     var showDetail by rememberSaveable { mutableStateOf(false) }
     Column(
         modifier = modifier
@@ -62,14 +117,14 @@ fun ErrorState(
         UC.Alert(36.dp, t.danger)
         Spacer(Modifier.height(8.dp))
         Text(
-            text = "Can't reach the server",
+            text = texts.title,
             color = t.text,
             style = MaterialTheme.typography.titleSmall,
             textAlign = TextAlign.Center,
         )
         Spacer(Modifier.height(4.dp))
         Text(
-            text = message,
+            text = texts.body,
             color = t.muted,
             style = MaterialTheme.typography.bodyMedium,
             textAlign = TextAlign.Center,

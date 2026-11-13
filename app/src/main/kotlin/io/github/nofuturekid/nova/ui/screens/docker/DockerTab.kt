@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
@@ -53,6 +54,7 @@ import io.github.nofuturekid.nova.ui.components.UC
 import io.github.nofuturekid.nova.ui.components.UnraidCard
 import io.github.nofuturekid.nova.ui.components.UnraidIconButton
 import io.github.nofuturekid.nova.ui.screens.ErrorState
+import io.github.nofuturekid.nova.ui.screens.ErrorSubject
 import io.github.nofuturekid.nova.ui.screens.LoadingState
 import io.github.nofuturekid.nova.ui.screens.NoServerState
 import io.github.nofuturekid.nova.ui.screens.main.MainViewModel
@@ -77,8 +79,10 @@ fun DockerTab(
     when (state) {
         DomainState.Loading    -> LoadingState()
         DomainState.NoServer   -> NoServerState(onAdd = onAddServer)
-        is DomainState.Error   -> ErrorState(state.message, detail = state.detail)
-        is DomainState.Content -> DockerContent(
+        is DomainState.Error   -> ErrorState(
+            state.message, detail = state.detail, reason = state.reason, subject = ErrorSubject.Docker,
+        )
+        is DomainState.Content -> if (state.value.isEmpty()) EmptyDocker() else DockerContent(
             containers = state.value,
             serverBaseUrl = state.serverBaseUrl,
             view = view,
@@ -90,6 +94,30 @@ fun DockerTab(
             onRestart = onRestart,
             onStop = onStop,
             onUpdateAll = onUpdateAll,
+        )
+    }
+}
+
+/** Docker is on but has no containers: say so instead of showing only a search box. */
+@Composable
+private fun EmptyDocker() {
+    val t = UnraidTheme.colors
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(60.dp),
+        verticalArrangement = Arrangement.Center,
+        horizontalAlignment = Alignment.CenterHorizontally,
+    ) {
+        UC.Docker(36.dp, t.muted)
+        Spacer(Modifier.height(8.dp))
+        Text("No containers", color = t.text, style = MaterialTheme.typography.titleSmall)
+        Spacer(Modifier.height(4.dp))
+        Text(
+            "Containers you add in the Unraid web UI show up here.",
+            color = t.muted,
+            style = MaterialTheme.typography.bodyMedium,
+            textAlign = TextAlign.Center,
         )
     }
 }

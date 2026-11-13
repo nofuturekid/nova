@@ -15,6 +15,18 @@ release version + date and opens a fresh `[Unreleased]`.
 
 ## [Unreleased]
 
+### Added
+
+- **Each tab now says why it could not load** — instead of "Can't reach the
+  server" for every problem, the Array, Docker and VMs tabs name the cause and
+  the next step: "The server didn't accept the API key" (check the key in this
+  server's settings), "This API key can't read containers" (it needs the
+  permission DOCKER:READ_ANY), "This server's Unraid API is too old" (it needs
+  Unraid API 4.30.0 or newer, which means Unraid 7.2.5 or newer), "Docker is
+  turned off" and "Virtual machines are turned off" (turn them on in the Unraid
+  web UI). The pill at the top reads "Key rejected" when the key was refused
+  (#247, #217).
+
 ### Changed
 
 - **Restarting a container is one step on newer servers** — on Unraid API 4.36.0
@@ -23,6 +35,20 @@ release version + date and opens a fresh `[Unreleased]`.
   NOVA shows the server's own message. Older servers, and
   servers whose version NOVA could not read, keep the stop-then-start restart
   they have today.
+
+- **A server without an array no longer shows array buttons** — if all storage
+  is in pools, the Array tab says "This server has no array" and "Its storage is
+  in pools." and leaves out Start, Stop and the parity check. The pools are
+  listed as before. A Docker tab with no containers now says "No containers"
+  instead of showing only the search field (#217).
+
+### Fixed
+
+- **A turned-off service no longer makes the whole server look offline** — with
+  VMs or Docker switched off, the pill at the top used to read "Offline" even
+  though the server answered. Now only a server that really cannot be reached
+  shows "Offline" (and one that refused the key shows "Key rejected"); the tab
+  that is affected explains what is off (#217).
 
 ## [0.1.48] - 2026-11-13
 
