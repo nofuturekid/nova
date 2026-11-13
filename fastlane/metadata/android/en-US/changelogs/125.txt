@@ -1,0 +1,3 @@
+Nothing new in the app itself.
+The build tools and libraries behind it were brought up to date: Kotlin 2.4, Android Gradle Plugin 9.5, Jetpack Compose, okhttp 5.5, Apollo 5.2 and Tink 1.24, among others.
+Nothing should look or behave differently.

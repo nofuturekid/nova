@@ -16,8 +16,8 @@ android {
         applicationId = "io.github.nofuturekid.nova"
         minSdk = 26
         targetSdk = 36
-        versionCode = 124
-        versionName = "0.1.44-beta1"
+        versionCode = 125
+        versionName = "0.1.44"
 
         vectorDrawables { useSupportLibrary = true }
     }
