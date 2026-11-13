@@ -167,9 +167,10 @@ class MainViewModel @Inject constructor(
 
     private val _appVisible = MutableStateFlow(true)
     fun setAppVisible(visible: Boolean) {
-        // Returning to the foreground (not the first start, which detects by itself): the user may
-        // have changed the key's permissions in the Unraid web UI while NOVA was away (ADR-0047).
-        if (visible && !_appVisible.value) caps.refresh()
+        // Every ON_START, including a fresh MainViewModel after the activity was finished while the
+        // process lived: the user may have changed the key's permissions in the Unraid web UI (ADR-0047).
+        // refresh() joins a detection that is already running, so the first start does not probe twice.
+        if (visible) caps.refresh()
         _appVisible.value = visible
     }
 

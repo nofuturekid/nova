@@ -571,7 +571,7 @@ type DockerContainerStats {
 # ── API key access (capability detection, ADR-0047) ──────────────────
 # Subset of the live Unraid `me` query. `me` describes the API key, not a
 # signed-in user. Enum values are the Unraid 4.37.11 schema; a value a newer
-# server adds arrives as an unknown enum value and keeps its raw name.
+# server adds arrives as UNKNOWN__ (Apollo keeps no raw name), which NOVA treats as unknown.
 
 type UserAccount {
     roles: [Role!]!

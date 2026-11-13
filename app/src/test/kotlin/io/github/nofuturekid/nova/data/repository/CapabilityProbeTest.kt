@@ -19,9 +19,10 @@ import org.junit.Test
 import java.io.IOException
 
 /**
- * ADR-0047. Every body below is copied from a real answer of an Unraid 7.4.0 server (API 4.37.11)
- * recorded on 2026-11-13, so each test fails if the classification stops matching what the server
- * really sends. They run on a scripted HTTP engine, i.e. through the real Apollo response path.
+ * ADR-0047. versionOk, viewerMe, adminMe and unauthenticated are copied verbatim from real answers
+ * of an Unraid 7.4.0 server (API 4.37.11) recorded on 2026-11-13; forbidden and validation400 keep
+ * the real shape with the path or field adapted to these operations; resolverError and the
+ * explicit-permission and FUTURE_ROLE bodies are constructed. They run on a scripted HTTP engine, i.e. through the real Apollo response path.
  */
 class CapabilityProbeTest {
 
