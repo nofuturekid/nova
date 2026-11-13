@@ -18,7 +18,7 @@ NOVA accesses the following on your device:
 NOVA initiates network requests to:
 
 - **Your own Unraid server**, at the addresses you configured, using the Unraid API/Connect plugin's GraphQL endpoint. All app functionality runs through this.
-- **GitHub** (`api.github.com`), only when the app starts or returns from the background (a check for app updates runs then), you open Settings, or you press "Check now".
+- **GitHub** (`api.github.com`), only when the app starts, when it returns from the background, when you come back to the main screen from another screen (such as Settings or the server list), when you open Settings, or when you press "Check now" (a check for app updates runs then).
 
   These requests appear in GitHub's standard server logs with no NOVA-specific identifier beyond the default `User-Agent` header. *(`direct` flavor only — see "Per-flavor differences" below.)*
 
