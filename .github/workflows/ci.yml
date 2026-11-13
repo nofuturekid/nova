@@ -141,8 +141,8 @@ jobs:
           #   ^gradle.properties     build flags (KSP, caching, jvmargs, …)
           #   ^.github/workflows/ci.yml  ONLY ci.yml among workflows is
           #     build-affecting (ADR-0029 amendment 2026-05-17): a ci.yml
-          #     change should be validated by a real build, but actionlint/
-          #     codeql/release/dependency-submission changes cannot affect
+          #     change should be validated by a real build, but codeql/
+          #     release/dependency-submission changes cannot affect
           #     whether the app compiles — treat them as non-build (docs-like).
           BUILD_AFFECTING=$(echo "$CHANGED" | grep -E '^app/|^gradle/|^gradlew$|^gradlew\.bat$|^settings\.gradle\.kts$|^build\.gradle\.kts$|^gradle\.properties$|^\.github/workflows/ci\.yml$' || true)
           if [ -n "$BUILD_AFFECTING" ]; then
