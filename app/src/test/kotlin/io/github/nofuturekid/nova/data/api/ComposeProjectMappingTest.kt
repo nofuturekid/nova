@@ -22,7 +22,7 @@ class ComposeProjectMappingTest {
         assertNull(parseComposeProject(emptyMap<String, Any?>()))
     }
 
-    /** Why: servers send null labels for containers without any; other shapes must not crash. */
+    /** Why: the schema types labels as nullable JSON (current servers send {} for none); null and other shapes must not crash. */
     @Test fun missing_blank_or_odd_labels_have_no_project() {
         assertNull(parseComposeProject(null))
         assertNull(parseComposeProject(mapOf(COMPOSE_PROJECT_LABEL to "")))

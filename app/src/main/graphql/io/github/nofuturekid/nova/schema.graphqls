@@ -389,7 +389,7 @@ type DockerContainer {
     iconUrl: String
     mounts: JSON
     networkSettings: JSON
-    # Docker labels as a JSON object (null when the server reports none).
+    # Docker labels as a JSON object of label name to value (an empty object when the container has none; nullable in the schema).
     # NOVA reads com.docker.compose.project from it to group containers.
     labels: JSON
     # Both null when the server hasn't determined update status yet.
