@@ -83,9 +83,11 @@ and must not change it.
 
 ## Store screenshots
 
-The phone screenshots for F-Droid
+The phone screenshots for F-Droid and Google Play
 (`fastlane/metadata/android/en-US/images/phoneScreenshots/`) are rendered
-from the app's real composables and theme (dark, Pixel-class 1080x2400)
+from the app's real composables and theme (dark, 411x731 dp at 420 dpi =
+1078x1918 px; Google Play rejects a longer side of more than twice the
+shorter one, see `docs/store/README.md`)
 by a JVM test, `StoreScreenshots`, using Robolectric (native graphics)
 and a fictional demo server ("Tower", RFC 5737 addresses). No device or
 server is involved. Regenerate them with:
@@ -103,6 +105,10 @@ demo-mode-style status bar (12:00, Wi-Fi, signal, battery) and the gesture
 pill itself, in the insets the app already reserves. Edit the demo data and the list of screens in
 `app/src/test/kotlin/io/github/nofuturekid/nova/ui/screenshots/StoreScreenshots.kt`.
 Robolectric downloads its Android jar from Maven Central on first use.
+
+The store graphics (`icon.png`, `featureGraphic.png`) are rendered from SVG
+sources by `./scripts/render-store-graphics.sh`; run it after the screenshots
+(the feature graphic embeds two of them). Details: `docs/store/README.md`.
 
 ## Out of scope
 

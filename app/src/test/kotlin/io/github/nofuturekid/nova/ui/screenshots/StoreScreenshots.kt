@@ -87,8 +87,10 @@ import org.robolectric.annotation.GraphicsMode
  */
 @RunWith(AndroidJUnit4::class)
 @GraphicsMode(GraphicsMode.Mode.NATIVE)
-// Pixel-8-class phone: 411x914 dp at 420 dpi = ~1080x2400 px.
-@Config(sdk = [35], qualifiers = "w411dp-h914dp-night-420dpi")
+// 411x731 dp at 420 dpi = 1078x1918 px (9:16). Google Play rejects phone
+// screenshots whose longer side is more than twice the shorter one, which
+// the earlier 20:9 size (1078x2399) broke; F-Droid has no such limit.
+@Config(sdk = [35], qualifiers = "w411dp-h731dp-night-420dpi")
 class StoreScreenshots {
 
     @get:Rule

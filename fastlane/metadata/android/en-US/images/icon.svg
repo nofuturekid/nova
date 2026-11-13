@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 108 108" width="512" height="512">
+  <!-- Play Store icon source: the launcher icon (app/src/main/res/drawable/ic_launcher_*.xml) as a full-bleed
+       square. Google Play rounds the corners itself, so there are none here. Render: scripts/render-store-graphics.sh -->
+  <rect width="108" height="108" fill="#0A0E0D"/>
+  <path transform="translate(54 54)" fill="#22D3A4" d="M 0,-32 L 6,-6 L 32,0 L 6,6 L 0,32 L -6,6 L -32,0 L -6,-6 Z"/>
+</svg>

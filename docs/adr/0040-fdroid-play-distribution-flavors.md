@@ -103,3 +103,7 @@ The Signing paragraph says the `store` flavor is "unsigned in CI output". `app/b
 ## Amendment 2026-11-13 — no install permission in `direct` any more
 
 [ADR-0046](./0046-update-via-browser-download.md) supersedes the parts that say the `direct` flavor declares `REQUEST_INSTALL_PACKAGES` and carries the in-app installer: `app/src/direct/AndroidManifest.xml` is gone and no flavor declares the permission. The `direct`/`store` split, `BuildConfig.HAS_UPDATER` (the update _check_ stays `direct`-only) and the signing-key consequences are unchanged. The text above stays as written.
+
+## Amendment 2026-11-13 — Play signing and the migration claim
+
+[ADR-0047](./0047-google-play-third-distribution-channel.md) corrects two statements above for Google Play. The developer holds the Play _upload_ key and Google holds the app signing key (the "Signing" paragraph has this the wrong way round). And the Play build carries the existing release key, given to Google through Play App Signing, so GitHub and Play installs update each other in place; only F-Droid, which signs with its own key, still needs an uninstall and reinstall. The text above stays as written.

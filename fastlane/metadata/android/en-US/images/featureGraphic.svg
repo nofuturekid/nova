@@ -1,0 +1,31 @@
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 1024 500" width="1024" height="500">
+  <!-- Google Play feature graphic, 1024x500. Own material only: the launcher mark (app/src/main/res/drawable/ic_launcher_*.xml),
+       the colours and the Geist font (SIL OFL, site/fonts/) of the project website (site/style.css), and the app's own
+       screenshots (phoneScreenshots/, fictional demo data). No Unraid logo or other third-party mark.
+       Render: scripts/render-store-graphics.sh (needs the installed Geist font, which the script sets up). -->
+  <defs>
+    <radialGradient id="glow" cx="0.2" cy="0.35" r="0.75">
+      <stop offset="0" stop-color="#22D3A4" stop-opacity="0.22"/>
+      <stop offset="1" stop-color="#22D3A4" stop-opacity="0"/>
+    </radialGradient>
+    <clipPath id="phone-a"><rect x="560" y="64" width="212" height="378" rx="20"/></clipPath>
+    <clipPath id="phone-b"><rect x="796" y="116" width="212" height="378" rx="20"/></clipPath>
+  </defs>
+  <rect width="1024" height="500" fill="#0A0E0D"/>
+  <rect width="1024" height="500" fill="url(#glow)"/>
+
+  <!-- brand tile: the launcher icon -->
+  <rect x="64" y="64" width="84" height="84" rx="20" fill="#131817" stroke="#263130" stroke-width="2"/>
+  <path transform="translate(106 106) scale(0.62)" fill="#22D3A4" d="M 0,-32 L 6,-6 L 32,0 L 6,6 L 0,32 L -6,6 L -32,0 L -6,-6 Z" />
+
+  <text x="60" y="290" font-family="Geist" font-weight="700" font-size="132" letter-spacing="-3" fill="#E6EDEB">NOVA</text>
+  <text x="64" y="346" font-family="Geist" font-weight="600" font-size="44" fill="#3FDDB4">for Unraid®</text>
+  <text x="64" y="398" font-family="Geist" font-weight="400" font-size="26" fill="#A3AFAC">Your NAS in your pocket</text>
+  <text x="64" y="470" font-family="Geist" font-weight="400" font-size="14" fill="#7d8a87">Unraid® is a trademark of Lime Technology, Inc. Not affiliated.</text>
+
+  <!-- two app screenshots, bleeding off the bottom edge -->
+  <g clip-path="url(#phone-a)"><image x="560" y="64" width="212" height="378" preserveAspectRatio="xMidYMin slice" xlink:href="phoneScreenshots/1.png"/></g>
+  <rect x="561" y="65" width="210" height="376" rx="19" fill="none" stroke="#263130" stroke-width="2"/>
+  <g clip-path="url(#phone-b)"><image x="796" y="116" width="212" height="378" preserveAspectRatio="xMidYMin slice" xlink:href="phoneScreenshots/3.png"/></g>
+  <rect x="797" y="117" width="210" height="376" rx="19" fill="none" stroke="#263130" stroke-width="2"/>
+</svg>

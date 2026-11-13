@@ -1,0 +1,24 @@
+NOVA is a community-built, open-source Android client for Unraid® servers.
+Unraid® is a trademark of Lime Technology, Inc. Not affiliated.
+
+Check on your server and lend it a hand from your phone: array health, container and VM state and live system metrics, in a dark Material 3 interface made for quick looks.
+
+NOVA talks to your own Unraid server through the Unraid API (the Connect plugin's GraphQL endpoint). There is no NOVA account, no analytics and no advertising. Your API key stays on your phone, encrypted with the Android Keystore.
+
+What you can do
+
+* Overview: array capacity, live CPU, memory, network speed and temperature, container and VM counts, parity progress
+* Array: every disk with status, temperature and usage; start and stop the array; start, pause, resume or cancel a parity check
+* Docker: every container with status and live CPU and memory use; search; start, stop, restart or pause; open a container's Web UI; see which images have updates and update one container or all of them; read live container logs
+* VMs: the state of every virtual machine; start, stop, pause and resume
+* Notifications: your Unraid notifications, with Unread and Archived tabs
+* Several servers, each with a local and a remote address
+* Settings: accent colour, dark or light mode, density and Docker list layout
+
+Before you start
+
+NOVA needs your own Unraid server (version 7.x) with the Unraid API (Connect plugin) enabled, and an API key from that server. Android 8.0 or newer.
+
+NOVA is open source under the GPL v3. Source code, release notes and issues: https://github.com/hellwand/nova
+
+Unraid® is a registered trademark of Lime Technology, Inc. This application is not affiliated with, endorsed, or sponsored by Lime Technology, Inc.
