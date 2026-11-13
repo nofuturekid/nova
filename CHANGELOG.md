@@ -17,8 +17,8 @@ release version + date and opens a fresh `[Unreleased]`.
 
 ### Added
 
-- **Each tab now says why it could not load** — instead of "Can't reach the
-  server" for every problem, the Array, Docker and VMs tabs name the cause and
+- **The Array, Docker and VMs tabs now say why they could not load** — instead of "Can't reach the
+  server" for every problem, they name the cause and
   the next step: "The server didn't accept the API key" (check the key in this
   server's settings), "This API key can't read containers" (it needs the
   permission DOCKER:READ_ANY), "This server's Unraid API is too old" (it needs
