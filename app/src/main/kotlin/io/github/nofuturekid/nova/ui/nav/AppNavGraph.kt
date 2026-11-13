@@ -2,14 +2,18 @@ package io.github.nofuturekid.nova.ui.nav
 
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.getValue
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
+import androidx.compose.ui.platform.LocalContext
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
+import dagger.hilt.android.EntryPointAccessors
+import io.github.nofuturekid.nova.data.alerts.AlertsEntryPoint
 import io.github.nofuturekid.nova.data.model.Server
 import io.github.nofuturekid.nova.ui.screens.demo.DemoEntryViewModel
 import io.github.nofuturekid.nova.ui.screens.demo.DemoServerSheet
@@ -21,6 +25,7 @@ import io.github.nofuturekid.nova.ui.screens.server.AddEditServerSheet
 import io.github.nofuturekid.nova.ui.screens.server.ServerListScreen
 import io.github.nofuturekid.nova.ui.screens.settings.AboutLibrariesScreen
 import io.github.nofuturekid.nova.ui.screens.settings.SettingsScreen
+import kotlinx.coroutines.flow.filterNotNull
 
 object Routes {
     const val Main       = "main"
@@ -37,6 +42,14 @@ fun AppNavGraph() {
     var sheetServer by remember { mutableStateOf<SheetTarget?>(null) }
 
     val demo: DemoEntryViewModel = hiltViewModel()
+
+    // A tap on an alert notification lands on the main screen, whichever screen is open (ADR-0048).
+    val appContext = LocalContext.current.applicationContext
+    LaunchedEffect(Unit) {
+        EntryPointAccessors.fromApplication(appContext, AlertsEntryPoint::class.java)
+            .pendingNavigation().request.filterNotNull()
+            .collect { navController.popBackStack(Routes.Main, inclusive = false) }
+    }
 
     CompositionLocalProvider(LocalDemoEntry provides demo::enter) {
     NavHost(navController = navController, startDestination = Routes.Main) {

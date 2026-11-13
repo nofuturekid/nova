@@ -6,6 +6,7 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineExceptionHandler
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -17,15 +18,22 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.emptyFlow
+import kotlinx.coroutines.flow.filterNotNull
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import io.github.nofuturekid.nova.BuildConfig
+import io.github.nofuturekid.nova.data.alerts.AlertScheduler
+import io.github.nofuturekid.nova.data.alerts.NavigationRequest
+import io.github.nofuturekid.nova.data.alerts.PendingNavigation
 import io.github.nofuturekid.nova.data.local.LayoutMode
 import io.github.nofuturekid.nova.data.model.ApiFeature
 import io.github.nofuturekid.nova.data.model.AppSettings
+import io.github.nofuturekid.nova.data.model.AttentionTarget
 import io.github.nofuturekid.nova.data.model.ArrayInfo
 import io.github.nofuturekid.nova.data.model.ConnectionMode
 import io.github.nofuturekid.nova.data.model.DisplayThresholds
@@ -69,6 +77,8 @@ class MainViewModel @Inject constructor(
     private val settings: SettingsRepository,
     private val updateTracker: UpdateTracker,
     private val caps: CapabilityRepository,
+    private val alertScheduler: AlertScheduler,
+    private val pendingNavigation: PendingNavigation,
 ) : ViewModel() {
 
     // ── Resilient action seam (triage #19, ADR-0037) ──────────────────
@@ -164,6 +174,24 @@ class MainViewModel @Inject constructor(
     private val _selectedTab = MutableStateFlow(MainTab.Overview)
     val selectedTab: StateFlow<MainTab> = _selectedTab.asStateFlow()
     fun setSelectedTab(tab: MainTab) { _selectedTab.value = tab }
+
+    // A tap on an alert notification (ADR-0048): the server is switched here, where the selection
+    // lives; the screen is told where to land, once, through [openTargets].
+    private val openTargetEvents = Channel<AttentionTarget>(Channel.BUFFERED)
+
+    /** Where the screen should land after a notification tap. Each event is delivered once. */
+    val openTargets: Flow<AttentionTarget> = openTargetEvents.receiveAsFlow()
+
+    private suspend fun handleNavigation(request: NavigationRequest) {
+        try {
+            // A server that was deleted since the notification was posted is ignored.
+            if (servers.servers.first().none { it.id == request.serverId }) return
+            if (servers.activeServer.first()?.id != request.serverId) servers.setActive(request.serverId)
+            openTargetEvents.send(request.target)
+        } finally {
+            pendingNavigation.consume(request)
+        }
+    }
 
     private val _dockerSheetOpen = MutableStateFlow(false)
     fun setDockerSheetOpen(open: Boolean) { _dockerSheetOpen.value = open }
@@ -310,6 +338,13 @@ class MainViewModel @Inject constructor(
     init {
         if (BuildConfig.HAS_UPDATER) {
             checkForUpdate()
+        }
+
+        // Alerts outside the app (ADR-0048): repair a cancelled schedule. With alerts off this only
+        // reads one setting; WorkManager is not touched.
+        viewModelScope.launch { alertScheduler.reconcileQuietly() }
+        viewModelScope.launch(actionExceptionHandler) {
+            pendingNavigation.request.filterNotNull().collect { handleNavigation(it) }
         }
 
         // Clear an id from `updatingContainerIds` as soon as the snapshot

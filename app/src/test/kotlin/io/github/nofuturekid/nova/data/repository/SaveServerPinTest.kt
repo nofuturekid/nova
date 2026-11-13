@@ -3,6 +3,9 @@ package io.github.nofuturekid.nova.data.repository
 import android.content.Context
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
+import io.github.nofuturekid.nova.data.alerts.AlertNotifier
+import io.github.nofuturekid.nova.data.alerts.AlertScheduler
+import io.github.nofuturekid.nova.data.alerts.SettingsAlertStateStore
 import io.github.nofuturekid.nova.data.local.ApiKeyStore
 import io.github.nofuturekid.nova.data.local.SettingsStore
 import io.github.nofuturekid.nova.data.model.Server
@@ -51,7 +54,10 @@ class SaveServerPinTest {
     @Before fun setUp() = runBlocking {
         val ctx = ApplicationProvider.getApplicationContext<Context>()
         val store = SettingsStore(ctx)
-        repo = ServerRepository(store, ApiKeyStore(ctx))
+        repo = ServerRepository(
+            store, ApiKeyStore(ctx),
+            AlertScheduler(ctx, store, SettingsAlertStateStore(store), AlertNotifier(ctx)),
+        )
         // The DataStore files outlive a test inside one JVM: start from "no server".
         store.servers.first().forEach { repo.delete(it.id) }
         seen.clear()

@@ -88,7 +88,10 @@ class AlertStateStoreTest {
         // WHY: a deleted server must not leave its list of notification ids on the phone, and a
         // server added again must be baselined afresh instead of inheriting old memory.
         val settings = SettingsStore(ctx)
-        val repo = ServerRepository(settings, ApiKeyStore(ctx))
+        val repo = ServerRepository(
+            settings, ApiKeyStore(ctx),
+            AlertScheduler(ctx, settings, SettingsAlertStateStore(settings), AlertNotifier(ctx)),
+        )
         settings.servers.first().forEach { repo.delete(it.id) }
 
         // A blank key keeps the Android Keystore out of the test.

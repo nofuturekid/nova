@@ -4,6 +4,7 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
+import io.github.nofuturekid.nova.data.alerts.AlertScheduler
 import io.github.nofuturekid.nova.data.demo.DemoFixtures
 import io.github.nofuturekid.nova.data.local.ApiKeyResult
 import io.github.nofuturekid.nova.data.local.ApiKeyStore
@@ -33,6 +34,7 @@ data class ActiveServer(
 class ServerRepository @Inject constructor(
     private val store: SettingsStore,
     private val keys: ApiKeyStore,
+    private val alerts: AlertScheduler,
 ) {
     val servers: Flow<List<Server>> = store.servers
     val connectionMode: Flow<ConnectionMode> = store.connectionMode
@@ -62,6 +64,8 @@ class ServerRepository @Inject constructor(
         // must exist the moment the entry can become active, or the streams would raise
         // the certificate prompt a second time (#292). Trust off drops any pin.
         store.saveServer(next, resolved.id, pin = localCertPin, dropPin = !resolved.trustSelfSignedLocal)
+        // With alerts on and no server so far there is no job yet; the first server schedules it.
+        alerts.reconcileQuietly()
         return resolved
     }
 
@@ -83,6 +87,9 @@ class ServerRepository @Inject constructor(
         if (store.activeServerId.first() == id) {
             store.setActiveServer(nextActiveAfterDelete(current))
         }
+        // Its state is gone above; this removes what was posted for it and, with no server
+        // left, cancels the background check.
+        alerts.onServerRemoved(id)
     }
 
     suspend fun setActive(id: String) {

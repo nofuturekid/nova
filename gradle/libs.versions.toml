@@ -22,6 +22,7 @@ junit = "4.13.2"
 robolectric = "4.17"
 roborazzi = "1.78.0"
 aboutLibraries = "15.3.0"
+work = "2.12.0"
 
 [libraries]
 androidx-core-ktx = { module = "androidx.core:core-ktx", version.ref = "coreKtx" }
@@ -45,6 +46,9 @@ androidx-nav-compose = { module = "androidx.navigation:navigation-compose", vers
 
 androidx-datastore-preferences = { module = "androidx.datastore:datastore-preferences", version.ref = "datastore" }
 tink-android = { module = "com.google.crypto.tink:tink-android", version.ref = "tink" }
+
+# Periodic alert check (ADR-0048). Initialised on demand only, see NovaApp.
+androidx-work-runtime = { module = "androidx.work:work-runtime", version.ref = "work" }
 
 hilt-android = { module = "com.google.dagger:hilt-android", version.ref = "hilt" }
 hilt-compiler = { module = "com.google.dagger:hilt-compiler", version.ref = "hilt" }
@@ -77,6 +81,7 @@ roborazzi-compose = { module = "io.github.takahirom.roborazzi:roborazzi-compose"
 androidx-compose-ui-test-junit4 = { module = "androidx.compose.ui:ui-test-junit4" }
 androidx-compose-ui-test-manifest = { module = "androidx.compose.ui:ui-test-manifest" }
 kotlinx-coroutines-test = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-test", version.ref = "kotlinxCoroutines" }
+androidx-work-testing = { module = "androidx.work:work-testing", version.ref = "work" }
 
 aboutlibraries-compose-m3 = { module = "com.mikepenz:aboutlibraries-compose-m3", version.ref = "aboutLibraries" }
 

@@ -5,6 +5,7 @@ import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
+import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.core.longPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
@@ -14,7 +15,11 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
+import io.github.nofuturekid.nova.data.alerts.AlertLevel
+import io.github.nofuturekid.nova.data.alerts.AlertSettings
+import io.github.nofuturekid.nova.data.alerts.DEFAULT_ALERT_LEVEL
 import io.github.nofuturekid.nova.data.alerts.ServerAlertState
+import io.github.nofuturekid.nova.data.alerts.normalizeAlertInterval
 import io.github.nofuturekid.nova.data.model.AppSettings
 import io.github.nofuturekid.nova.data.model.ConnectionMode
 import io.github.nofuturekid.nova.data.model.Server
@@ -40,6 +45,10 @@ private object Keys {
     val DismissedUpdateTag  = stringPreferencesKey("dismissed_update_tag")
     val CertPins              = stringPreferencesKey("local_cert_pins_json")
     val AlertStates           = stringPreferencesKey("alert_state_json")
+    val AlertsEnabled         = booleanPreferencesKey("alerts_enabled")
+    val AlertsIntervalMin     = intPreferencesKey("alerts_interval_min")
+    val AlertsLevel           = stringPreferencesKey("alerts_level")
+    val AlertsUnmeteredOnly   = booleanPreferencesKey("alerts_unmetered_only")
 }
 
 /** Shared layout mode for the Docker / VMs / Array list views. Each
@@ -251,5 +260,31 @@ class SettingsStore @Inject constructor(
 
     suspend fun clearAllAlertStates() {
         ds.edit { it.remove(Keys.AlertStates) }
+    }
+
+    // ── Alert settings ────────────────────────────────────────────
+
+    /** Off, every 30 minutes, alerts and warnings, any network, until the user changes it. */
+    val alertSettings: Flow<AlertSettings> = ds.data.map { prefs ->
+        AlertSettings(
+            enabled = prefs[Keys.AlertsEnabled] ?: false,
+            intervalMinutes = normalizeAlertInterval(prefs[Keys.AlertsIntervalMin] ?: 0),
+            level = AlertLevel.entries.firstOrNull { it.name == prefs[Keys.AlertsLevel] } ?: DEFAULT_ALERT_LEVEL,
+            unmeteredOnly = prefs[Keys.AlertsUnmeteredOnly] ?: false,
+        )
+    }
+
+    suspend fun setAlertSettings(settings: AlertSettings) {
+        ds.edit { prefs ->
+            prefs[Keys.AlertsEnabled] = settings.enabled
+            prefs[Keys.AlertsIntervalMin] = normalizeAlertInterval(settings.intervalMinutes)
+            prefs[Keys.AlertsLevel] = settings.level.name
+            prefs[Keys.AlertsUnmeteredOnly] = settings.unmeteredOnly
+        }
+    }
+
+    /** Flips only the switch and keeps the interval, level and network choice. */
+    suspend fun setAlertsEnabled(enabled: Boolean) {
+        ds.edit { it[Keys.AlertsEnabled] = enabled }
     }
 }

@@ -13,6 +13,15 @@
     <uses-permission
         android:name="android.permission.REQUEST_INSTALL_PACKAGES"
         tools:node="remove" />
+    <!-- Alerts outside the app (ADR-0048). Asked for at run time (Android 13+)
+         only when the user switches alerts on; the request is part of the
+         settings screen. -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <!-- WorkManager merges this in, NOVA never starts a foreground service.
+         The remove marker keeps it out of the merged manifest. -->
+    <uses-permission
+        android:name="android.permission.FOREGROUND_SERVICE"
+        tools:node="remove" />
 
     <application
         android:name=".NovaApp"
@@ -40,6 +49,21 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
+
+        <!-- WorkManager starts on demand (NovaApp is its Configuration.Provider),
+             and only while alerts are switched on. Its automatic initializer
+             would create the work database and set an alarm at every app start,
+             also with alerts off. -->
+        <provider
+            android:name="androidx.startup.InitializationProvider"
+            android:authorities="${applicationId}.androidx-startup"
+            android:exported="false"
+            tools:node="merge">
+            <meta-data
+                android:name="androidx.work.WorkManagerInitializer"
+                android:value="androidx.startup"
+                tools:node="remove" />
+        </provider>
     </application>
 
 </manifest>

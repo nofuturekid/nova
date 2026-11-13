@@ -162,6 +162,17 @@ fun MainScreen(
         vm.userMessages.collect { msg -> snackbarHostState.showSnackbar(msg) }
     }
 
+    // A tap on an alert notification: the view model has switched to the server, we land on the
+    // tab or open the sheet it names (ADR-0048).
+    LaunchedEffect(Unit) {
+        vm.openTargets.collect { target ->
+            when (target) {
+                AttentionTarget.Array -> vm.setSelectedTab(MainTab.Array)
+                AttentionTarget.Notifications -> showNotifications = true
+            }
+        }
+    }
+
     Box(modifier = Modifier.fillMaxSize()) {
     Column(
         modifier = Modifier

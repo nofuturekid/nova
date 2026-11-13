@@ -5,6 +5,9 @@ import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.apollographql.apollo.ApolloClient
 import io.github.nofuturekid.nova.data.api.ApolloClientFactory
+import io.github.nofuturekid.nova.data.alerts.AlertNotifier
+import io.github.nofuturekid.nova.data.alerts.AlertScheduler
+import io.github.nofuturekid.nova.data.alerts.SettingsAlertStateStore
 import io.github.nofuturekid.nova.data.api.TlsTrust
 import io.github.nofuturekid.nova.data.demo.DemoFixtures
 import io.github.nofuturekid.nova.data.demo.DemoState
@@ -75,7 +78,10 @@ class UnraidGatewayTest {
     @Before fun setUp() = runBlocking {
         val ctx = ApplicationProvider.getApplicationContext<Context>()
         val store = SettingsStore(ctx)
-        servers = ServerRepository(store, ApiKeyStore(ctx))
+        servers = ServerRepository(
+            store, ApiKeyStore(ctx),
+            AlertScheduler(ctx, store, SettingsAlertStateStore(store), AlertNotifier(ctx)),
+        )
         // The DataStore files outlive a test inside one JVM: start from "no server".
         store.servers.first().forEach { servers.delete(it.id) }
         factory = ForbiddenFactory()

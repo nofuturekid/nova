@@ -167,6 +167,7 @@ dependencies {
 
     implementation(libs.androidx.datastore.preferences)
     implementation(libs.tink.android)
+    implementation(libs.androidx.work.runtime)
 
     implementation(libs.hilt.android)
     ksp(libs.hilt.compiler)
@@ -189,6 +190,7 @@ dependencies {
 
     testImplementation(libs.junit)
     testImplementation(libs.kotlinx.coroutines.test)
+    testImplementation(libs.androidx.work.testing)
 
     // Store-screenshot rendering (StoreScreenshots.kt) — test scope only,
     // never packaged into the APK.
