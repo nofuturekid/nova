@@ -18,6 +18,7 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Before
+import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.Shadows.shadowOf
@@ -38,6 +39,8 @@ import java.util.concurrent.TimeUnit
 @RunWith(AndroidJUnit4::class)
 @Config(sdk = [35])
 class AlertSchedulerTest {
+    @get:Rule val stallWatch = StallWatch()
+
     private lateinit var ctx: Context
     private lateinit var settings: SettingsStore
     private lateinit var notifier: AlertNotifier

@@ -8,6 +8,7 @@ import io.github.nofuturekid.nova.data.api.ApolloClientFactory
 import io.github.nofuturekid.nova.data.alerts.AlertNotifier
 import io.github.nofuturekid.nova.data.alerts.AlertScheduler
 import io.github.nofuturekid.nova.data.alerts.SettingsAlertStateStore
+import io.github.nofuturekid.nova.data.alerts.StallWatch
 import io.github.nofuturekid.nova.data.api.TlsTrust
 import io.github.nofuturekid.nova.data.demo.DemoFixtures
 import io.github.nofuturekid.nova.data.demo.DemoState
@@ -36,6 +37,7 @@ import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertTrue
 import org.junit.Before
+import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.annotation.Config
@@ -64,6 +66,8 @@ private class ForbiddenFactory : ApolloClientFactory() {
 @RunWith(AndroidJUnit4::class)
 @Config(sdk = [35])
 class UnraidGatewayTest {
+    @get:Rule val stallWatch = StallWatch()
+
     private lateinit var servers: ServerRepository
     private lateinit var factory: ForbiddenFactory
     private lateinit var demo: DemoUnraid

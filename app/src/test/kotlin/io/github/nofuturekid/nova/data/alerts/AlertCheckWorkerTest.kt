@@ -15,6 +15,7 @@ import kotlinx.coroutines.runBlocking
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Before
+import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.Shadows.shadowOf
@@ -30,6 +31,8 @@ import org.robolectric.annotation.Config
 @RunWith(AndroidJUnit4::class)
 @Config(sdk = [35])
 class AlertCheckWorkerTest {
+    @get:Rule val stallWatch = StallWatch()
+
     private lateinit var ctx: Context
     private lateinit var settings: SettingsStore
     private lateinit var nm: NotificationManager

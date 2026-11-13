@@ -8,6 +8,7 @@ import io.github.nofuturekid.nova.data.alerts.AlertNotifier
 import io.github.nofuturekid.nova.data.alerts.AlertScheduler
 import io.github.nofuturekid.nova.data.alerts.PendingNavigation
 import io.github.nofuturekid.nova.data.alerts.SettingsAlertStateStore
+import io.github.nofuturekid.nova.data.alerts.StallWatch
 import io.github.nofuturekid.nova.data.api.ApolloClientFactory
 import io.github.nofuturekid.nova.data.demo.DemoUnraid
 import io.github.nofuturekid.nova.data.local.ApiKeyStore
@@ -33,6 +34,7 @@ import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Assume.assumeTrue
 import org.junit.Before
+import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.annotation.Config
@@ -60,6 +62,7 @@ import java.util.concurrent.atomic.AtomicInteger
 @RunWith(AndroidJUnit4::class)
 @Config(sdk = [35])
 class UpdateCheckOnForegroundTest {
+    @get:Rule val stallWatch = StallWatch()
 
     private val installed = "0.1.48-beta1"
     private val scope = CoroutineScope(Dispatchers.Default)

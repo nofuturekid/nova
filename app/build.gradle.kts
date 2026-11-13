@@ -190,6 +190,7 @@ dependencies {
 
     testImplementation(libs.junit)
     testImplementation(libs.kotlinx.coroutines.test)
+    testImplementation(libs.kotlinx.coroutines.debug)
     testImplementation(libs.androidx.work.testing)
 
     // Store-screenshot rendering (StoreScreenshots.kt) — test scope only,
@@ -217,5 +218,11 @@ tasks.withType<Test>().configureEach {
         )
     } else {
         filter.excludeTestsMatching("*StoreScreenshots")
+    }
+    // StallWatch (test rule) writes its dump of a stalled test here as well as to build/stall-dumps:
+    // CI already uploads the HTML report directory, also when the job fails. Set at execution time,
+    // so the path is not a task input.
+    doFirst {
+        systemProperty("nova.stallDumpCopyDir", reports.html.outputLocation.get().asFile.resolve("stall-dumps").path)
     }
 }

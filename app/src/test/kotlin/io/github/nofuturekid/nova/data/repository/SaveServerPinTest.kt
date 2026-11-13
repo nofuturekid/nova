@@ -6,6 +6,7 @@ import androidx.test.ext.junit.runners.AndroidJUnit4
 import io.github.nofuturekid.nova.data.alerts.AlertNotifier
 import io.github.nofuturekid.nova.data.alerts.AlertScheduler
 import io.github.nofuturekid.nova.data.alerts.SettingsAlertStateStore
+import io.github.nofuturekid.nova.data.alerts.StallWatch
 import io.github.nofuturekid.nova.data.local.ApiKeyStore
 import io.github.nofuturekid.nova.data.local.SettingsStore
 import io.github.nofuturekid.nova.data.model.Server
@@ -21,6 +22,7 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Before
+import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.annotation.Config
@@ -48,6 +50,8 @@ import java.util.concurrent.CopyOnWriteArrayList
 @RunWith(AndroidJUnit4::class)
 @Config(sdk = [35])
 class SaveServerPinTest {
+    @get:Rule val stallWatch = StallWatch()
+
     private lateinit var repo: ServerRepository
     private val seen = CopyOnWriteArrayList<ActiveServer?>()
 

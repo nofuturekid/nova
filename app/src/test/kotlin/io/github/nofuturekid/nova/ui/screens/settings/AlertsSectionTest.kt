@@ -37,6 +37,7 @@ import io.github.nofuturekid.nova.data.alerts.InMemoryAlertStateStore
 import io.github.nofuturekid.nova.data.alerts.ProbeResult
 import io.github.nofuturekid.nova.data.alerts.ServerAlertState
 import io.github.nofuturekid.nova.data.alerts.ServerProbe
+import io.github.nofuturekid.nova.data.alerts.StallWatch
 import io.github.nofuturekid.nova.data.alerts.okResult
 import io.github.nofuturekid.nova.data.alerts.testServer
 import io.github.nofuturekid.nova.data.alerts.unraidNotification
@@ -77,6 +78,7 @@ import java.util.concurrent.TimeUnit
 @GraphicsMode(GraphicsMode.Mode.NATIVE)
 @Config(sdk = [35], qualifiers = "w432dp-h2400dp-night-400dpi")
 class AlertsSectionTest {
+    @get:Rule val stallWatch = StallWatch()
 
     @get:Rule
     val rule = createAndroidComposeRule<ComponentActivity>()
