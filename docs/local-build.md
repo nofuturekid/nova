@@ -85,8 +85,8 @@ and must not change it.
 
 The phone screenshots for F-Droid and Google Play
 (`fastlane/metadata/android/en-US/images/phoneScreenshots/`) are rendered
-from the app's real composables and theme (dark, 411x731 dp at 420 dpi =
-1078x1918 px; Google Play rejects a longer side of more than twice the
+from the app's real composables and theme (dark, 432x768 dp at 400 dpi =
+1080x1920 px; Google Play rejects a longer side of more than twice the
 shorter one, see `docs/store/README.md`)
 by a JVM test, `StoreScreenshots`, using Robolectric (native graphics)
 and a fictional demo server ("Tower", RFC 5737 addresses). No device or
