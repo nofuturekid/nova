@@ -56,6 +56,22 @@ release version + date and opens a fresh `[Unreleased]`.
   hint and a "Which permissions?" link to the table of what each feature needs
   (#315, #316).
 
+- **Alerts outside the app (opt-in)** — Settings → Notifications → "Alerts from
+  your servers" lets NOVA check your servers in the background and tell you
+  about new Unraid alerts and warnings, and about an array that is not started
+  or is degraded. It is off by default; while it is off, NOVA does nothing in
+  the background. Switching it on asks for permission to show notifications
+  (Android 13 and later). You choose how often NOVA checks (every 15 minutes to
+  3 hours), whether warnings count or only alerts, and whether to check on
+  Wi-Fi only; "Send test notification" shows that it works, and each server's
+  last check is listed under the switch. The checks go only to your own
+  servers, with the API key you saved, and a read-only key is enough. They use
+  only https addresses with a trusted certificate: a server that has only an
+  http address is not checked, and the screen says so. The demo server is never
+  checked. Android decides when a check runs, so an alert can come late,
+  sometimes by an hour or more while the phone is idle. Phones whose maker stops
+  background work may need a setting changed; the section links to tips (#321).
+
 ### Changed
 
 - **Restarting a container is one step on newer servers** — on Unraid API 4.36.0

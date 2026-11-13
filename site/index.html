@@ -199,6 +199,17 @@
               <p>Unraid notifications with Unread and Archived tabs.</p>
             </li>
             <li>
+              <h3>Alerts outside the app</h3>
+              <p>
+                Optional and off by default. NOVA can check your servers in the
+                background and notify you of new Unraid alerts and warnings and
+                of an array that is not started or is degraded. See
+                <a href="https://github.com/hellwand/nova#alerts-outside-the-app"
+                  >the README</a
+                >.
+              </p>
+            </li>
+            <li>
               <h3>Plugins and network</h3>
               <p>
                 A read-only inventory of server plugins with their install
@@ -446,6 +457,19 @@
               <p>
                 All app functionality runs through your own server, at the
                 addresses you configured.
+              </p>
+            </li>
+            <li>
+              <h3>Background checks (optional)</h3>
+              <p>
+                Only while you have switched on &ldquo;Alerts from your
+                servers&rdquo; (off by default), NOVA asks each of your servers
+                for its unread alerts and its array state, in the background,
+                every 15 minutes to 3 hours as you choose. These requests go
+                only to your own servers, only to https addresses with a
+                verified certificate, and with no redirect followed. The demo
+                server is never contacted. With the switch off, nothing runs
+                in the background.
               </p>
             </li>
             <li>

@@ -22,4 +22,29 @@ data class ServerAlertState(
     val conditionsBaselined: Boolean = false,
     /** Array conditions that held at the last successful read, a subset of [STATE_ALERT_KEYS]. */
     val openConditions: Set<String> = emptySet(),
+    /**
+     * How the last check of this server went, for the settings screen's last-check line only.
+     * It plays no part in what is posted: [evaluateAlerts] leaves it alone and the check runner
+     * sets it after every run.
+     */
+    val lastCheck: CheckRecord? = null,
 )
+
+/** How one check of one server ended. Mirrors [ProbeResult], without the data. */
+@Serializable
+enum class CheckOutcome { Ok, Unreachable, NotEncrypted, CertificateProblem, KeyMissing, KeyUnreadable, Rejected }
+
+/** When ([atEpochMs]) and how ([outcome]) a server was last checked in the background. */
+@Serializable
+data class CheckRecord(val atEpochMs: Long, val outcome: CheckOutcome)
+
+/** The [CheckOutcome] a probe result is recorded as. */
+fun ProbeResult.toOutcome(): CheckOutcome = when (this) {
+    is ProbeResult.Ok -> CheckOutcome.Ok
+    ProbeResult.Unreachable -> CheckOutcome.Unreachable
+    ProbeResult.NotEncrypted -> CheckOutcome.NotEncrypted
+    ProbeResult.CertificateProblem -> CheckOutcome.CertificateProblem
+    ProbeResult.KeyMissing -> CheckOutcome.KeyMissing
+    ProbeResult.KeyUndecryptable -> CheckOutcome.KeyUnreadable
+    is ProbeResult.Rejected -> CheckOutcome.Rejected
+}

@@ -51,6 +51,7 @@ It talks to your server through the official Unraid API (the Connect plugin's Gr
 - **Docker** — every container with status; start / stop / restart / pause, jump straight to a container's Web UI, see which have image updates and update one — or all — in a tap
 - **VMs** — VM state with start / stop / pause / resume
 - **Multiple servers** — switch between them; each remembers its own local and remote address
+- **Alerts outside the app** — optional, off by default: NOVA checks your servers in the background and notifies you of new Unraid alerts and warnings and of an array that is not started or is degraded ([details](#alerts-outside-the-app))
 - **Live network speed** — upload/download on the Overview card (needs Unraid API 4.35.0 or newer); the NIC inventory sits under Settings → Network interfaces (vendor, model and link speed only with a third-party API plugin)
 - **Stay current** — the GitHub APK checks GitHub for new releases and shows a notice on the Overview; **Download** lets your browser fetch the file, and you open it to install (NOVA does not install updates itself; the F-Droid build is updated by F-Droid)
 
@@ -62,6 +63,32 @@ NOVA surfaces what Unraid's GraphQL API exposes today. A few things commonly ask
 - **User shares / SMB / NFS**, **UPS**, **disk SMART**, **parity-check scheduling** — not yet surfaced.
 
 If something on this list (or off it) matters to you, an issue or a 👍 on an existing one is the best signal.
+
+## Alerts outside the app
+
+NOVA can tell you about a problem on your server without you opening the app. It is **off by default**: with the switch off NOVA does nothing in the background. You switch it on under **Settings → Notifications → Alerts from your servers**.
+
+**What is checked.** For each of your servers, NOVA asks for its unread Unraid notifications and for the state of its array, and notifies you of:
+
+- every **new** unread Unraid notification of importance alert or warning (once per notification, never twice; "Alerts only" leaves out warnings);
+- an array that **is not started**, and an array that **is degraded**. Unraid itself does not notify about these.
+
+Disk temperatures, disk errors, SMART warnings, parity checks and pools reach you through Unraid's own notifications, so they appear as the first kind. The first check after you switch on only notes what is already there and shows nothing. A server that cannot be reached is never an alert; the Settings section lists each server's last check instead. Unraid raises one warning each time a parity check starts, so you will see that one with "Alerts and warnings".
+
+**How often.** Every 30 minutes by default; you can pick 15 minutes, 1 hour or 3 hours, and "Only on Wi-Fi". Android decides the exact time and may batch checks with other apps' work, so an alert can come late, sometimes by an hour or more while the phone lies still (Doze). On Android 13 and later an app you have not opened for 8 days is limited to about one check a day.
+
+**What it needs.**
+
+- Notifications allowed for NOVA. On Android 13 and later NOVA asks when you switch the alerts on; if you refuse, the alerts stay off.
+- An **https address** for the server. **A plain-http address is never contacted in the background**, because nobody is looking at the phone and the API key would travel in clear text. A server that has only an http address is not checked, and Settings says "not checked in the background because the connection is not encrypted". The certificate must be one your phone trusts, or the one you pinned for the local address; a changed or untrusted certificate is reported in Settings and never accepted without you. Redirects are not followed in the background.
+- An API key that can read notifications and the array: a key with the VIEWER role is enough (from the Unraid API's source code; we have not yet tried the background check with such a key on a real server). Nothing is ever changed on the server.
+- Unraid must keep the notification as unread, which it does by default ("Browser" delivery on). If you turned that off for an importance, those notifications do not reach NOVA.
+
+**What it never does.** No Google services, no push service or relay run by this project, no server plugin, no foreground service, no exact alarms, no request to ignore battery optimisation. The checks go only to your own servers. The demo server is never checked. Switching the alerts off cancels the work and removes what NOVA posted.
+
+**Phones that stop background work.** Some makers (Huawei, Xiaomi, Samsung and others) stop apps in the background more strictly than Android does, and the checks may then not run at all. Settings has a link to [dontkillmyapp.com](https://dontkillmyapp.com) (opened by your browser, only when you tap it) and, when Android restricts the app, a shortcut to the battery settings. On EMUI, for example, you need Battery → App launch → NOVA → Manage manually. Whether a check ran is visible in the "Last check" lines in Settings.
+
+**Instant alerts with Unraid's own agents.** If you want alerts the moment they happen, let Unraid send them itself. For example, with the ntfy agent (from Unraid's source, not tried by this project): Settings → Notifications in the Unraid web UI → the ntfy.sh agent with your own ntfy server and a topic → tick "Agents" for warnings and alerts → subscribe to the topic in the ntfy app. The agent adds an icon link to every message, and that image is hosted on GitHub. This needs no NOVA setting.
 
 ## Look & feel
 
@@ -173,6 +200,7 @@ Unraid® is a registered trademark of Lime Technology, Inc. NOVA is an independe
 - **Full policy:** <https://github.com/hellwand/nova/blob/main/docs/privacy/POLICY.md>
 - **Your API key stays on your device.** It's encrypted at rest using Android Keystore via Google's Tink library, and explicitly excluded from cloud backup / device-transfer.
 - **No analytics, no telemetry, no tracking services.** The app talks to your Unraid server's API; in the GitHub (`direct`) build it also asks GitHub's API for app updates (at app start, when the app returns from the background or you come back to the main screen from Settings or the server list, when you open Settings, or on "Check now"); and it loads container icons from the URLs your own server supplies (often GitHub or a CDN).
+- **Background checks only if you switch them on.** With "Alerts from your servers" on, NOVA asks your own servers, in the background and over verified https only, for their unread alerts and warnings and their array state, as often as you chose. Nothing else is contacted for it, and with the switch off nothing runs in the background. See [Alerts outside the app](#alerts-outside-the-app).
 - **Update downloads** are made by your browser, not by NOVA: the update sheet opens the release's APK on GitHub, shows its SHA-256 so you can compare it with the downloaded file, and the app itself downloads and installs nothing. See [ADR-0046](./docs/adr/0046-update-via-browser-download.md).
 - **Source is the spec.** Audit, fork, run yourself — GPL v3.
 

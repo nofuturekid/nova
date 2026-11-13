@@ -1,6 +1,6 @@
 # Privacy Policy — NOVA
 
-**Effective:** 2026-11-10
+**Effective:** 2026-11-13
 
 NOVA is an open-source Android client for Unraid® servers, published under the GPL v3 license. This policy describes what data the app processes, where it goes, and what you can do about it.
 
@@ -12,6 +12,7 @@ NOVA accesses the following on your device:
 - **Your server's network addresses** (local URL, remote URL, name). Stored locally in per-app DataStore. Used only to reach your server.
 - **Your theme preferences** (accent colour, density, layout choices). Stored locally in per-app DataStore.
 - **Pinned certificate fingerprints** (only if you enable "Trust self-signed certificate" for a server's local connection): the SHA-256 fingerprint of that server's certificate, stored per server in per-app DataStore and excluded from cloud backup and device transfer.
+- **Alert state** (only while you use "Alerts from your servers"): per server, the ids of the Unraid notifications NOVA has already looked at, which array conditions held at the last check, and the time and result of the last check. Stored locally in per-app DataStore, excluded from cloud backup and device transfer, and deleted when you switch the alerts off.
 
 ## Data the app sends
 
@@ -26,6 +27,8 @@ NOVA initiates network requests to:
 
 - **Container icon hosts** (both flavors). The Docker tab and container details show each container's icon. The icon URL is supplied by your own Unraid server (from the container's template), and is usually hosted by a third party chosen by the template author — for example `raw.githubusercontent.com`, `cdn.jsdelivr.net` or `github.com`. The app fetches these URLs directly, so those hosts see your IP address and the standard request headers. NOVA never adds credentials or identifiers to these requests, and decides neither which hosts are contacted nor which icons exist: that comes from the templates on your server.
 
+- **Your own Unraid server, in the background, only while you have switched on "Alerts from your servers"** (Settings → Notifications; off by default). About every 15 minutes to 3 hours (your choice; Android decides the exact time), NOVA asks each of your servers, in the background, for its unread alerts and warnings and for the state of its array, with the API key you saved for it. These requests go only to your own servers, and only to their https addresses: an address that is plain http is never contacted in the background, the connection must be verified (a certificate your phone trusts, or the one you pinned for the local address), and redirects are not followed. The demo server is never contacted. NOVA contacts no other host for this, and nothing is sent in the background while the switch is off.
+
 The app does **not** send data to any other service. No analytics, no telemetry, no crash reporting, no advertising SDKs, no third-party authentication providers.
 
 ## What's not collected
@@ -35,7 +38,7 @@ The app does **not** send data to any other service. No analytics, no telemetry,
 - No advertising IDs
 - No location data
 - No contacts, phone state, or calendar access
-- No background tracking of any kind
+- No background tracking of any kind. The only background work is the optional server check described under "Data the app sends", and it exists only while you have switched it on
 
 ## Backup behaviour
 
@@ -47,6 +50,8 @@ NOVA declares these Android permissions (visible in the app's permission list un
 
 - **`INTERNET`** — required to reach your Unraid server, container icon hosts and (`direct` flavor) GitHub
 - **`ACCESS_NETWORK_STATE`** — lets the app check whether a network is available
+- **`POST_NOTIFICATIONS`** — shows the alerts of "Alerts from your servers". On Android 13 and later NOVA asks for it only when you switch the alerts on; if you refuse, the alerts stay off
+- **`WAKE_LOCK`** and **`RECEIVE_BOOT_COMPLETED`** — added by Android's WorkManager library, which runs the optional server check. `WAKE_LOCK` keeps the phone awake for the few seconds a check takes; `RECEIVE_BOOT_COMPLETED` lets the schedule resume after a restart. Both are present in every install, but they do something only while the alerts are switched on
 
 NOVA does not declare `REQUEST_INSTALL_PACKAGES` in any flavor: it never installs apps itself. Updates of the GitHub APK are downloaded and opened by your browser and Android's installer. (Versions up to 0.1.46 did declare it, in the GitHub APK only.)
 

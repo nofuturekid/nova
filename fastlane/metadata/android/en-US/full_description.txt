@@ -18,6 +18,8 @@ Features:
 * VMs: state with start/stop/pause/resume
 * Multiple servers with local/remote address each
 * Notifications: Unraid notifications with Unread/Archived tabs
+* Optional alerts outside the app (off by default): background checks of
+  your own servers over https, for new alerts and warnings
 * Server plugins: read-only inventory + install-operation history
 * Network interfaces: read-only NIC inventory (IPv4/IPv6 + hardware)
 

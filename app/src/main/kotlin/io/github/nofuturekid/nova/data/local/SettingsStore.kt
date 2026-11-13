@@ -242,6 +242,9 @@ class SettingsStore @Inject constructor(
             runCatching { json.decodeFromString<Map<String, ServerAlertState>>(it) }.getOrDefault(emptyMap())
         } ?: emptyMap()
 
+    /** Every server's remembered alert state; the settings screen reads the last-check records from it. */
+    val alertStates: Flow<Map<String, ServerAlertState>> = ds.data.map { decodeAlertStates(it) }
+
     suspend fun alertStateFor(serverId: String): ServerAlertState =
         decodeAlertStates(ds.data.first())[serverId] ?: ServerAlertState()
 

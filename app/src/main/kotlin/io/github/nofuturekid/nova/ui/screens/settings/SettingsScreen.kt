@@ -251,6 +251,8 @@ fun SettingsScreen(
                 }
             }
 
+            AlertsSection()
+
             // Updates section is direct-flavor-only (ADR-0040). The
             // `store` flavor (F-Droid + Play) hides the section entirely;
             // the underlying ViewModel methods stay compiled but dormant.
@@ -485,7 +487,7 @@ private fun formatRelativeAge(epochMs: Long): String {
 }
 
 @Composable
-private fun SettingRow(label: String, content: @Composable () -> Unit) {
+internal fun SettingRow(label: String, content: @Composable () -> Unit) {
     val t = UnraidTheme.colors
     Row(verticalAlignment = Alignment.CenterVertically) {
         Text(label, color = t.muted, style = MaterialTheme.typography.labelLarge, modifier = Modifier.weight(1f))
@@ -494,7 +496,7 @@ private fun SettingRow(label: String, content: @Composable () -> Unit) {
 }
 
 @Composable
-private fun Toggle(value: Boolean, onChange: (Boolean) -> Unit) {
+internal fun Toggle(value: Boolean, onChange: (Boolean) -> Unit) {
     // M3 Switch (ADR-0030 F3): replaces the bespoke clickable Box thumb.
     // Brings the M3 look + free `Role.Switch`/toggleable a11y (TalkBack
     // announces "switch"); colours route through the P1-style helper.
@@ -506,7 +508,7 @@ private fun Toggle(value: Boolean, onChange: (Boolean) -> Unit) {
 }
 
 @Composable
-private fun <T> Segmented(
+internal fun <T> Segmented(
     value: T,
     options: List<T>,
     label: (T) -> String,

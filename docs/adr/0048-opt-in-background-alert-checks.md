@@ -1,6 +1,6 @@
 # ADR-0048: Opt-in background alert checks
 
-- **Status**: Accepted (2026-11-13). Amends ADR-0017. The decision logic and its stored state are built first; the background job, the settings screen and the notifications follow in later changes (#321).
+- **Status**: Accepted (2026-11-13). Amends ADR-0017. Implemented in full (#321): the decision logic and its stored state, the background job and the notifications, and the Settings section that switches it on. Two rules added after a security check are in the addendum below.
 - **Date**: 2026-11-13
 - **Tags**: data, security, performance, notifications
 
@@ -34,6 +34,22 @@ What is decided here, and what this first change implements:
 9. **One-shot seam.** What one check needs from one server (the unread alerts and warnings, the array state, and how the attempt went) is behind a small interface, so the worker, and later a widget, share one code path. This change adds the interface and a test fake; the implementation that talks to the server arrives with the worker.
 
 Planned for the following changes, recorded here so the picture is complete: a periodic WorkManager job (every 30 minutes by default, 15 minutes to 3 hours selectable) initialised on demand so that WorkManager is never touched while the switch is off; the two existing read-only queries over one connection; fail-closed certificate trust and no prompts in the background; no foreground service, no exact alarms, no battery-optimisation exemption request; `FOREGROUND_SERVICE` stripped from the merged manifest; `POST_NOTIFICATIONS` asked for only when the user turns the switch on.
+
+## Addendum (2026-11-13): two rules from the security check, and what the screen says
+
+A security check of the first implementation found two things that the rules above did not settle. Both are decided here and apply to everything that checks a server in the background.
+
+1. **Only verified https, no redirects.** The background check contacts a server only at an https address with verified trust: the system's certificates, or, for the local address, the certificate the user pinned. A plain-http address is never contacted in the background, because nobody is looking at the phone and the API key would travel in clear text to whatever answers at that name. A server that has no https address is not checked and gets its own outcome, `NotEncrypted`; it is decided before the key is read, a client is built or a request is sent. The background HTTP client follows no redirect and opens no cleartext connection, so an answer that redirects ends the check as rejected instead of moving the key to another host or down to http. The in-app screens are not affected.
+2. **The demo server is never checked.** The demo entry (ADR-0050) has no address and no key. It is skipped by the check and does not count as a server for scheduling: with only the demo entry left, no job exists.
+
+The Settings section states both rules, because a user must be able to tell that alerts do not cover a server: the explanation before the switch says that only https addresses with a trusted certificate are checked, a server with only an http address shows "not checked in the background because the connection is not encrypted. An https address is needed." under its name, and the demo server is named as never checked.
+
+What the screen adds, without changing what is notified:
+
+- **Last-check record.** After every check the runner stores, in that server's alert state, the time and the outcome (OK, could not be reached, not encrypted, certificate problem, API key missing, API key cannot be read, refused or rejected). It is read by the Settings screen only; the rules never look at it. It is cleared with the rest of the state when alerts are switched off.
+- **Permission flow.** Switching on opens the explanation; "Turn on" asks for `POST_NOTIFICATIONS` on Android 13 and later; only a granted answer schedules anything. A denial leaves the switch off and shows that Android blocks notifications for NOVA, with a button to Android's notification settings. On older Android the same line appears when notifications are blocked for the app. The line is re-evaluated when the screen comes back to the front.
+- **Nothing is read from WorkManager.** The screen takes everything from the settings store and changes choices only through `AlertScheduler`, which does not ask for WorkManager while alerts are off; opening Settings with alerts off leaves WorkManager uninitialised.
+- **Test notification.** A button runs the same probe once for the active server, foreground and on request, and posts its newest unread alert or warning as a test. It never writes the remembered state.
 
 ## Consequences
 

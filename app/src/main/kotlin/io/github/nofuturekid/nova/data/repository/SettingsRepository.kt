@@ -1,7 +1,10 @@
 package io.github.nofuturekid.nova.data.repository
 
 import kotlinx.coroutines.flow.Flow
+import io.github.nofuturekid.nova.data.alerts.AlertSettings
+import io.github.nofuturekid.nova.data.alerts.ServerAlertState
 import io.github.nofuturekid.nova.data.local.LayoutMode
+import io.github.nofuturekid.nova.data.local.ServerSnapshot
 import io.github.nofuturekid.nova.data.local.SettingsStore
 import io.github.nofuturekid.nova.data.model.AppSettings
 import io.github.nofuturekid.nova.ui.theme.Density
@@ -20,6 +23,11 @@ class SettingsRepository @Inject constructor(
     val includePrereleases: Flow<Boolean> = store.includePrereleases
     val lastUpdateCheck: Flow<Long?> = store.lastUpdateCheck
     val dismissedUpdateTag: Flow<String?> = store.dismissedUpdateTag
+
+    // Read side of the alerts section. Writing goes through AlertScheduler, which also schedules.
+    val alertSettings: Flow<AlertSettings> = store.alertSettings
+    val alertStates: Flow<Map<String, ServerAlertState>> = store.alertStates
+    val serverSnapshot: Flow<ServerSnapshot> = store.serverSnapshot
 
     suspend fun setAccent(hex: Long)         = store.setAccent(hex)
     suspend fun setThemeMode(mode: ThemeMode) = store.setThemeMode(mode)

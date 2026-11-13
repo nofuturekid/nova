@@ -67,8 +67,10 @@ class AlertCheckRunnerTest {
         settings.setServers(emptyList())
     }
 
+    private var clock = 1_000L
+
     private fun runner(probe: ServerProbe = this.probe, timeoutMs: Long = SERVER_CHECK_TIMEOUT_MS) =
-        AlertCheckRunner(settings, probe, states, notifier, { workCancelled++ }, timeoutMs)
+        AlertCheckRunner(settings, probe, states, notifier, { workCancelled++ }, timeoutMs, { clock })
 
     private fun check(probe: ServerProbe = this.probe, timeoutMs: Long = SERVER_CHECK_TIMEOUT_MS) =
         runBlocking { runner(probe, timeoutMs).run() }
@@ -231,8 +233,46 @@ class AlertCheckRunnerTest {
         val checks = check()
 
         assertEquals(0, posted().size)
-        assertEquals(before, runBlocking { states.get(tower.id) })
+        // The last-check record is new; what was reported and what holds is exactly as before.
+        assertEquals(before.copy(lastCheck = null), runBlocking { states.get(tower.id) }.copy(lastCheck = null))
         assertEquals(ProbeResult.Unreachable, checks.single().result)
+    }
+
+    @Test fun every_check_records_when_and_how_it_ended_for_the_settings_line() {
+        // WHY: the settings screen can only tell the user "Tower: could not be reached" if the check
+        // wrote it down, and an outage must not read as "OK" or as "never ran".
+        val outcomes = listOf(
+            ProbeResult.Unreachable to CheckOutcome.Unreachable,
+            ProbeResult.NotEncrypted to CheckOutcome.NotEncrypted,
+            ProbeResult.CertificateProblem to CheckOutcome.CertificateProblem,
+            ProbeResult.KeyMissing to CheckOutcome.KeyMissing,
+            ProbeResult.KeyUndecryptable to CheckOutcome.KeyUnreadable,
+            ProbeResult.Rejected("nope") to CheckOutcome.Rejected,
+            okResult(emptyList()) to CheckOutcome.Ok,
+        )
+        outcomes.forEach { (result, outcome) ->
+            clock += 60_000
+            probe.answer(tower.id, result)
+
+            check()
+
+            assertEquals(CheckRecord(clock, outcome), runBlocking { states.get(tower.id) }.lastCheck)
+        }
+    }
+
+    @Test fun recording_the_check_changes_nothing_that_is_posted_or_remembered() {
+        // WHY: the record is for the settings line only. A new id still posts exactly once, and the
+        // ids remembered after a check with a record are the same as the rules produce.
+        baseline("n1")
+        probe.answer(tower.id, okResult(listOf(unraidNotification("n1"), unraidNotification("n2"))))
+
+        check()
+        check()
+
+        assertEquals(1, posted().size)
+        val state = runBlocking { states.get(tower.id) }
+        assertEquals(listOf("n1", "n2"), state.seenNotificationIds)
+        assertTrue(state.notificationsBaselined)
     }
 
     @Test fun every_failure_kind_posts_nothing() {

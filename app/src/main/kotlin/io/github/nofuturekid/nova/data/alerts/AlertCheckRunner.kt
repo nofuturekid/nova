@@ -34,6 +34,7 @@ class AlertCheckRunner internal constructor(
     private val notifier: AlertNotifier,
     private val cancelWork: suspend () -> Unit,
     private val serverTimeoutMs: Long,
+    private val now: () -> Long = System::currentTimeMillis,
 ) {
     @Inject
     constructor(
@@ -70,8 +71,9 @@ class AlertCheckRunner internal constructor(
         val posted = notifier.post(ref, evaluation)
         // Not stored when Android refused the post, so the next check tries again. Not stored either
         // when the server was deleted while the check ran, which would leave state nobody removes.
-        if (posted && evaluation.nextState != previous && stillSaved(server.id)) {
-            states.put(server.id, evaluation.nextState)
+        // The last-check record is for the settings line only; it changes nothing that is posted.
+        if (posted && stillSaved(server.id)) {
+            states.put(server.id, evaluation.nextState.copy(lastCheck = CheckRecord(now(), result.toOutcome())))
         }
         return ServerCheck(ref, result, posted = evaluation.toPost.size, folded = evaluation.foldedCount)
     }
