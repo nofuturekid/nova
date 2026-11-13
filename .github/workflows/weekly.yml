@@ -55,11 +55,10 @@ jobs:
         with:
           log-accepted-android-sdk-licenses: false
 
-      # Aggregate tasks cover every variant: assemble (debug + release of
-      # direct and store), lint (all variants) and test (all unit-test
-      # variants). --continue reports every failing task, not only the first.
+      # assemble and test are aggregates over every variant. lint is not: since
+      # AGP 7 it checks only the default variant, so each variant is named.
       - name: Assemble, lint and unit-test all variants
-        run: ./gradlew :app:assemble :app:lint :app:test --continue --stacktrace
+        run: ./gradlew :app:assemble :app:lintDirectDebug :app:lintStoreDebug :app:lintDirectRelease :app:lintStoreRelease :app:test --continue --stacktrace
 
       - name: Probe - fail on purpose
         if: ${{ inputs.probe }}

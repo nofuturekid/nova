@@ -158,7 +158,7 @@ The "why" for everything in this section lives in ADRs under [`docs/adr/`](docs/
 
 ### Weekly full build
 
-`weekly.yml` runs on Mondays at 03:41 UTC and on manual dispatch. It builds `main` cold (no Gradle cache) and runs assemble, lint and unit tests for every variant of both flavors (`:app:assemble :app:lint :app:test`), which PR CI does not do (it reads the cache of `main` and skips the store flavor's lint and tests). No secrets are used. See [ADR-0036](docs/adr/0036-ci-governance-tests-cache-codeql.md) (amendment 2026-11-13).
+`weekly.yml` runs on Mondays at 03:41 UTC and on manual dispatch. It builds `main` cold (no Gradle cache) and runs assemble, lint and unit tests for every variant of both flavors (`:app:assemble`, the four `:app:lint<Variant>` tasks and `:app:test`; the aggregate `lint` checks only the default variant), which PR CI does not do (it reads the cache of `main` and skips the store flavor's lint and tests). No secrets are used. See [ADR-0036](docs/adr/0036-ci-governance-tests-cache-codeql.md) (amendment 2026-11-13).
 
 - **Where a failure shows up:** a scheduled failure opens one issue titled `Weekly full build failed on main` with label `ci`, listing the run link, the commit and the failed or cancelled jobs. While that issue is open, later failures are added as comments instead of new issues. Close it once fixed. A failed weekly CodeQL scan does the same under the title `Weekly CodeQL scan failed on main`. Both use `.github/scripts/failure-issue.sh`.
 - **Plain manual run:** `gh workflow run weekly.yml --ref main` (never opens an issue).
