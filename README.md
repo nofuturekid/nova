@@ -20,7 +20,7 @@ _Screenshots, install options and the privacy summary on the project website._
 [![CodeQL](https://img.shields.io/github/actions/workflow/status/hellwand/nova/codeql.yml?branch=main&label=CodeQL&style=flat-square&logo=github&logoColor=white)](https://github.com/hellwand/nova/security/code-scanning)
 [![License: GPL v3](https://img.shields.io/badge/license-GPLv3-blue.svg?style=flat-square)](./LICENSE)
 
-[![Dependabot](https://img.shields.io/badge/Dependabot-enabled-025E8C?style=flat-square&logo=dependabot&logoColor=white)](.github/dependabot.yml)
+[![Renovate](https://img.shields.io/badge/Renovate-enabled-025E8C?style=flat-square&logo=renovate&logoColor=white)](renovate.json)
 [![Forks](https://img.shields.io/github/forks/hellwand/nova?style=flat-square&logo=github)](https://github.com/hellwand/nova/network/members)
 [![Open issues](https://img.shields.io/github/issues/hellwand/nova?style=flat-square&logo=github)](https://github.com/hellwand/nova/issues)
 
