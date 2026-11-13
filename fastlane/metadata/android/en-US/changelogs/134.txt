@@ -1,0 +1,2 @@
+The Overview now has a "Needs attention" card. It lists what needs you, most urgent first: an array that is not started or is degraded, a parity check, disks with errors or high temperatures, and unread alerts and warnings. It is hidden when all is well.
+The Docker tab can search containers; the search has a clear button and keeps your text when you switch tabs or rotate. A new "Compose" view (Settings, Layout) groups containers by their Compose project.

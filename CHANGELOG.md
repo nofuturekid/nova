@@ -15,9 +15,9 @@ release version + date and opens a fresh `[Unreleased]`.
 
 ## [Unreleased]
 
-## [0.1.48-beta1] - 2026-11-13
+## [0.1.48] - 2026-11-13
 
-Beta: the first beta of the 0.1.48 cycle. Please look at two things. On the Docker tab, try the search field (type, then clear it with the new clear button) and the new "Compose" option for the Docker view under Settings, Layout, which groups containers by their Compose project. On the Overview of a healthy server, there should be no extra card: the new "Needs attention" card only appears when something needs you, so a quiet Overview is the expected result. Some groundwork in this beta has no visible change yet (detecting the server's API version and what the API key may do, and the rules for later opt-in alerts). As in 0.1.47, NOVA no longer installs updates itself: if you run 0.1.47, this beta reaches you as a browser download.
+The Overview now tells you when something on your server needs you, and the Docker tab can search and group containers by Compose project. A new "Needs attention" card at the top of the Overview lists what needs you, most urgent first; on a healthy server it is not there, so a quiet Overview is normal. The Docker tab has a search field with a clear button, and a new "Compose" option for the Docker view (Settings, Layout) groups containers by their Compose project. The 0.1.48 beta confirmed the search, the Compose option and the quiet Overview on a real phone. Some groundwork in this release has no visible change yet (detecting the server's API version and what the API key may do, and the rules for later opt-in alerts). As in 0.1.47, NOVA does not install updates itself: "Download" opens the release file in your browser.
 
 ### Added
 
