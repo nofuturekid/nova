@@ -224,3 +224,9 @@ only).
 ## Amendment 2026-11-10 — dependency-submission has a `cache-provider` input
 
 Decision 2 left `dependency-submission.yml` untouched on the premise that `gradle/actions/dependency-submission` has no `cache-provider` input. It does (default `enhanced`, the proprietary provider; the run log confirmed it was in use). The decision itself stands and now covers that workflow too: `cache-provider: basic` is set there, together with `validate-wrappers: true` (the action default is `false`, and this job runs the wrapper on every push to main with a write token). Only the premise was wrong.
+
+## Amendment 2026-11-13 — a weekly cold full build, and failure issues for scheduled runs
+
+`weekly.yml` runs every Monday (cron `41 3 * * 1`) and on manual dispatch: a cold build (`cache-disabled: true`) of every variant of both flavors with `./gradlew :app:assemble :app:lint :app:test --continue`. PR CI builds from the cache of `main` and skips store-flavor lint and unit tests (decisions above); the weekly run catches what that cannot: dependencies that no longer resolve from scratch, store-flavor regressions and runner image drift. It needs no secrets; the release variants are debug-signed by the fallback in `app/build.gradle.kts`.
+
+A failed scheduled run of `weekly.yml` or of the `codeql.yml` weekly scan opens one issue with label `ci`, or comments on the open one with the same exact title, through `.github/scripts/failure-issue.sh` (job `failure-issue`, permissions `issues: write`, `actions: read`, `contents: read`). The CodeQL `analyze` job is unchanged. See issue #295 (R11) and HANDOFF.md, "Weekly full build".

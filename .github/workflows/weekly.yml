@@ -1,0 +1,88 @@
+name: Weekly
+
+# Weekly cold full build of main (issue #295, R11; HANDOFF.md "Weekly full
+# build"). PR CI builds from the Gradle cache of main and skips store-flavor
+# lint and unit tests. This run builds from nothing and covers every variant
+# of both flavors, so it catches dependencies that no longer resolve from
+# scratch, store-flavor regressions and runner image drift. A failure opens
+# (or comments on) ONE issue titled 'Weekly full build failed on main'.
+#
+# No secrets: the release variants are debug-signed by the fallback in
+# app/build.gradle.kts (app/release.keystore does not exist here).
+#
+# workflow_dispatch with probe=true makes the build job fail on purpose so the
+# issue path can be proven on the platform. Dispatch without probe is a plain
+# manual full build and never opens an issue.
+on:
+  schedule:
+    - cron: '41 3 * * 1'   # Mondays 03:41 UTC
+  workflow_dispatch:
+    inputs:
+      probe:
+        description: 'Fail on purpose to prove the failure-issue path'
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+concurrency:
+  group: weekly-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  full:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@77dd5b2ce225ea11469928ac317850245a74ae78 # v6.2.0
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      # Cold build: no Gradle cache is read or written.
+      - name: Set up Gradle (cache disabled)
+        uses: gradle/actions/setup-gradle@8da46b539cd8fe6ab27ca75128919a18d757604c # v6.4.1
+        with:
+          cache-disabled: true
+          cache-provider: basic
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@be39fa834029ff78f1a44aa3bb0819b8fc2bd8fd # v4.0.4
+        with:
+          log-accepted-android-sdk-licenses: false
+
+      # Aggregate tasks cover every variant: assemble (debug + release of
+      # direct and store), lint (all variants) and test (all unit-test
+      # variants). --continue reports every failing task, not only the first.
+      - name: Assemble, lint and unit-test all variants
+        run: ./gradlew :app:assemble :app:lint :app:test --continue --stacktrace
+
+      - name: Probe - fail on purpose
+        if: ${{ inputs.probe }}
+        run: |
+          echo "::error::Probe run: failing on purpose to exercise the failure-issue job."
+          exit 1
+
+  failure-issue:
+    needs: [full]
+    if: >-
+      always() && needs.full.result != 'success' &&
+      github.ref == 'refs/heads/main' &&
+      (github.event_name == 'schedule' || inputs.probe)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      issues: write
+      actions: read
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Open or update the failure issue
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: .github/scripts/failure-issue.sh 'Weekly full build failed on main'

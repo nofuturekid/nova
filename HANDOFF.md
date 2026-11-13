@@ -153,8 +153,17 @@ The "why" for everything in this section lives in ADRs under [`docs/adr/`](docs/
 - **Concurrency**: `ci.yml` cancels superseded runs unconditionally; it no longer runs on push to `main` (ADR-0014), so there is no main run to protect (ADR-0011's carve-out is moot). See [ADR-0011](docs/adr/0011-cancel-in-progress-only-on-pr-branches.md), [ADR-0014](docs/adr/0014-single-ci-run-per-pr.md).
 - **Docs-only CI bypass**: `ci.yml` builds only when a build-affecting path changed (inverted allowlist: `app/`, `gradle/`, wrapper, root Gradle files, `ci.yml`); anything else finishes in ~10s and still reports `SUCCESS` on `build`. No version bump, no tag for these. See [ADR-0029](docs/adr/0029-invert-ci-build-skip-filter.md) (supersedes ADR-0009).
 - **Tag conventions**: stable `v0.X.Y`, pre-release `v0.X.Y-beta1` / `-rc1` with trailing digit required. See [ADR-0005](docs/adr/0005-prerelease-tag-convention.md).
-- **Other workflows**: `actionlint.yml`, `codeql.yml` (ADR-0022/0036), `dependency-submission.yml` (ADR-0025), `pages.yml` (ADR-0033). `ci.yml` also runs the unit-test job (ADR-0036) and builds both flavors in `build-release` (ADR-0040).
+- **Other workflows**: `actionlint.yml`, `codeql.yml` (ADR-0022/0036), `weekly.yml` (ADR-0036 amendment 2026-11-13), `dependency-submission.yml` (ADR-0025), `pages.yml` (ADR-0033). `ci.yml` also runs the unit-test job (ADR-0036) and builds both flavors in `build-release` (ADR-0040).
 - **Release-class policy**: pragmatic risk-categorised beta-first. UI/docs → direct stable. Schema / manifest / SettingsStore / dependency bumps / install-flow → beta-first. See [ADR-0006](docs/adr/0006-pragmatic-beta-first-release-policy.md).
+
+### Weekly full build
+
+`weekly.yml` runs on Mondays at 03:41 UTC and on manual dispatch. It builds `main` cold (no Gradle cache) and runs assemble, lint and unit tests for every variant of both flavors (`:app:assemble :app:lint :app:test`), which PR CI does not do (it reads the cache of `main` and skips the store flavor's lint and tests). No secrets are used. See [ADR-0036](docs/adr/0036-ci-governance-tests-cache-codeql.md) (amendment 2026-11-13).
+
+- **Where a failure shows up:** a scheduled failure opens one issue titled `Weekly full build failed on main` with label `ci`, listing the run link, the commit and the failed or cancelled jobs. While that issue is open, later failures are added as comments instead of new issues. Close it once fixed. A failed weekly CodeQL scan does the same under the title `Weekly CodeQL scan failed on main`. Both use `.github/scripts/failure-issue.sh`.
+- **Plain manual run:** `gh workflow run weekly.yml --ref main` (never opens an issue).
+- **Probe the issue path:** `gh workflow run weekly.yml --ref main -f probe=true` fails on purpose in the last step and must open or update the issue; run it twice to see the comment path, then close the issue.
+- **Scheduled runs:** `gh run list --workflow weekly.yml --event schedule`.
 
 ### Release procedure (operational)
 

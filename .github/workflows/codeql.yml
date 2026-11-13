@@ -199,3 +199,24 @@ jobs:
         uses: github/codeql-action/analyze@33d7b85da1a04171e211befe2c739303b9a4c066 # v4.39.3
         with:
           category: "/language:${{ matrix.language }}"
+
+  # Scheduled runs only: a failed weekly scan opens (or comments on) one issue
+  # (issue #295, R11). Pull-request and push runs never reach this job.
+  failure-issue:
+    needs: [analyze]
+    if: >-
+      always() && needs.analyze.result != 'success' &&
+      github.event_name == 'schedule' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      issues: write
+      actions: read
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Open or update the failure issue
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: .github/scripts/failure-issue.sh 'Weekly CodeQL scan failed on main'
