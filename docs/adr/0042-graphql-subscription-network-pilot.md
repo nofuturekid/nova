@@ -102,7 +102,6 @@ Concretely:
 - No new dependency; reuses the ADR-0041 self-signed pin path without modification.
 - Apollo WS auto-reconnects and re-sends `connectionPayload`; brief drops hold the
   last `Content` value (analogous to ADR-0017's transient tolerance).
-  *(Incorrect: it does not reconnect by itself. See the amendment of 2026-11-13.)*
 
 **Negative / trade-offs**
 
