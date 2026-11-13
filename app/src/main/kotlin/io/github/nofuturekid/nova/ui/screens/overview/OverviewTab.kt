@@ -120,49 +120,42 @@ private fun OverviewContent(
 ) {
     val t = UnraidTheme.colors
 
-    val cpuPercent = metrics?.cpuPercent ?: 0.0
-    val memUsedGb = metrics?.memUsedGb ?: 0.0
-    val memBuffGb = metrics?.memBuffGb ?: 0.0
+    // Values that are not known (offline, not loaded yet) stay null all the
+    // way to the card, which shows the placeholder; they are never turned
+    // into 0 here (#303).
+    val cpuPercent = metrics?.cpuPercent
     // Prefer the OS-reported total (metrics) — falls back to the sum of
     // hardware DIMM slots from info when metrics hasn't loaded yet or
     // the server returns zero (some virtualised setups do).
     val memTotalGb = (metrics?.memTotalGb?.takeIf { it > 0.0 })
         ?: info?.memTotalGb
-        ?: 0.0
+    val memory = memoryFigures(metrics?.memUsedGb, metrics?.memBuffGb, memTotalGb)
 
     // Rolling sparkline buffers — extend from the polled value each tick.
-    val cpuSeries = remember { mutableStateOf(List(40) { cpuPercent.toFloat() }) }
-    val ramSeries = remember {
-        val pct = if (memTotalGb > 0) ((memUsedGb / memTotalGb) * 100).toFloat() else 0f
-        mutableStateOf(List(40) { pct })
-    }
-    val netSeries = remember { mutableStateOf(List(40) { 0f }) }
-    val tempCpuSeries = remember { mutableStateOf(List(40) { 0f }) }
-    val tempSysSeries = remember { mutableStateOf(List(40) { 0f }) }
+    // A missing sample empties the buffer instead of adding a fake 0.
+    val cpuSeries = remember { mutableStateOf(emptyList<Float>()) }
+    val ramSeries = remember { mutableStateOf(emptyList<Float>()) }
+    val netSeries = remember { mutableStateOf(emptyList<Float>()) }
+    val tempCpuSeries = remember { mutableStateOf(emptyList<Float>()) }
+    val tempSysSeries = remember { mutableStateOf(emptyList<Float>()) }
 
     // Key on metrics only: a 60 s info poll can change memTotalGb without a
     // new metrics sample — keying on it too injected a spurious sparkline tick.
     LaunchedEffect(metrics) {
-        cpuSeries.value = cpuSeries.value.drop(1) + cpuPercent.toFloat()
-        val pct = if (memTotalGb > 0) ((memUsedGb / memTotalGb) * 100).toFloat() else 0f
-        ramSeries.value = ramSeries.value.drop(1) + pct
+        cpuSeries.value = rollSeries(cpuSeries.value, cpuPercent?.toFloat())
+        ramSeries.value = rollSeries(ramSeries.value, memory.percent)
     }
     LaunchedEffect(networkThroughput) {
-        val total = ((networkThroughput?.rxBytesPerSec ?: 0.0) +
-                     (networkThroughput?.txBytesPerSec ?: 0.0)).toFloat()
-        netSeries.value = netSeries.value.drop(1) + total
+        val total = networkThroughput?.let { (it.rxBytesPerSec + it.txBytesPerSec).toFloat() }
+        netSeries.value = rollSeries(netSeries.value, total)
     }
     LaunchedEffect(temperature) {
         val live = temperature?.takeIf { it.available }
-        val cpu = live?.cpuC?.toFloat() ?: 0f
-        val sys = live?.systemC?.toFloat() ?: 0f
-        tempCpuSeries.value = tempCpuSeries.value.drop(1) + cpu
-        tempSysSeries.value = tempSysSeries.value.drop(1) + sys
+        tempCpuSeries.value = rollSeries(tempCpuSeries.value, live?.cpuC?.toFloat())
+        tempSysSeries.value = rollSeries(tempSysSeries.value, live?.systemC?.toFloat())
     }
 
-    val arrTotalTb = array?.totalTb ?: 0.0
-    val arrUsedTb = array?.usedTb ?: 0.0
-    val arrayPct = if (arrTotalTb > 0) (arrUsedTb / arrTotalTb).coerceIn(0.0, 1.0) else 0.0
+    val arrayFig = arrayFigures(array)
     val arrState = array?.state ?: ArrayState.Offline
     val running = containers?.count { it.status == ContainerStatus.Running } ?: 0
     val stopped = containers?.count { it.status == ContainerStatus.Exited } ?: 0
@@ -205,28 +198,31 @@ private fun OverviewContent(
                     Spacer(Modifier.height(10.dp))
                     Row(verticalAlignment = Alignment.Bottom, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         Text(
-                            text = "%.1f".format(arrUsedTb),
+                            text = arrayFig.usedText,
                             color = t.text,
                             style = MaterialTheme.typography.displayLarge,
                         )
                         Text(
-                            text = "/ ${"%.0f".format(arrTotalTb)} TB used",
+                            text = arrayFig.totalText,
                             color = t.muted,
                             style = MaterialTheme.typography.titleSmall,
                         )
                     }
                     Spacer(Modifier.height(12.dp))
+                    // No segments when the total is unknown: the bar shows only its track.
                     StackBar(
-                        segments = listOf(
-                            StackSegment(arrUsedTb.toFloat(), t.accent),
-                            StackSegment((arrTotalTb - arrUsedTb).coerceAtLeast(0.0).toFloat(), t.muted.copy(alpha = UnraidAlpha.track)),
-                        ),
+                        segments = arrayFig.barWeights?.let { (used, free) ->
+                            listOf(
+                                StackSegment(used, t.accent),
+                                StackSegment(free, t.muted.copy(alpha = UnraidAlpha.track)),
+                            )
+                        }.orEmpty(),
                     )
                     Spacer(Modifier.height(8.dp))
                     Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                        Text("${(arrayPct * 100).toInt()}% used", color = t.muted, style = MaterialTheme.typography.bodySmall)
+                        Text(arrayFig.percentText, color = t.muted, style = MaterialTheme.typography.bodySmall)
                         Text(
-                            "${"%.1f".format(arrTotalTb - arrUsedTb)} TB free",
+                            arrayFig.freeText,
                             color = t.muted,
                             style = MaterialTheme.typography.bodySmall,
                         )
@@ -262,21 +258,24 @@ private fun OverviewContent(
                 iconColor = t.muted,
                 icon = { UC.Cpu(18.dp, t.muted) },
                 label = "CPU",
-                value = "%.1f%%".format(cpuPercent),
-                sub = "${info?.cpuCores ?: 0} cores · ${info?.cpuBrand?.split(" ")?.takeLast(2)?.joinToString(" ").orEmpty()}",
+                value = cpuValue(cpuPercent),
+                sub = cpuSub(
+                    cores = info?.cpuCores,
+                    brandTail = info?.cpuBrand?.split(" ")?.takeLast(2)?.joinToString(" "),
+                    loadKnown = cpuPercent != null,
+                ),
                 series = cpuSeries.value,
-                seriesColor = if (cpuPercent > 80) t.warn else t.accent,
+                seriesColor = if ((cpuPercent ?: 0.0) > 80) t.warn else t.accent,
                 max = 100f,
             )
         }
         item {
-            val pct = if (memTotalGb > 0) (memUsedGb / memTotalGb * 100).toInt() else 0
             StatCard(
                 iconColor = t.muted,
                 icon = { UC.Ram(18.dp, t.muted) },
                 label = "Memory",
-                value = "%.1f GB".format(memUsedGb),
-                sub = "$pct% of ${"%.0f".format(memTotalGb)} GB · ${"%.1f".format(memBuffGb)} GB cached",
+                value = memory.value,
+                sub = memory.sub,
                 series = ramSeries.value,
                 seriesColor = t.accent,
                 max = 100f,

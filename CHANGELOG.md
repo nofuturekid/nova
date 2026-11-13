@@ -16,6 +16,14 @@ release version + date and opens a fresh `[Unreleased]`.
 ## [Unreleased]
 
 ### Fixed
+- **The Overview shows a dash instead of zeros when it has no data** — after the
+  connection to your server dropped, the Array card read "0,0 / 0 TB used" with a
+  half-filled bar, and CPU and Memory read "0,0%" and "0,0 GB". Values the app does
+  not know now show a dash with an empty bar, like the Network and Temperature
+  cards, and the graphs no longer draw zeros for them. A value your server really
+  reports as zero is still shown as zero. For a few seconds after the connection
+  drops the last values stay on screen on purpose: the app waits for a few failed
+  polls before it calls the server offline (#303).
 - **A new self-signed server asks you to trust its certificate only once** —
   when you added a server with "Trust self-signed certificate", confirmed the
   certificate during Test and then saved, the same "Trust this certificate?"
