@@ -51,4 +51,6 @@ Return the structured result the coordinator asks for. Always include
 `status` (done, partial or blocked), the PR number if one exists, the
 branch, the worktree, `files_changed`, `checks_run`, `skipped` and
 `problems`. A skipped step or an unverified statement is listed, never
-omitted (R-EVIDENCE).
+omitted (R-EVIDENCE). A defect you notice in code that is already released goes first
+in `problems`, prefixed `RELEASED:`, with the file and line and who it affects
+(R-INCIDENT); do not fix it on the side.
